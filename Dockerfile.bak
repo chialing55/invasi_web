@@ -1,0 +1,35 @@
+# 使用官方 PHP 8.2 FPM 映像為基礎
+FROM php:8.2-fpm
+
+# 安裝系統套件（Laravel 常用）
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    unzip \
+    zip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    ca-certificates \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo_mysql zip gd
+
+# ✅ （可選）安裝 Node.js（若你未來仍想手動跑 npm）
+RUN apt-get update && apt-get install -y nodejs npm
+RUN node -v && npm -v
+
+# 複製 Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# 設定工作目錄
+WORKDIR /app
+
+# 複製專案檔案
+COPY . .
+
+# 安裝 Laravel 套件
+RUN composer install --no-interaction --prefer-dist
+
+# 預設啟動 Laravel FPM
+CMD ["sh", "-c", "sleep 5 && sh init.sh && php-fpm"]

@@ -1,0 +1,70 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: invasiflora_nginx
+    ports:
+      - "8082:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - .:/app
+      - ./public:/var/www/html # 或根據你 vhost 設定調整
+      - ../invasi_files:/app/public/invasi_files:ro  # 👈 加這行！
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: invasiflora_app
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules # <-- 重點：這行讓 node_modules 用 container 內自己的，不同步 Windows
+      - ../invasi_files:/app/public/invasi_files
+    depends_on:
+      - db
+    ports:
+      - "5173:5173" # ✅ 這邊開放 Vite 的開發伺服器 port
+    expose:
+      - "9000"
+    environment:
+      - MODE=development # ✅ 可切換成 production 進行部署
+    # command: ["npm", "run", "dev"]
+
+  db:
+    image: mysql:8.0
+    container_name: invasiflora_db
+    restart: always
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2.1
+    container_name: invasiflora_pma
+    ports:
+      - "8083:80"
+    depends_on:
+      - db
+    environment:
+      - PMA_HOST=db
+      - PMA_ABSOLUTE_URI=http://localhost:8083/
+      - PHP_UPLOAD_MAX_FILESIZE=64M
+      - COOKIE_SECURE=false
+    volumes:
+      - ./pma-sessions:/sessions
+    user: "33:33"
+
+volumes:
+  db_data:
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply font-sans text-forest bg-white text-base leading-normal;
+    }
+
+    input,
+    textarea,
+    select {
+        @apply text-forest bg-white border border-forest-mist placeholder-forest-moss focus:ring-forest-fern focus:border-forest-fern rounded-md px-3 py-2;
+    }
+
+    p {
+        @apply text-base leading-relaxed mb-2;
+    }
+
+    h1 {
+        @apply text-2xl font-bold text-forest mt-4 mb-4;
+    }
+
+    h2 {
+        @apply text-xl font-semibold mt-4 mb-4 text-forest-canopy;
+    }
+
+    h3 {
+        @apply text-lg font-semibold mb-2 text-forest-leaf;
+    }
+    
+    h4 {
+        @apply text-base font-semibold mb-2 text-forest-soil;
+    }
+    a {
+        @apply no-underline;
+    }
+
+    a:hover {
+        @apply text-forest-canopy underline;
+    }
+    /* Chrome, Safari, Edge, Opera */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+
+    }
+
+    /* Firefox */
+    input[type=number] {
+      -moz-appearance: textfield;
+      border-color: orange !important;
+    }
+
+    /* Tailwind 原始樣式之外，自訂 placeholder 樣式 */
+    input::placeholder {
+    @apply italic text-lime-700 opacity-50;
+    }
+
+}
+
+@layer components {
+    .default-text {
+        @apply font-sans text-base leading-relaxed text-forest-leaf;
+    }
+
+    /* 各類按紐 */
+    .btn-primary {
+        @apply bg-forest text-white font-semibold px-4 py-2 rounded hover:bg-forest-bark;
+    }
+
+    .btn-secondary {
+        @apply bg-white text-forest-canopy font-semibold px-4 py-1 rounded hover:bg-gray-200;
+    }
+
+    .btn-add {
+        @apply bg-forest-soil text-white font-semibold px-4 py-1 rounded hover:bg-forest-bark;
+    }
+
+    .btn-submit {
+        @apply bg-forest-canopy text-white font-semibold px-4 py-1 rounded hover:bg-forest-leaf;
+    }
+
+    .btn-outline {
+        @apply border border-forest-mist text-forest text-sm px-4 py-2 rounded hover:bg-forest-mist;
+    }
+
+    .btn-delete {
+        @apply text-sm px-1.5 py-0.5 rounded;
+    }
+
+    /* 導覽按鈕（btn-navigation + 子選單） */
+    /* 共用樣式 */
+
+    .btn-navigation {
+        @apply px-3 py-2 rounded font-medium text-white hover:bg-white hover:text-forest hover:font-bold;
+    }
+
+    .btn-navigation a {
+        @apply hover:text-forest no-underline;
+    }
+
+    .btn-navigation a:hover {
+        @apply no-underline;
+    }
+
+    .btn-navigation-div {
+        @apply bg-forest-moss rounded-t-md p-2;
+    }
+
+    .btn-navigation-2 {
+        @apply absolute bg-white text-forest shadow-lg rounded z-10 min-w-[10rem];
+    }
+
+    .btn-navigation-2 a {
+        @apply block px-4 py-2 rounded hover:bg-forest-canopy hover:text-white hover:font-bold no-underline;
+    }
+
+    .hanb a {
+        @apply block px-2 py-[2px] rounded hover:bg-white hover:text-forest hover:font-bold no-underline;
+    }
+
+    /* 卡片 */
+    .green-card {
+        @apply bg-forest-mist border border-forest-soil rounded-lg p-6 shadow-sm w-fit;
+    }
+
+    .white-card {
+        @apply bg-white border border-gray-200 rounded-lg p-6 shadow-sm w-fit;
+    }
+
+    .gray-card {
+        @apply bg-gray-50 border border-gray-200 rounded-lg p-6 shadow-sm w-fit;
+    }
+
+    /* 警告提示框 */
+    .alert-info {
+        @apply bg-forest-mist text-forest border border-forest-soil p-4 rounded;
+    }
+
+    .alert-warning {
+        @apply bg-yellow-100 text-yellow-800 border border-yellow-300 p-4 rounded;
+    }
+
+    .alert-error {
+        @apply bg-red-100 text-red-800 border border-red-300 p-4 rounded;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* hr */
+    .hr-bark {
+        @apply border-t border-forest-bark my-8;
+    }
+
+    .hr-forest {
+        @apply border-t border-forest my-8;
+    }
+
+    .hr-mist {
+        @apply border-t border-forest-mist my-8;
+    }
+
+    .hr-dashed {
+        @apply border-t-2 border-dashed border-forest-soil my-6;
+    }
+
+    /* 表格 */
+    .non-editable-row {
+        @apply bg-gray-100 text-gray-800 cursor-not-allowed;
+    }
+
+    .non-editable-row td {
+        @apply pointer-events-none;
+    }
+
+}

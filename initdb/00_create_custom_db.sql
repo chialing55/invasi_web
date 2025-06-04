@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS invasiflora CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'invasive'@'%' IDENTIFIED BY 'fuhhe/*7hS';
+GRANT ALL PRIVILEGES ON invasiflora.* TO 'invasive'@'%';
+FLUSH PRIVILEGES;

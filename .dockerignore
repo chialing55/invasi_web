@@ -1,0 +1,35 @@
+# 忽略 node_modules 和 vendor
+node_modules
+vendor
+
+# 忽略編譯後的前端資源
+public/storage
+storage/*.key
+
+# 忽略環境檔案
+.env
+.env.local
+.env.production
+
+# 忽略 git 相關
+.git
+.gitignore
+
+# 忽略 Docker 自己的東西
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 忽略 IDE 設定檔
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# 忽略 MacOS 系統檔
+.DS_Store
+
+# 忽略 invasi_files（這是映射，不要 build 進去）
+public/invasi_files
+
+npm-debug.log

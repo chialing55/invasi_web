@@ -1,0 +1,610 @@
+@charset "utf-8";
+@import url(https://fonts.googleapis.com/earlyaccess/cwtexfangsong.css);
+div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font,  ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, fieldset, form, label, legend, caption, tbody, tfoot, thead, img {
+  margin: 0;
+  padding: 0;
+  font-size: 100%;
+  vertical-align: baseline;
+  border: 0;
+  outline: 0;
+  font-family: "微軟正黑體", "Microsoft JhengHei", "新細明體", "PMingLiU", AppleGothic, Dotum, Lucida Grande, Verdana Sans-serif;
+}
+
+textarea {
+  font-size: 100%;
+  vertical-align: bottom;
+}
+
+/********連結相關**********/
+a:link {
+  text-decoration: underline;
+  color: #333333;
+}
+a:visited {
+  text-decoration: none;
+  color: #333333;
+}
+a:hover {
+  text-decoration: underline;
+  color: #F7931E;
+}
+a:active {
+  text-decoration: none;
+  color: #F15A24;
+}
+
+.a_ {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#header a {
+  text-decoration: none;
+  color: inherit;
+}
+
+
+
+
+/*******一致性的格式*******/
+
+body, html {
+  margin: 0px;
+  padding: 0px;
+  width: 100%;
+  min-width: 1140px;
+  color: #222;
+  box-sizing: border-box;
+  height: 100%;
+  background-color: #fafafa;
+/*  max-width: 1000px;*/
+
+}
+
+.main {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 900px;
+}
+
+
+p {
+  line-height: 1.8em;
+  font-style: normal;
+/*  font-weight: normal;*/
+  margin:5px 0;
+}
+
+h1, h4, h5{
+  margin: 20px 20px 10px  0;
+  font-size: 1.5em;
+}
+
+h2 {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+h3 {
+  font-size:2em;
+  text-decoration: underline;
+  font-family: serif;
+  text-transform: capitalize;
+  font-variant: small-caps;
+  margin: 20px 20px 20px  0;
+}
+
+h4{
+  margin: 0px 20px 10px  0;
+}
+
+h5{
+  margin: 10px 0px;
+}
+
+h6 {
+  margin-bottom: 10px;
+}
+
+
+input, select {
+  height: 20px;
+  font-size: 100%;
+  background-color: #FAFBFC;
+  border: 1px solid rgba(27, 31, 35, 0.40);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+select {
+  height: 25px
+}
+
+.fs100{
+	font-size: 100%;
+}
+
+.fs08{
+	font-size: 0.8em;
+/*	word-wrap: break-word;*/
+}
+
+.w20 {
+	width: 20px;
+}
+
+.w30 {
+	width: 30px;
+}
+
+.w40 {
+	width: 40px;
+}
+
+.w50{
+	width: 50px;
+}
+
+.w60{
+	width: 60px;
+}
+
+.w80{
+	width: 80px;
+}
+
+.w100{
+	width:100px;
+
+}
+
+.w200 {
+	width: 200px;
+}
+
+.text-red-500 {
+	color: red;
+	font-weight: 500;
+}
+
+
+.fontblue{
+  color: #3131f6; 
+}
+
+.bgcolorRMap{
+  background-color: #eed880 !important; /* 添加 !important 提高优先级 */
+}
+
+.bgcolorRecrutMap{
+  background-color: #f0808099 !important; /* 添加 !important 提高优先级 */
+}
+
+.fontred{
+  color: red;
+}
+
+.fontbrown{
+  color: brown;
+}
+
+.fontw800{
+  font-weight: 800;
+}
+
+
+/* colors */
+.bg-g1{
+  background-color: #31572c;
+
+}
+
+.bg-g2{
+  background-color: #4f772d;
+/*  font: white;*/
+}
+
+.bg-g3{
+  background-color: #90a955;
+}
+
+.fc-w{
+    color: white;
+}
+
+
+/*格式*/
+
+.padding-10{
+  padding: 10px;
+}
+
+.line {
+  text-decoration: underline;
+}
+
+
+.iflex{
+  display: inline-flex;
+  flex-wrap: wrap;
+/*  flex-grow: 1;*/
+
+}
+
+
+.flex {
+  display: flex;
+  justify-content: center;
+}
+
+/*handsontable*/
+
+
+.handsontable {
+/*    font-weight:bold;*/
+    font-size:1em;
+}
+
+.handsontable td {
+    padding: 5px;
+}
+
+.handsontable .htDimmed {
+    color: #999;
+    font-style: italic;
+    background-color: #eee;
+}
+
+.handsontable thead th.ht__active_highlight {
+    background-color: #91a21c;
+    color: #000;
+}
+
+.handsontable td.area:before {
+    background: #c4d203;
+}
+
+.handsontable tbody th.ht__highlight, .handsontable thead th.ht__highlight {
+    background-color: #bbc28b;
+}
+
+.handsontable .rowHeader, .handsontable .colHeader {
+	font-size: 0.8em;
+}
+
+.handsontable th {
+	background-color: #dbe279;
+}
+
+.handsontable .currentRow {
+	background-color: #faf0d4;
+	color: black;
+}
+
+.handsontable.listbox tr:hover td, .handsontable.listbox tr td.current{
+	background-color: #ccc;
+}
+
+
+
+
+/* CSS */
+button {
+  appearance: none;
+  background-color: #FAFBFC;
+  border: 1px solid rgba(27, 31, 35, 0.15);
+  border-radius: 6px;
+  box-shadow: rgba(27, 31, 35, 0.04) 0 1px 0, rgba(255, 255, 255, 0.25) 0 1px 0 inset;
+  box-sizing: border-box;
+  color: #24292E;
+  cursor: pointer;
+  display: inline-block;
+  font-family: -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 15px;
+  list-style: none;
+  padding: 5px 10px;
+  position: relative;
+  transition: background-color 0.2s cubic-bezier(0.3, 0, 0.5, 1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: middle;
+  white-space: nowrap;
+  word-wrap: break-word;
+}
+
+button:hover {
+  background-color: #F3F4F6;
+  text-decoration: none;
+  transition-duration: 0.1s;
+}
+
+button:disabled {
+  background-color: #FAFBFC;
+  border-color: rgba(27, 31, 35, 0.15);
+  color: #959DA5;
+  cursor: default;
+}
+
+button:active {
+  background-color: #EDEFF2;
+  box-shadow: rgba(225, 228, 232, 0.2) 0 1px 0 inset;
+  transition: none 0s;
+}
+
+button:focus {
+  outline: 1px transparent;
+}
+
+/*button:before {
+  display: none;
+}*/
+
+button:-webkit-details-marker {
+  display: none;
+}
+
+
+.datasavebutton {
+  width: 800px;
+  background-color: beige;
+}
+
+.datasavebutton:hover {
+  background-color: #d8d89d;
+  text-decoration: none;
+  transition-duration: 0.1s;
+}
+
+.recruitbutton{
+  background-color: darkgoldenrod;
+  color: white;
+  letter-spacing: 1px;
+}
+
+.recruitbutton:hover {
+  background-color: #8f690c;
+  text-decoration: none;
+  transition-duration: 0.1s;
+}
+
+.rollbutton{
+  background-color: lightsteelblue;
+/*  color: white;*/
+  letter-spacing: 1px;
+}
+
+.rollbutton:hover {
+  background-color: #dadcdf;
+  text-decoration: none;
+  transition-duration: 0.1s;
+}
+
+.finishbutton{
+  background-color: lightcoral;
+/*  color: white;*/
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.finishbutton:hover {
+  background-color: #f1bfbf;
+  text-decoration: none;
+  transition-duration: 0.1s;
+}
+
+.tablesorter {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tablesorter th,
+.tablesorter td {
+  padding: 5px 10px;
+  border: 1px solid #ddd;
+}
+.tablesorter-header-inner {
+  font-weight: 700;
+
+}
+
+.tablesorter thead th{
+  background-color: #cdcdcd;
+  text-align: left;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+}
+
+.tablesorter tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.tablesorter tbody tr:hover {
+  background-color: #ddd;
+}
+
+/* 排序指示符 */
+.tablesorter-headerAsc::after {
+  content: " ▲";
+  font-size: 12px;
+  float: right;
+  margin-left: 5px;
+  margin-top:-25px; 
+}
+
+.tablesorter-headerDesc::after {
+  content: " ▼";
+  font-size: 12px;
+  float: right;
+  margin-left: 5px;
+  margin-top:-25px;
+}
+
+
+
+/*結構*/
+/*.pages{
+  display: flex;
+  margin-bottom: 10px;
+}*/
+
+.prev, .next, .showall {
+  margin-left: 20px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.pages{
+  display: none;
+  margin-bottom: 10px;
+}
+
+.recruittableout, .slrolltableout {
+  display: none;
+}
+
+.savenote {
+  font-weight:500; 
+  margin-left: 30px; 
+  font-size:90%; 
+  color:red;
+}
+
+.photocombo{
+  margin: 20px 10px;
+}
+
+.photo {
+  margin-bottom: 10px;
+}
+
+.prevshow, .nextshow{
+  padding-left:25px;
+}
+
+.prevhidden, .nexthidden{
+  padding-left:25px;
+  visibility: hidden;
+}
+
+.simplenote{
+  border: 1px dotted #F7C600;
+  background-color: #FFFFB9;
+  line-height: 1.5em;
+  max-width: 800px;
+}
+
+.table_td_border{
+  border: 1px solid black; 
+  padding: 3px 5px
+}
+
+.entry1fin {
+  background-color: gold;
+}
+
+.entry2fin {
+  background-color: cornflowerblue;
+}
+
+.entryallfin {
+  background-color: olivedrab;
+
+}
+
+.comparefin {
+  background-color: mediumpurple;
+
+}
+
+.loadingfin {
+  background-color: lightsalmon;
+
+}
+
+.importfin {
+  background-color: steelblue;
+
+}
+
+.entryfinshow {
+  width: 25px;
+  height: 25px;
+  margin: 0 10px 0 10px;
+}
+
+
+/*map*/
+.treeMaptable{
+    height: 500px;
+    overflow: auto;
+/*    margin: 20px 0px;*/
+}
+
+#tab > ul {
+    /* overflow: hidden; */
+    margin: 0;
+    padding: 10px 0px 0 0px;
+}
+
+#tab > ul > li {
+    list-style-type: none;
+}
+
+/* 頁籤上的文字 */
+#tab > ul > li { 
+    text-decoration: none;
+    color: #333;
+    float: left;
+    padding: 5px 10px;
+/*    margin-left: 5px;*/
+    cursor:   pointer;
+    border-radius: 5px 5px 0 0;
+}
+
+#tab .show{
+  background-color: #cdcdcd;
+  font-weight: 800;
+}
+
+#tab > ul > li:hover{
+  background-color: lightyellow;
+}
+
+
+
+/*loading*/
+.loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none; /* 初始隱藏 */
+    justify-content: center;
+    align-items: center;
+    z-index: 10; /* 設置 z-index */
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.visible {
+    display: flex; /* 在 loading 時顯示 */
+}

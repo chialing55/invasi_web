@@ -30,23 +30,79 @@
         </div>
 
         @if ($plotList)
-        <div class="md:flex md:flex-row md:items-center gap-2 mb-4">
-            <label class="block font-semibold">選擇樣區：</label>
-            <select wire:model="thisPlot" class="border rounded p-2 w-40" wire:change="loadPlotInfo($event.target.value)">
-                <option value="">-- 請選擇 --</option>
-                @foreach ($plotList as $plot)
-                    <option value="{{ $plot }}">{{ $plot }}</option>
-                @endforeach
-            </select>
+        <div class="md:flex md:flex-row gap-4 mb-8">
+            <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+                <label class="block font-semibold">選擇樣區：</label>
+                <select id="plot" wire:model="thisPlot" class="border rounded p-2 w-40" wire:change="loadPlotInfo($event.target.value)">
+                    <option value="">-- 請選擇 --</option>
+                    @foreach ($plotList as $plot)
+                        <option value="{{ $plot }}">{{ $plot }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @if(!empty($subPlotSummary))
+            <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+                <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
+                <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40" wire:change="reloadPlotInfo($event.target.value)">
+                    <option value="">-- 請選擇 --</option>
+                    @foreach ($subPlotHabList as $code => $label)
+                        <option value="{{ $code }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         </div>
-        @endif        
+        
+        @endif
 
-    <div class='green-card'>
-        暫定功能:
-        <ul class="list-disc ml-6 space-y-2">
-            <li>選擇/輸入樣區編號(或團隊名稱)後開始檢視</li>
-            <li>各樣區完成之小樣區數量、生育地類型是否足夠</li>
-            <li>小樣區列表各項完成指標: 環境輸入、植物調查輸入、資料上傳....</li>
-        </ul>
+
+
+
+@if($thisPlot)
+    @if (!empty($filteredSubPlotSummary))
+
+        <div class="gray-card w-fit">
+            <h2>調查結果</h2>
+
+            <table class="text-sm border border-gray-300 w-full">
+                <thead class="bg-yellow-500/30">
+                    <tr>
+                        <th class="border-b px-4 py-2">小樣區編號</th>
+                        <th class="border-b px-4 py-2">生育地</th>
+                        <th class="border-b px-4 py-2">流水號</th>                       
+                        <th class="border-b px-4 py-2">植物筆數</th>
+                        <th class="border-b px-4 py-2">未鑑定</th>
+                        <th class="border-b px-4 py-2">覆蓋度錯誤</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($filteredSubPlotSummary as $row)
+                        <tr class="hover:bg-amber-800/10">
+                            <td class="border-b px-4 py-2">{{ $row['plot_full_id'] }}</td>
+                            <td class="border-b px-4 py-2">{{ $row['habitat'] }}</td>
+                            <td class="border-b px-4 py-2 text-center">{{ $row['subplot_id'] }}</td>                  
+                            <td class="border-b px-4 py-2 text-center">{{ $row['plant_count'] }}</td>
+                            <td class="border-b px-4 py-2 text-center">{{ $row['unidentified_count'] }}</td>
+                            <td class="border-b px-4 py-2 text-center">{{ $row['cov_error_count'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
     </div>
+    @else
+        <div>
+            <p>該樣區尚無調查資料</p>
+        </div>
+    @endif
+    @endif
+    
+
 </div>
+<script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        //監聽的名稱, select的id
+        listenAndResetSelect('thisPlotUpdated', 'plot');
+    });
+</script>

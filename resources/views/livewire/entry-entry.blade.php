@@ -184,10 +184,10 @@
         }
 
         // 1. 銷毀舊表格
-        if (window.chnameIndexTable instanceof Tabulator) {
+        if (window.plantTable instanceof Tabulator) {
             console.log("🧹 銷毀舊 Tabulator");
-            window.chnameIndexTable.destroy();
-            window.chnameIndexTable = null;
+            window.plantTable.destroy();
+            window.plantTable = null;
         }
 
         // 2. 清除 DOM 殘留
@@ -286,16 +286,6 @@
     function tickToggleFormatter(cell) {
         return cell.getValue() == 1 ? "✔️" : "";
     }
-
-    // ✅ 點擊 cell 時同步整張表格回 Livewire
-    // function syncSubPlotToLivewire(cell) {
-    //     const table = cell.getTable();
-    //     const data = table.getData();
-    //     const componentId = cell.getElement().closest('[wire\\:id]')?.getAttribute('wire:id');
-    //     if (componentId && window.Livewire) {
-    //         Livewire.find(componentId).set('subPlotPlantForm', data);
-    //     }
-    // }
 
 
     document.addEventListener('click', function (e) {

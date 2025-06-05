@@ -130,7 +130,7 @@ public function mount()
     {
         $this->thisSubPlot = ''; // 清空樣區ID
         
-        $columns = Schema::connection('invasiflora')->getColumnListing('im_spvptdata_2025');
+        $columns = Schema::connection('invasiflora')->getColumnListing('im_splotdata_2025');
 
         $columns = array_diff($columns, ['created_by','updated_by','created_at', 'updated_at','team', 'date','plot_full_id', 'upload', 'file_uploadad_by', 'file_uploadad_at']);
 
@@ -141,6 +141,7 @@ public function mount()
             $this->subPlotEnvForm[$col] = '';
         }
         $this->subPlotEnvForm['plot'] = $this->thisPlot;
+        // dd($this->subPlotEnvForm);
         $this->showPlotEntryTable = true;
         $this->showPlantEntryTable = false;
         $this->dispatch('reset_plant_table');

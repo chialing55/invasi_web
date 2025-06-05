@@ -72,16 +72,20 @@ class QueryPlant extends Component
     }    
 
     public $countyList = [];
+    public $habList = [];
     public $thisCounty = '';
+    public $thisHabType = '';
     public $filteredComparisonTable = [];
     public function plantInfo($value)
     {
         
 // 植物資訊
         $this->countyList=[];
+        $this->habList=[];
         $this->thisCounty = '';
+        $this->thisHabType = '';
  
-        $this->spnameInfo = SpInfo::select('chname', 'family', 'chfamily', 'simname')->where('spcode',$value)->first()->toArray();
+        $this->spnameInfo = SpInfo::select()->where('spcode',$value)->first()->toArray();
     // // dd($this->spnameInfo);
         $this->plantName = $this->spnameInfo['chname'];
         $this->suggestions = []; // 清空建議即可
@@ -99,6 +103,14 @@ class QueryPlant extends Component
             ->values()
             ->toArray();
 
+        $this->habList = collect($this->comparisonTable)
+            ->pluck('habitat')
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+
         $this->filteredComparisonTable = $this->comparisonTable; // 初始化為全部資料
 
 
@@ -112,13 +124,23 @@ class QueryPlant extends Component
     }    
 
 
-    public function reloadPlantInfo($thisCounty) {
+    public function reloadPlantInfoCounty($thisCounty) {
 
         $this->filteredComparisonTable = collect($this->comparisonTable)
             ->when($thisCounty !== '', fn($collection) => $collection->where('county', $thisCounty))
             ->values()
             ->toArray();
+        $this->dispatch('updateHabType'); 
 
+    }
+
+    public function reloadPlantInfoHab($thisHabType) {
+
+        $this->filteredComparisonTable = collect($this->comparisonTable)
+            ->when($thisHabType !== '', fn($collection) => $collection->where('habitat', $thisHabType))
+            ->values()
+            ->toArray();
+        $this->dispatch('updateCounty'); 
     }
 
     public function searchChnameIndex($value)

@@ -172,27 +172,19 @@ window.generateEmptyRow = function (columns, presetKey = null, presetValue = '')
 };
 
 
-// 摧毀表格
-function resetAndInitTabulator(containerId = 'tabulator-table') {
-    const tabulatorDiv = document.getElementById(containerId);
+window.listenAndResetSelect = function (eventName, selectId) {
+    window.addEventListener(eventName, () => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
 
-    if (!tabulatorDiv) {
-        console.warn(`❌ 找不到 #${containerId}`);
-        return;
-    }
+        const componentEl = select.closest('[wire\\:id]');
+        const componentId = componentEl?.getAttribute('wire:id');
 
-    // 1. 銷毀舊表格
-    if (window.chnameIndexTable instanceof Tabulator) {
-        console.log("🧹 銷毀舊 Tabulator");
-        window.chnameIndexTable.destroy();
-        window.chnameIndexTable = null;
-    }
+        console.log(`🟡 ${eventName} 事件收到，重設 #${selectId}`);
+        select.selectedIndex = 0;
+    });
+};
 
-    // 2. 清除 DOM 殘留
-    tabulatorDiv.innerHTML = '';
-    tabulatorDiv.classList.remove('tabulator', 'tabulator-initialized');
-
-}
 
 
 

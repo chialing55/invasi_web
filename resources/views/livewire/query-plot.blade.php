@@ -59,8 +59,8 @@
         </div>
        
 @if (!empty($plotplantList))
-<div id="plant-list-wrapper" class="white-card w-fit" wire:key="plant-list-{{ $this->thisPlot }}">
-    <h2 class="text-lg font-semibold text-green-800 mb-4">{{$this->thisListType}} 物種名錄 <span class="ml-2 text-gray-600 text-base font-normal">共記錄到 {{count($plotplantList)}} 種植物</span></h2>
+<div id="plant-list-wrapper" class="gray-card w-fit" wire:key="plant-list-{{ $this->thisPlot }}">
+    <h2>{{$this->thisListType}} 物種名錄 <span class="ml-2 text-gray-600 text-base font-normal">共記錄到 {{count($plotplantList)}} 種植物</span></h2>
 
     <div class="bg-forest-mist rounded-md p-4 text-sm mb-4 leading-relaxed">
         <ul class="list-disc list-inside space-y-1">
@@ -70,7 +70,7 @@
         </ul>
     </div>
     <table class="text-sm border border-gray-300">
-        <thead class="bg-green-50 sticky top-0 z-10">
+        <thead class="bg-yellow-500/30 sticky top-0 z-10">
             <tr>
                 <th><button class="sort px-4 py-2" data-sort="chfamily">科名</button></th>
                 <th><button class="sort px-4 py-2" data-sort="chname">中文名</button></th>
@@ -86,15 +86,15 @@
 @endphp
 
             <tr
-                class="hover:bg-green-100 {{ $item['chfamily'] === '--' ? 'bg-red-100 text-red-800' : ($loop->even ? 'bg-gray-50' : 'bg-white') }}"
+                class="hover:bg-amber-800/10 {{ $item['chfamily'] === '--' ? 'bg-red-100 text-red-800' : ($loop->even ? 'bg-gray-50' : 'bg-white') }}"
                 style="cursor: pointer;"
                 onclick="window.open('{{ $inatLink }}', '_blank')"
             >
                 <td class="chfamily px-4 py-2 border-b ">{{ $item['chfamily'] }}</td>
                 <td class="chname px-4 py-2 border-b ">{{ $item['chname'] }}</td>
-                <td class="nat border px-2 py-1 ">{{ $item['nat_type'] }}</td>
-                <td class="cov2010 border px-2 py-1  text-center" data-sort="{{ $item['cov2010_sort'] ?? 0 }}">{{ $item['cov2010'] }}</td>
-                <td class="cov2025 border px-2 py-1 text-center" data-sort="{{ $item['cov2025_sort'] ?? 0 }}">{{ $item['cov2025'] }}</td>
+                <td class="nat border-b px-2 py-1 text-center">{{ $item['nat_type'] }}</td>
+                <td class="cov2010 border-b px-2 py-1  text-center" data-sort="{{ $item['cov2010_sort'] ?? 0 }}">{{ $item['cov2010'] }}</td>
+                <td class="cov2025 border-b px-2 py-1 text-center" data-sort="{{ $item['cov2025_sort'] ?? 0 }}">{{ $item['cov2025'] }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -110,54 +110,13 @@
 
 <script>
 
+    document.addEventListener('DOMContentLoaded', function () {
+    //監聽的名稱, select的id
+        listenAndResetSelect('thisPlotUpdated', 'plot');
+        listenAndResetSelect('thisHabTypeUpdated', 'habType');
+        listenAndResetSelect('thisSubPlotUpdated', 'subPlot');
+    });
 
-window.addEventListener('thisPlotUpdated', () => {
-    const select = document.getElementById('plot');
-    if (!select) return;
-
-    // ✅ Livewire 自己的資料要同步
-    const componentEl = select.closest('[wire\\:id]');
-    const componentId = componentEl?.getAttribute('wire:id');
-    // if (componentId && window.Livewire) {
-    //     window.Livewire.find(componentId).set('thisPlot', '');
-    // }
-    console.log("🟡 thisPlotUpdated 事件收到");
-    // ✅ DOM 上同步顯示第一個 option
-    select.selectedIndex = 0;
-
-});
-
-window.addEventListener('thisHabTypeUpdated', () => {
-    const select = document.getElementById('habType');
-    if (!select) return;
-
-    // ✅ Livewire 自己的資料要同步
-    const componentEl = select.closest('[wire\\:id]');
-    const componentId = componentEl?.getAttribute('wire:id');
-    // if (componentId && window.Livewire) {
-    //     window.Livewire.find(componentId).set('thisPlot', '');
-    // }
-    console.log("🟡 thisHabTypeUpdated 事件收到");
-    // ✅ DOM 上同步顯示第一個 option
-    select.selectedIndex = 0;
-
-});
-
-window.addEventListener('thisSubPlotUpdated', () => {
-    const select = document.getElementById('subPlot');
-    if (!select) return;
-
-    // ✅ Livewire 自己的資料要同步
-    const componentEl = select.closest('[wire\\:id]');
-    const componentId = componentEl?.getAttribute('wire:id');
-    // if (componentId && window.Livewire) {
-    //     window.Livewire.find(componentId).set('thisPlot', '');
-    // }
-    console.log("🟡 thisSubPlotUpdated 事件收到");
-    // ✅ DOM 上同步顯示第一個 option
-    select.selectedIndex = 0;
-
-});
 let plantListSorter = null;
 let currentSortField = null;
 let currentSortOrder = 'asc';
@@ -203,19 +162,7 @@ function initPlantListSorter() {
     plantListSorter = new List("plant-list-wrapper", {
         valueNames: ['chfamily', 'chname', 'nat', { name: 'cov2010', attr: 'data-sort' }, { name: 'cov2025', attr: 'data-sort' }],
     });
-    // plantListSorter.sort("chfamily", {
-    //     order: "asc",
-    //     sortFunction: function (a, b) {
-    //         const aVal = a.values()["chfamily"]?.toString() ?? '';
-    //         const bVal = b.values()["chfamily"]?.toString() ?? '';
-    //         return aVal.localeCompare(bVal, 'zh-Hant', { sensitivity: 'base', numeric: true });
-    //     }
-    // });
-    // resetRowColors();
-    // ✅ ➕ 同步顯示箭頭 ▲ 在「科名」
-    // document.querySelectorAll("#plant-list-wrapper .sort").forEach(b => b.removeAttribute('data-order'));
-    // document.querySelector(`#plant-list-wrapper .sort[data-sort="cov2010"]`)
-    //         ?.setAttribute("data-order", "desc");
+
 
     // ✅ 排序切換
     document.querySelector("#plant-list-wrapper").addEventListener("click", (event) => {

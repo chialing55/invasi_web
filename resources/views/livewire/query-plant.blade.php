@@ -47,8 +47,18 @@
                     <strong>{{ $spnameInfo['chname'] }}</strong>
                     <strong><i>{{ $spnameInfo['simname'] }}</i></strong>
                 </a></h2>
-
         <p><strong>{{$spnameInfo['chfamily']}}  {{ $spnameInfo['family'] }} </strong></p>
+        <p>
+            @if($spnameInfo['endemic'] == 1)
+                <span class="font-bold">特有</span>
+            @elseif($spnameInfo['naturalized'] == 1)
+                <span class="font-bold">外來</span>
+            @elseif($spnameInfo['cultivated'] == 1)
+                <span class="font-bold">栽培</span>
+            @endif
+        </p>
+        <p>{{$spnameInfo['growth_form']}}</p>
+
         @if($chnameIndex!=[] && $chnameIndex[0]['chname_index']!='')
         <p>中文別名: 
         @foreach ($chnameIndex as $item)
@@ -78,8 +88,8 @@
 <!--前次調查結果  -->
     <div class="mt-8">
         @if($filteredComparisonTable!=[])
-    <div class="white-card w-fit">
-        <h2 class="text-lg font-semibold text-green-800 mb-4">調查結果</h2>
+    <div class="gray-card w-fit">
+        <h2>調查結果</h2>
 
     <div class="bg-forest-mist rounded-md p-4 text-sm mb-4 leading-relaxed">
         <ul class="list-disc list-inside space-y-1">
@@ -87,107 +97,121 @@
             <li>覆蓋度欄位的格式為：<span class="font-semibold">平均值 ± 標準差</span>。</li>
         </ul>
     </div>
-        <!-- 選擇縣市 -->
-        <div class="md:flex md:flex-row md:items-center gap-2 mb-4">
+    <div class="md:flex md:flex-row gap-4 mb-8">
+            <!-- 選擇縣市 -->
+        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
             <label class="block font-semibold md:mr-2">選擇縣市：</label>
-            <select wire:model="thisCounty" class="border rounded p-2 w-40" wire:change="reloadPlantInfo($event.target.value)">
+            <select id="county" wire:model="thisCounty" class="border rounded p-2 w-40" wire:change="reloadPlantInfoCounty($event.target.value)">
                 <option value="">-- All --</option>
                 @foreach ($countyList as $county)
                     <option value="{{ $county }}">{{ $county }}</option>
                 @endforeach
             </select>
         </div>
-<table class="text-sm border border-gray-300 w-full">
-    <!-- 桌機版表頭 -->
-    <thead class="bg-green-50 hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10">
-        <tr class="border-b border-gray-300 ">
-            <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('county')">
-                縣市
-                @if ($sortField === 'county')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('habitat')">
-                生育地類型
-                @if ($sortField === 'habitat')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th colspan="3" class="px-4 py-2 text-center bg-green-200">2010</th>
-            <th colspan="3" class="px-4 py-2 text-center bg-orange-200">2025</th>
-        </tr>
-        <tr class="border-b border-gray-300">
-            <th class="px-4 py-2 text-center bg-green-200 cursor-pointer" wire:click="sortBy('plot_2010')">
-                樣區數
-                @if ($sortField === 'plot_2010')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th class="px-4 py-2 text-center bg-green-200 cursor-pointer" wire:click="sortBy('sub_2010')">
-                小樣區數
-                @if ($sortField === 'sub_2010')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th class="px-4 py-2 text-center bg-green-200 cursor-pointer" wire:click="sortBy('cov_2010')">
-                覆蓋度
-                @if ($sortField === 'cov_2010')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('plot_2025')">
-                樣區數
-                @if ($sortField === 'plot_2025')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('sub_2025')">
-                小樣區數
-                @if ($sortField === 'sub_2025')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-            <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('cov_2025')">
-                覆蓋度
-                @if ($sortField === 'cov_2025')
-                    {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                @endif
-            </th>
-        </tr>
-    </thead>
+                <!-- 生育地類型 -->
+        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+            <label class="block font-semibold md:mr-2">或 選擇生育地類型：</label>
+            <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40" wire:change="reloadPlantInfoHab($event.target.value)">
+                <option value="">-- All --</option>
+                @foreach ($habList as $label)
+                    <option value="{{ $label }}">{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+    <div>
 
-    <!-- 手機版表頭 -->
-    <thead class="bg-green-50 sm:hidden sticky top-0 z-10">
-        <tr class="border-b border-gray-300">
-            <th class="px-4 py-2">縣市</th>
-            <th class="px-4 py-2">生育地</th>
-            <th class="px-4 py-2 text-center bg-green-200">2010 覆蓋度</th>
-            <th class="px-4 py-2 text-center bg-orange-200">2025 覆蓋度</th>
-        </tr>
-    </thead>
+    <table class="text-sm border border-gray-300 w-full">
+            <!-- 桌機版表頭 -->
+            <thead class="bg-yellow-500/30 hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10">
+                <tr class="border-b border-gray-300 ">
+                    <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('county')">
+                        縣市
+                        @if ($sortField === 'county')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('habitat')">
+                        生育地類型
+                        @if ($sortField === 'habitat')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th colspan="3" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
+                    <th colspan="3" class="px-4 py-2 text-center bg-orange-200">2025</th>
+                </tr>
+                <tr class="border-b border-gray-300">
+                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('plot_2010')">
+                        樣區數
+                        @if ($sortField === 'plot_2010')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('sub_2010')">
+                        小樣區數
+                        @if ($sortField === 'sub_2010')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('cov_2010')">
+                        覆蓋度
+                        @if ($sortField === 'cov_2010')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('plot_2025')">
+                        樣區數
+                        @if ($sortField === 'plot_2025')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('sub_2025')">
+                        小樣區數
+                        @if ($sortField === 'sub_2025')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('cov_2025')">
+                        覆蓋度
+                        @if ($sortField === 'cov_2025')
+                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
+                        @endif
+                    </th>
+                </tr>
+            </thead>
 
-    <tbody>
-    @php $prevCounty = null; @endphp
-    @foreach ($filteredComparisonTable as $row)
-        @php
-            $borderClass = ($prevCounty && $prevCounty !== $row['county']) ? 'border-t border-gray-300' : '';
-            $prevCounty = $row['county'];
-        @endphp
-        <tr class=" {{ $borderClass }}">
-            <td class="px-4 py-2 ">{{ $row['county'] }}</td>
-            <td class="px-4 py-2">{{ $row['habitat'] }}</td>
-            <td class="px-4 py-2 text-center  bg-green-100 hidden sm:table-cell">{{ $row['plot_2010'] }}</td>
-            <td class="px-4 py-2 text-center  bg-green-100 hidden sm:table-cell">{{ $row['sub_2010'] }}</td>
-            <td class="px-4 py-2 text-center  bg-green-100">{{ $row['cov_sd_2010'] }}</td>
-            <td class="px-4 py-2 text-center  bg-orange-100 hidden sm:table-cell">{{ $row['plot_2025'] }}</td>
-            <td class="px-4 py-2 text-center  bg-orange-100 hidden sm:table-cell">{{ $row['sub_2025'] }}</td>
-            <td class="px-4 py-2 text-center  bg-orange-100">{{ $row['cov_sd_2025'] }}</td>
-        </tr>
-    @endforeach
-    </tbody>
+            <!-- 手機版表頭 -->
+            <thead class="bg-yellow-500/30 sm:hidden sticky top-0 z-10">
+                <tr class="border-b border-gray-300">
+                    <th class="px-4 py-2">縣市</th>
+                    <th class="px-4 py-2">生育地</th>
+                    <th class="px-4 py-2 text-center bg-lime-200/50">2010 覆蓋度</th>
+                    <th class="px-4 py-2 text-center bg-orange-200">2025 覆蓋度</th>
+                </tr>
+            </thead>
 
-</table>
+            <tbody>
+            @php $prevCounty = null; @endphp
+            @foreach ($filteredComparisonTable as $row)
+                @php
+                    $borderClass = ($prevCounty && $prevCounty !== $row['county']) ? 'border-t border-gray-300' : '';
+                    $prevCounty = $row['county'];
+                @endphp
+                <tr class=" {{ $borderClass }} group">
+                    <td class="px-4 py-2 group-hover:bg-amber-800/10">{{ $row['county'] }}</td>
+                    <td class="px-4 py-2 group-hover:bg-amber-800/10">{{ $row['habitat'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">{{ $row['plot_2010'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">{{ $row['sub_2010'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50">{{ $row['cov_sd_2010'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">{{ $row['plot_2025'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">{{ $row['sub_2025'] }}</td>
+                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100">{{ $row['cov_sd_2025'] }}</td>
+                </tr>
+            @endforeach
+            </tbody>
 
+        </table>
+    </div>
     </div>
 
         @else
@@ -204,6 +228,14 @@
 </div>
 
 <script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        //監聽的名稱, select的id
+        listenAndResetSelect('updateHabType', 'habType');
+        listenAndResetSelect('updateCounty', 'county');
+    });
+
+
 
     window.chnameIndexTable = null; // 全域變數，存放 Tabulator 實例
     // 監聽輸入框的變化

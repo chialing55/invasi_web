@@ -26,6 +26,22 @@
             </div>
             @endif
         </div>
+<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
+    <p class="font-bold">⚠️ 重要提醒</p>
+    <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
+        <li>
+            請先詳讀
+            <a href="{{ url('/entry/notes') }}" target="_blank" class="underline hover:text-blue-900">
+                資料輸入說明
+            </a>
+            以確保操作順利。
+        </li>
+        <li><b>請務必按下儲存鈕</b>，資料才會儲存，否則將會遺失所填寫內容。</li>
+        <li>如有 <b>新增或刪除資料</b>，請儲存後才能正確套用變更。</li>
+        <li>若 <b>尚未儲存即切換樣區或離開頁面</b>，變更內容將不會保留。</li>
+    </ul>
+</div>
+
 <!-- 有選擇樣區之後 -->
     @if ($thisPlot!='')
 
@@ -112,23 +128,6 @@
         </div>
 
     @endif
-
-    <div class='green-card mt-8'>
-        暫定功能:
-        <ul class="list-disc ml-6 space-y-2">
-            <li>選擇/輸入樣區編號後開始輸入</li>
-            <li>輸入/修改/檢視不分開</li>
-            <li>每一團隊只能輸入屬於該團隊的樣區資料</li>
-            <li>上方為環境資料，下方為植物資料</li>
-            <li>每個輸入值有各自的驗證方式</li>
-            <li>若有漏值或其他錯誤以及物種未鑑定，會填寫在後方驗證欄位提醒，而此小區將不被視為完成</li>            
-            <li>物種若未在名單內，會被判定為物種未鑑定，以顯眼顏色標示</li>
-            <li>若為資料表內未有的種類，進資料表新增種類之後，仍要來此更新物種連結。</li>
-            <li>若尚未輸入即為空白頁面，輸入後即為資料頁面</li>
-            <li>須按存檔才能儲存</li>
-            <li>輸入之後的每一筆修改皆會留下紀錄</li>
-        </ul>
-</div>
 </div>
 
 

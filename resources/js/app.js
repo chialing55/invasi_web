@@ -55,6 +55,14 @@ window.initTabulator = function ({
                     }
                 ],
                 columns: columns,
+                rowFormatter: function (row) {
+                    const data = row.getData();
+                    if (data.cov_error === 2) {
+                        row.getElement().style.backgroundColor = '#ffb3a3';
+                    } else {
+                        row.getElement().style.backgroundColor = '';
+                    }
+                },
                 // cellEdited: function (cell) {
 
                 // }

@@ -92,7 +92,8 @@ class SurveyOverview extends Component
 
             $total = $plantQuery->count();
             $unidentified = (clone $plantQuery)->where('unidentified', 1)->count();
-            $covError = (clone $plantQuery)->where('cov_error', 1)->count();
+            //包含覆蓋度錯誤(cov_error == 1)與物種重複(cov_error == 2)
+            $covError = (clone $plantQuery)->where('cov_error', '!=', 0)->count();
 
             // 生育地對照
             $habitatCode = $subPlot->habitat_code;

@@ -72,7 +72,7 @@
                         <th class="border-b px-4 py-2">流水號</th>                       
                         <th class="border-b px-4 py-2">植物筆數</th>
                         <th class="border-b px-4 py-2">未鑑定</th>
-                        <th class="border-b px-4 py-2">覆蓋度錯誤</th>
+                        <th class="border-b px-4 py-2">資料錯誤</th>
                     </tr>
                 </thead>
                 <tbody>

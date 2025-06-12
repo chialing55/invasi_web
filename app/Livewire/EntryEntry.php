@@ -381,7 +381,7 @@ public function mount()
             requiredFields: ['chname_index'],
             userCode: $this->creatorCode
         );
-
+        $this->markDuplicateCovError($this->thisSubPlot);
         $this->subPlotPlantForm = $this->loadExistingPlantForm();
         
         $this->plantList=$this->loadPlantList($this->thisPlot);
@@ -444,6 +444,50 @@ public function mount()
 
         // dd($this->plantList);
 
+    }
+
+    public function markDuplicateCovError(string $plotFullId)
+    {
+        // 取得該 plot_full_id 的所有資料
+        $records = SubPlotPlant2025::where('plot_full_id', $plotFullId)->get();
+
+        $duplicates = [
+            'chname_index' => [],
+            'spcode' => [],
+        ];
+
+        $seenChname = [];
+        $seenSpcode = [];
+
+        // 找出重複的 chname_index 和 spcode
+        foreach ($records as $record) {
+            // chname_index 重複檢查
+            if (isset($seenChname[$record->chname_index])) {
+                $duplicates['chname_index'][$record->chname_index] = true;
+            } else {
+                $seenChname[$record->chname_index] = true;
+            }
+
+            // spcode 重複檢查
+            if (!empty($record->spcode) && isset($seenSpcode[$record->spcode])) {
+                $duplicates['spcode'][$record->spcode] = true;
+            } elseif (!empty($record->spcode)) {
+                $seenSpcode[$record->spcode] = true;
+            }
+        }
+
+        // 更新重複資料的 cov_error = 2
+        foreach ($records as $record) {
+            if (
+                isset($duplicates['chname_index'][$record->chname_index]) ||
+                isset($duplicates['spcode'][$record->spcode])
+            ) {
+                if ($record->cov_error != 2) {
+                    $record->cov_error = 2;
+                    $record->save();
+                }
+            }
+        }
     }
 
 

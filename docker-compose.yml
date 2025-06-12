@@ -60,7 +60,7 @@ services:
       - PHP_UPLOAD_MAX_FILESIZE=64M
       - COOKIE_SECURE=false
     volumes:
-      - ./pma-sessions:/sessions
+      # - ./pma-sessions:/sessions
     user: "33:33"
 
 volumes:

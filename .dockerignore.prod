@@ -1,0 +1,45 @@
+
+# Node & PHP 套件：由 Dockerfile 個別處理
+node_modules
+vendor
+
+# Laravel build 與資源（會在部署前打包）
+public/hot
+public/build
+public/storage
+storage/*.key
+storage/pail
+
+# Laravel 環境設定（僅保留 build 用的）
+.env
+.env.*
+!.env.production
+
+# Git
+.git
+.gitignore
+
+# Docker 自己的設定檔（不用 COPY 進 container）
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 開發用工具設定
+.idea
+.vscode
+*.sublime-project
+*.sublime-workspace
+
+# 作業系統產物
+.DS_Store
+Thumbs.db
+
+# log 與快取檔
+npm-debug.log
+yarn-error.log
+.phpunit.result.cache
+.phpunit.cache
+
+# 特定資料夾（你自己補的）
+public/invasi_files
+pma-sessions/

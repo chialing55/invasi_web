@@ -59,7 +59,7 @@ services:
       # - PMA_ABSOLUTE_URI=http://localhost:8083/
       - PHP_UPLOAD_MAX_FILESIZE=64M
       - COOKIE_SECURE=false
-    volumes:
+    # volumes:
       # - ./pma-sessions:/sessions
     user: "33:33"
 

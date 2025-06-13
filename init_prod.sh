@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# 2. 產生 APP Key
+echo "🔑 產生 APP Key..."
+php artisan key:generate || true
+
+# echo "🎨 安裝 Breeze"
+# composer require laravel/breeze --dev
+# php artisan breeze:install blade
 
 # 3. 設定目錄權限（storage、bootstrap/cache）
 echo "🛠️ 設定 storage 和 cache 權限..."

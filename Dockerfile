@@ -35,4 +35,6 @@ RUN composer install --no-interaction --prefer-dist \
     && chmod -R 775 storage bootstrap/cache
 
 # 啟動
-CMD ["php-fpm"]
+# 預設啟動指令（含 sleep 讓 db 準備好）
+CMD ["sh", "-c", "sleep 5 && bash init.sh && npm run dev & exec php-fpm"]
+

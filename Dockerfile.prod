@@ -35,4 +35,4 @@ RUN composer install --no-interaction --prefer-dist \
     && chmod -R 775 storage bootstrap/cache
 
 # 啟動
-CMD ["php-fpm"]
+CMD ["sh", "-c", "sleep 5 && bash init_prod.sh && npm run build && exec php-fpm"]

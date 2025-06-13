@@ -45,7 +45,7 @@ services:
       MYSQL_PASSWORD: laravel
     volumes:
       - db_data:/var/lib/mysql
-      - ./initdb:/docker-entrypoint-initdb.d
+      # - ./initdb:/docker-entrypoint-initdb.d
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:5.2.1

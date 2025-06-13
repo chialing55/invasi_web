@@ -26,14 +26,14 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.elevation' => 'nullable|numeric|min:0|between:0,4000',
             'subPlotEnvForm.slope' => 'nullable|numeric|between:0,90',
             'subPlotEnvForm.aspect' => 'nullable|numeric|between:0,359',
-            'subPlotEnvForm.light_0' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_45' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_90' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_135' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_180' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_225' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_270' => 'nullable|numeric|between:0,100',
-            'subPlotEnvForm.light_315' => 'nullable|numeric|between:0,100',
+            'subPlotEnvForm.light_0' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_45' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_90' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_135' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_180' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_225' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_270' => 'nullable|numeric|between:0,10',
+            'subPlotEnvForm.light_315' => 'nullable|numeric|between:0,10',
             'subPlotEnvForm.photo_id' => 'nullable|string|max:255',
             'subPlotEnvForm.env_description' => 'nullable|string|max:1000',
         ];
@@ -91,28 +91,28 @@ trait SubPlotEnvFormRules
 
             // 全天光
             'subPlotEnvForm.light_0.numeric' => '全天光(0°)需為數字',
-            'subPlotEnvForm.light_0.between' => '全天光(0°)需介於 0–100',
+            'subPlotEnvForm.light_0.between' => '全天光(0°)需介於 0–10',
 
             'subPlotEnvForm.light_45.numeric' => '全天光(45°)需為數字',
-            'subPlotEnvForm.light_45.between' => '全天光(45°)需介於 0–100',
+            'subPlotEnvForm.light_45.between' => '全天光(45°)需介於 0–10',
 
             'subPlotEnvForm.light_90.numeric' => '全天光(90°)需為數字',
-            'subPlotEnvForm.light_90.between' => '全天光(90°)需介於 0–100',
+            'subPlotEnvForm.light_90.between' => '全天光(90°)需介於 0–10',
 
             'subPlotEnvForm.light_135.numeric' => '全天光(135°)需為數字',
-            'subPlotEnvForm.light_135.between' => '全天光(135°)需介於 0–100',
+            'subPlotEnvForm.light_135.between' => '全天光(135°)需介於 0–10',
 
             'subPlotEnvForm.light_180.numeric' => '全天光(180°)需為數字',
-            'subPlotEnvForm.light_180.between' => '全天光(180°)需介於 0–100',
+            'subPlotEnvForm.light_180.between' => '全天光(180°)需介於 0–10',
 
             'subPlotEnvForm.light_225.numeric' => '全天光(225°)需為數字',
-            'subPlotEnvForm.light_225.between' => '全天光(225°)需介於 0–100',
+            'subPlotEnvForm.light_225.between' => '全天光(225°)需介於 0–10',
 
             'subPlotEnvForm.light_270.numeric' => '全天光(270°)需為數字',
-            'subPlotEnvForm.light_270.between' => '全天光(270°)需介於 0–100',
+            'subPlotEnvForm.light_270.between' => '全天光(270°)需介於 0–10',
 
             'subPlotEnvForm.light_315.numeric' => '全天光(315°)需為數字',
-            'subPlotEnvForm.light_315.between' => '全天光(315°)需介於 0–100',
+            'subPlotEnvForm.light_315.between' => '全天光(315°)需介於 0–10',
 
             // 照片與描述
             'subPlotEnvForm.photo_id.string' => '照片編號格式錯誤',

@@ -32,7 +32,21 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::min(8)
+                    ->letters()
+                    ->numbers()
+                    ->symbols(),
+            ],
+        ], [
+            'password.required' => '請輸入密碼。',
+            'password.confirmed' => '兩次輸入的密碼不一致。',
+            'password.min' => '密碼至少需 8 個字元。',
+            'password.letters' => '密碼必須包含英文字母。',
+            'password.numbers' => '密碼必須包含數字。',
+            'password.symbols' => '密碼必須包含符號（如 !@#$%^&* ）。',
         ]);
 
         $role = match ($request->title) {
@@ -52,7 +66,7 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 //自動登入
-        // Auth::login($user);
+        Auth::login($user);
 //導入信箱驗證頁面
         return redirect()->intended(route('verification.notice'));
     }

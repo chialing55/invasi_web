@@ -27,6 +27,7 @@
                     </div>
                 @endif
 
+            
                 <form method="POST" action="{{ route('register') }}">
                     @csrf
 
@@ -72,7 +73,7 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium">密碼</label>
                         <input type="password" name="password" required autocomplete="new-password"
-                            class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest">
+                            class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest" placeholder="至少8個字元，包含英文字母、數字和符號">
                     </div>
 
                     <div class="mb-6">

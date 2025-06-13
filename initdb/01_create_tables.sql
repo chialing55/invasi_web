@@ -3,7 +3,7 @@ USE invasiflora;
 
 
 -- 2. spinfo 物種資訊
-CREATE TABLE `spcode` (
+CREATE TABLE `spinfo` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,  -- 自動遞增 ID
   `spcode` VARCHAR(20) NOT NULL,         -- 物種代碼
   `chname` VARCHAR(100),               -- 中文名
@@ -58,7 +58,7 @@ CREATE TABLE im_splotdata_2025 (
   tm2_y DOUBLE,
   dd97_x DOUBLE,
   dd97_y DOUBLE,
-  gps_error DOUBLE
+  gps_error DOUBLE,
   plot VARCHAR(100),
   habitat_code VARCHAR(50),
   subplot_id VARCHAR(50),

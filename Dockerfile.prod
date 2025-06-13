@@ -28,7 +28,7 @@ COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 # 複製 Laravel 專案檔案
 COPY . .
-
+RUN chmod +x /app/init_prod.sh
 # 安裝 PHP 套件並設定權限
 RUN composer install --no-interaction --prefer-dist \
     && chown -R www-data:www-data storage bootstrap/cache \

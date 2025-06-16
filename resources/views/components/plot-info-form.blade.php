@@ -13,11 +13,11 @@
 
     <!-- 座標與編號 -->
     <div class="md:flex gap-2 items-center">
-      <label for="tm2_x" class="w-24 text-right">座標 X</label>
-      <input id="tm2_x" name="tm2_x" type="number" step="1" wire:model.defer="subPlotEnvForm.tm2_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="TM2X">
+      <label for="dd97_x" class="w-24 text-right">座標 X</label>
+      <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="dd97_X">
 
-      <label for="tm2_y" class="w-10 text-right">Y</label>
-      <input id="tm2_y" name="tm2_y" type="number" step="1" wire:model.defer="subPlotEnvForm.tm2_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="TM2Y">
+      <label for="dd97_y" class="w-10 text-right">Y</label>
+      <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="dd97_Y">
 
       <!-- <label for="gps_error" class="w-10 text-right">座標誤差</label>
       <input id="gps_error" name="gps_error" type="number" step="1" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32"> -->

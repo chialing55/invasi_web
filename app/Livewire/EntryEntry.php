@@ -290,7 +290,7 @@ public function mount()
         $subPlotEnvForm['date'] = date('Y-m-d', strtotime($subPlotEnvForm['date']));
         $subPlotEnvForm = array_merge(
             $subPlotEnvForm,
-            CoordinateHelper::toDd97($subPlotEnvForm['tm2_x'], $subPlotEnvForm['tm2_y']),
+            CoordinateHelper::toTm2($subPlotEnvForm['dd97_x'], $subPlotEnvForm['dd97_y']),
             DateHelper::splitYmd($subPlotEnvForm['date'])
         );
 

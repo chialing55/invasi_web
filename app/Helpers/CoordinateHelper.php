@@ -52,4 +52,53 @@ class CoordinateHelper
             'dd97_x' => round($lng * 180 / M_PI, 7),
         ];
     }
+
+    /**
+     * 將經緯度 (dd97_x, dd97_y) 轉換為 TWD97 TM2 座標
+     * 輸入單位：dd97_x = 經度、dd97_y = 緯度（十進制度）
+     * 回傳 array: ['tm2_x' => ..., 'tm2_y' => ...]
+     */
+    public static function toTm2(float $lng, float $lat): array
+    {
+        // a, b 參數是 TWD97 的橢球參數（WGS84）
+        $a = 6378137.0;
+        $b = 6356752.314245;
+        $lng0 = 121 * M_PI / 180; // 中央子午線（度轉弧度）
+        $k0 = 0.9999;
+        $dx = 250000;
+
+        $lat = $lat * M_PI / 180; // 度→弧度
+        $lng = $lng * M_PI / 180;
+
+        $e = sqrt(1 - pow($b, 2) / pow($a, 2));
+        $e2 = pow($e, 2) / (1 - pow($e, 2));
+        $n = ($a - $b) / ($a + $b);
+        $nu = $a / sqrt(1 - pow($e, 2) * pow(sin($lat), 2));
+        $p = $lng - $lng0;
+
+        $A = $a * (1 - pow($e, 2) / 4 - 3 * pow($e, 4) / 64 - 5 * pow($e, 6) / 256);
+
+        $B = 3 * $a * pow($e, 2) / 8 + 3 * $a * pow($e, 4) / 32 + 45 * $a * pow($e, 6) / 1024;
+        $C = 15 * $a * pow($e, 4) / 256 + 45 * $a * pow($e, 6) / 1024;
+        $D = 35 * $a * pow($e, 6) / 3072;
+
+        $S = $A * $lat - $B * sin(2 * $lat) + $C * sin(4 * $lat) - $D * sin(6 * $lat);
+
+        $K1 = $S * $k0;
+        $K2 = $k0 * $nu * sin(2 * $lat) / 4;
+        $K3 = (5 - tan($lat) * tan($lat) + 9 * $e2 * pow(cos($lat), 2) + 4 * pow($e2, 2) * pow(cos($lat), 4)) * $k0 * $nu * pow(sin($lat), 4) / 24;
+
+        $y = $K1 + $K2 * pow($p, 2) + $K3 * pow($p, 4);
+
+        $K4 = $k0 * $nu * cos($lat);
+        $K5 = (1 - tan($lat) * tan($lat) + $e2 * pow(cos($lat), 2)) * $k0 * $nu * pow(cos($lat), 3) / 6;
+
+        $x = $K4 * $p + $K5 * pow($p, 3) + $dx;
+
+        return [
+            'tm2_x' => round($x), // TWD97 X
+            'tm2_y' => round($y), // TWD97 Y
+        ];
+    }
+
 }

@@ -11,8 +11,8 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.date' => 'required|date',
             'subPlotEnvForm.investigator' => 'required|string|max:255',
             'subPlotEnvForm.recorder' => 'required|string|max:255',
-            'subPlotEnvForm.tm2_x' => 'required|numeric',
-            'subPlotEnvForm.tm2_y' => 'required|numeric',
+            'subPlotEnvForm.dd97_x' => 'required|numeric|between:118,123',
+            'subPlotEnvForm.dd97_y' => 'required|numeric|between:20,27',
             // 'subPlotEnvForm.gps_error' => 'nullable|numeric',
             'subPlotEnvForm.habitat_code' => 'required|string|max:2|in:01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,20',
             'subPlotEnvForm.subplot_id' => [
@@ -54,11 +54,12 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.recorder.string' => '紀錄者姓名格式錯誤',
             'subPlotEnvForm.recorder.max' => '紀錄者姓名長度過長',
 
-            'subPlotEnvForm.tm2_x.required' => '請輸入座標 X',
-            'subPlotEnvForm.tm2_x.numeric' => '座標 X 必須是數字',
-            'subPlotEnvForm.tm2_y.required' => '請輸入座標 Y',
-            'subPlotEnvForm.tm2_y.numeric' => '座標 Y 必須是數字',
-
+            'subPlotEnvForm.dd97_x.required' => '請輸入座標 X',
+            'subPlotEnvForm.dd97_x.numeric' => '座標 X 必須是數字',
+            'subPlotEnvForm.dd97_y.required' => '請輸入座標 Y',
+            'subPlotEnvForm.dd97_y.numeric' => '座標 Y 必須是數字',
+            'subPlotEnvForm.dd97_x.between' => '經度必須介於 118 到 123 之間。',
+            'subPlotEnvForm.dd97_y.between' => '緯度必須介於 20 到 27 之間。',
             // 'subPlotEnvForm.gps_error.numeric' => 'GPS 誤差需為數字',
 
             'subPlotEnvForm.habitat_code.required' => '請輸入生育地類型',

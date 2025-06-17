@@ -104,5 +104,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         //監聽的名稱, select的id
         listenAndResetSelect('thisPlotUpdated', 'plot');
+        
     });
 </script>

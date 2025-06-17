@@ -9,6 +9,7 @@ use App\Models\SubPlotPlant2025;
 use App\Models\SubPlotPlant2010;
 use App\Models\SpInfo;
 use App\Models\HabitatInfo;
+use App\Models\PlotHab;
 
 use App\Livewire\Rules\SubPlotEnvFormRules;
 
@@ -24,6 +25,7 @@ use App\Services\DataSyncService;
 use App\Helpers\CoordinateHelper;
 use App\Helpers\DateHelper;
 use App\Models\SpcodeIndex;
+use App\Models\SubPlotEnv2010;
 
 class EntryEntry extends Component
 {
@@ -97,12 +99,20 @@ public function mount()
         $this->showPlantEntryTable = false;
         $this->thisPlot = '';
         $this->dispatch('reset_plant_table');
+        $this->dispatch('thisPlotUpdated');
        
     }
-
+    // public $thisPlotHabRatioForm = [];
+    // public $habTypeOptions = [];
+    // public array $selectedHabitatCodes = []; // 勾選的 habitat_code  
+public array $selectedHabitatCodes = []; // 使用者勾選的 habitat_code 陣列
+public array $refHabitatCodes = [];      // 2010 參考用代碼
+public array $habTypeOptions = [];       // 全部 habitat_code => label
+    
+    
     public function loadPlotInfo($plot)
     {
-
+        // $this->dispatch('reset_habitat');
         $this->thisPlot = $plot;
         $this->thisSubPlot = ''; // 清空樣區ID
         $this->showPlotEntryTable = false;
@@ -110,9 +120,54 @@ public function mount()
         $this->dispatch('reset_plant_table');
         // 取得樣區資料
         $this->subPlotList = SubPlotEnv2025::where('plot', $plot)->pluck('plot_full_id')->toArray();
-          $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
-// dd($this->plantList);
-    }   
+        $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
+        $this->selectedHabitatCodes=[];
+        $this->loadPlotHab($plot); // 載入生育地類型選項
+
+// dd($this->selectedHabitatCodes);
+    }
+
+    public function loadPlotHab($plot)
+    {
+        $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+
+        $this->habTypeOptions = collect($habTypeMap)
+            ->mapWithKeys(fn($habitat, $code) => [$code => $code . ' ' . $habitat])
+            ->sortBy(fn($label) => $label)
+            ->toArray();
+
+        // 從 SubPlotEnv2010 取得 參考用 habitat_code（只顯示顏色，不會選中）
+        $this->refHabitatCodes = SubPlotEnv2010::where('PLOT_ID', $plot)
+            ->pluck('HAB_TYPE')
+            ->unique()
+            ->toArray();
+
+        // 若有既存選擇（例如 PlotHabRatio），可設定預選
+        $this->selectedHabitatCodes = PlotHab::where('plot', $plot)
+            ->pluck('habitat_code')
+            ->toArray();
+
+    }
+
+    public function saveHabitatSelection()
+    {
+        $plot = $this->thisPlot;
+
+        // 清空舊資料（視需求保留或覆蓋）
+        PlotHab::where('plot', $plot)->delete();
+
+        foreach ($this->selectedHabitatCodes as $code) {
+            PlotHab::create([
+                'plot' => $plot,
+                'habitat_code' => $code,
+                'created_by' => $this->creatorCode,
+            ]);
+        }
+
+        session()->flash('habSaveMessage', '生育地類型已儲存。');
+    }
+
+
     public function updatedThisSubPlot($value)
     {
         $this->dispatch('reset_plant_table');

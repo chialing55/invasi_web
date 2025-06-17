@@ -76,7 +76,7 @@
       @foreach([0,45,90,135,180,225,270,315] as $deg)
         <div class="flex items-center gap-1">
           <label for="light_{{ $deg }}" class="text-xs w-6 text-right">{{ $deg }}</label>
-          <input id="light_{{ $deg }}" name="light_{{ $deg }}" type="number" wire:model.defer="subPlotEnvForm.light_{{ $deg }}" class="border border-gray-300 px-1 py-0.5 w-16 " placeholder="0-10">
+          <input id="light_{{ $deg }}" name="light_{{ $deg }}" type="number" wire:model.defer="subPlotEnvForm.light_{{ $deg }}" class="border border-gray-300 px-1 py-0.5 w-16 " placeholder="0-90">
         </div>
       @endforeach
     </div>

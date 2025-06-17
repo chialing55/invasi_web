@@ -17,7 +17,7 @@ window.initTabulator = function ({
     elementId = 'tabulator-table',
     columns = [],
     onUpdate = null,
-    livewireField = 'chnameIndex', // <== 新增：Livewire 欄位名
+    livewireField = '', // <== 新增：Livewire 欄位名
     presetKey = null,
     presetValue = '',
     globalName = null, // ✅ 新增參數

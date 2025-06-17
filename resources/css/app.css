@@ -58,6 +58,9 @@
     @apply italic text-lime-700 opacity-50;
     }
 
+    input[type='checkbox']:checked {
+        background-color: theme('colors.lime.800');
+    }
 }
 
 @layer components {

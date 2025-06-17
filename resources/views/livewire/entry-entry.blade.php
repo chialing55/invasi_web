@@ -17,7 +17,7 @@
             @if ($plotList)
             <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
                 <label class="block font-semibold">選擇樣區：</label>
-                <select wire:model="thisPlot" class="border rounded p-2 w-40" wire:change="loadPlotInfo($event.target.value)">
+                <select id="plot" wire:model="thisPlot" class="border rounded p-2 w-40" wire:change="loadPlotInfo($event.target.value)">
                     <option value="">-- 請選擇 --</option>
                     @foreach ($plotList as $plot)
                         <option value="{{ $plot }}">{{ $plot }}</option>
@@ -44,6 +44,38 @@
 
 <!-- 有選擇樣區之後 -->
     @if ($thisPlot!='')
+
+        <div class="flex flex-col gap-4 mt-8 gray-card">
+            <h3>{{$thisPlot}} 生育地類型 <span class='ml-4 text-sm font-normal text-gray-700 align-middle'>* 淺綠色表示上次調查曾包含的生育地類型</span></h3>
+            
+@if (session()->has('habSaveMessage'))
+    <div class="mb-1">
+        <p class="font-semibold">{{ session('habSaveMessage') }}</p>
+    </div>
+@endif
+
+
+<div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}">
+
+    @foreach($habTypeOptions as $code => $label)
+        <label for="hab_{{ $code }}" class="flex items-center gap-1 px-2 py-1 rounded border cursor-pointer
+            {{ in_array($code, $refHabitatCodes) ? 'bg-lime-600/20 border-lime-800/50' : 'border-gray-300' }}">
+        <input id="hab_{{ $code }}" type="checkbox"
+            wire:model="selectedHabitatCodes"
+            value="{{ $code }}"
+            class=" habitat-checkbox">
+
+            <span class="text-sm">{{ $label }}</span>
+        </label>
+    @endforeach
+        <button type="button" wire:click="saveHabitatSelection"
+            class="btn-submit">
+        儲存生育地類型
+    </button>
+</div>
+       
+
+        </div>
 
         <div class="flex flex-col gap-4 mt-8">
             <div class="flex flex-row flex-wrap items-center gap-4">
@@ -93,7 +125,7 @@
             </ul>
         </div>
         @endif
-        <form wire:submit.prevent="envInfoSave">
+        <form wire:submit.prevent="envInfoSave" class='mt-4'>
             @include('components.plot-info-form')
         <div class="mt-4 text-right">
             <button type="submit" class="btn-submit">儲存環境資料</button>
@@ -121,9 +153,9 @@
         </div>
     @endif
             
-            <div id="tabulator-table"  wire:ignore></div>
+            <div id="tabulator-table-plant"  wire:ignore class='mt-4'></div>
             <div class="mt-4 flex justify-end">
-                <button id="submit-btn" class="btn-submit" type="button">儲存植物調查資料</button>
+                <button id="submit-btn-plant" class="btn-submit" type="button">儲存植物調查資料</button>
             </div>
         </div>
 
@@ -132,7 +164,13 @@
 
 
 <script>
-    window.plantTable = null; // 全域變數，存放 Tabulator 實例
+    document.addEventListener('DOMContentLoaded', function () {
+        //監聽的名稱, select的id
+        listenAndResetSelect('thisPlotUpdated', 'plot');
+    });
+
+window.plantTable = null; // 全域變數，存放 Tabulator 實例
+
 
     
     window.addEventListener('reset_plant_table', (event) => {
@@ -174,7 +212,7 @@
 
     });
 
-    function resetAndInitTabulator(containerId = 'tabulator-table') {
+    function resetAndInitTabulator(containerId = 'tabulator-table-plant') {
         const tabulatorDiv = document.getElementById(containerId);
 
         if (!tabulatorDiv) {
@@ -272,7 +310,7 @@
 
         initTabulator({
             tableData: tableData,
-            elementId: 'tabulator-table',
+            elementId: 'tabulator-table-plant',
             columns: columns,
             livewireField: 'subPlotPlantForm',
             presetKey: 'plot_full_id',
@@ -288,7 +326,7 @@
 
 
     document.addEventListener('click', function (e) {
-        if (e.target && e.target.id === 'submit-btn') {
+        if (e.target && e.target.id === 'submit-btn-plant') {
             // console.log(window.chnameIndexTable);
             const data = window.plantTable.getData();
             const componentId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
@@ -298,5 +336,20 @@
             }
         }
     });
+
+window.listenAndResetAllHabitatCheckboxes = function (eventName) {
+    window.addEventListener(eventName, () => {
+        console.log(`🟡 ${eventName} 事件收到，清除所有 habitat checkbox`);
+
+        document.querySelectorAll('.habitat-checkbox').forEach(input => {
+            input.checked = false;
+        });
+    });
+};
+
+// 初始化監聽
+window.listenAndResetAllHabitatCheckboxes('reset_habitat');
+
+
 
 </script>

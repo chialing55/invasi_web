@@ -140,11 +140,13 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $this->refHabitatCodes = SubPlotEnv2010::where('PLOT_ID', $plot)
             ->pluck('HAB_TYPE')
             ->unique()
+            ->values()    // ✅ 這行會把索引變成連續的 0,1,2,...
             ->toArray();
 
         // 若有既存選擇（例如 PlotHabRatio），可設定預選
         $this->selectedHabitatCodes = PlotHab::where('plot', $plot)
             ->pluck('habitat_code')
+            ->values() 
             ->toArray();
 
     }
@@ -350,12 +352,12 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         );
 
         $subPlotAreaMap = config('item_list.sub_plot_area');
-        $islandCategoryMap = config('item_list.island_category');
-        $plotEnvMap = config('item_list.plot_env');
+        // $islandCategoryMap = config('item_list.island_category');
+        // $plotEnvMap = config('item_list.plot_env');
         $subPlotEnvForm['subplot_area'] = array_search($subPlotEnvForm['subplot_area'], $subPlotAreaMap, true);
-        $subPlotEnvForm['plot_env'] = array_search($subPlotEnvForm['plot_env'], $plotEnvMap, true);
-        $subPlotEnvForm['island_category'] = array_search($subPlotEnvForm['island_category'], $islandCategoryMap, true);
-        $subPlotEnvForm['gps_error']='0';
+        // $subPlotEnvForm['plot_env'] = array_search($subPlotEnvForm['plot_env'], $plotEnvMap, true);
+        // $subPlotEnvForm['island_category'] = array_search($subPlotEnvForm['island_category'], $islandCategoryMap, true);
+     
 
         $this->subPlotEnvForm=$subPlotEnvForm;
 
@@ -406,7 +408,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 $cov = $row['coverage'] ?? null;
                 if (!is_numeric($cov) || $cov < 0 || $cov > 100 || $cov == 0 ) {
                     $row['cov_error'] = 1;
-                    $row['coverage'] = 0;
+                    // $row['coverage'] = 0;
                 } else {
                     $row['cov_error'] = 0;
                 }

@@ -46,9 +46,9 @@
                 </select>
             </div>
 
-            <!-- 小樣區 -->
+            <!-- 小樣方 -->
             <div class="md:flex md:flex-row md:items-center gap-2">
-                <label class="block font-semibold md:mr-2">或 選擇小樣區：</label>
+                <label class="block font-semibold md:mr-2">或 選擇小樣方：</label>
                 <select id='subPlot' wire:model="thisSubPlot" class="border rounded p-2 w-40" wire:change="loadSubPlot($event.target.value)">
                     <option value="">-- 請選擇 --</option>
                     @foreach ($subPlotList as $code => $label)
@@ -65,7 +65,7 @@
     <div class="bg-forest-mist rounded-md p-4 text-sm mb-4 leading-relaxed">
         <ul class="list-disc list-inside space-y-1">
             <li>預設依「覆蓋度 2025 / 覆蓋度 2010」排序，可點選各欄位標題重新排序。</li>
-            <li>覆蓋度欄位的格式為：<span class="font-semibold">平均值 ± 標準差（出現小樣區數 / 總小樣區數）</span>。</li>
+            <li>覆蓋度欄位的格式為：<span class="font-semibold">平均值 ± 標準差（出現小樣方數 / 總小樣方數）</span>。</li>
             <li>點擊物種列可開啟 iNaturalist 網頁以查看更多資訊。</li>
         </ul>
     </div>

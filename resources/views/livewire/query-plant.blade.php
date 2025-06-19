@@ -148,7 +148,7 @@
                         @endif
                     </th>
                     <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('sub_2010')">
-                        小樣區數
+                        小樣方數
                         @if ($sortField === 'sub_2010')
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
                         @endif
@@ -166,7 +166,7 @@
                         @endif
                     </th>
                     <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('sub_2025')">
-                        小樣區數
+                        小樣方數
                         @if ($sortField === 'sub_2025')
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
                         @endif

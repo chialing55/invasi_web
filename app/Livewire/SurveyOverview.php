@@ -87,7 +87,7 @@ class SurveyOverview extends Component
         foreach ($thisPlotList as $subPlot) {
             $plotFullID = $subPlot->plot_full_id;
 
-            // 查該小樣區的植物資料
+            // 查該小樣方的植物資料
             $plantQuery = SubPlotPlant2025::where('plot_full_id', $plotFullID);
 
             $total = $plantQuery->count();

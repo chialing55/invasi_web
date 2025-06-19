@@ -19,8 +19,8 @@
       <label for="dd97_y" class="w-10 text-right">Y</label>
       <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="dd97_Y">
 
-      <!-- <label for="gps_error" class="w-10 text-right">座標誤差</label>
-      <input id="gps_error" name="gps_error" type="number" step="1" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32"> -->
+      <label for="gps_error" class="w-24 text-right">座標誤差</label>
+      <input id="gps_error" name="gps_error" type="number" step="1" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32">
     </div>
 
     <div class="md:flex gap-2 items-center">
@@ -42,7 +42,7 @@
       <label for="area_5x5"><input id="area_5x5" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="5x5"> 5 x 5</label>
     </div>
 
-    <!-- 樣區所屬與類型 -->
+    <!-- 樣區所屬與類型
     <div class="md:flex gap-4 items-center">
       <label class="w-24 text-right">樣區所屬</label>
       <label for="island_main"><input id="island_main" type="radio" wire:model.defer="subPlotEnvForm.island_category" name="island_category" value="本島"> 本島</label>
@@ -56,7 +56,7 @@
       <label for="type_coast"><input id="type_coast" type="radio" wire:model.defer="subPlotEnvForm.plot_env" name="plot_env" value="海岸"> 海岸</label>
       <label for="type_protected"><input id="type_protected" type="radio" wire:model.defer="subPlotEnvForm.plot_env" name="plot_env" value="保護區"> 保護區</label>
       <label for="type_recreation"><input id="type_recreation" type="radio" wire:model.defer="subPlotEnvForm.plot_env" name="plot_env" value="森林遊樂區"> 森林遊樂區</label>
-    </div>
+    </div> -->
 
     <!-- 地形 -->
     <div class="md:flex gap-2 items-center">
@@ -64,7 +64,7 @@
       <input id="elevation" name="elevation" type="number" step="any" wire:model.defer="subPlotEnvForm.elevation" class="border border-gray-300 px-2 py-1 w-24" >
 
       <label for="slope" class="w-20 text-right">坡度</label>
-      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="0-90">
+      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 6-90">
 
       <label for="aspect" class="w-20 text-right">坡向</label>
       <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="0-359">

@@ -94,7 +94,7 @@ class QueryPlot extends Component
             ->sortBy(fn($label, $code) => $label) // 依 habitat 名稱排序（可省略）
             ->toArray();
 
-// 取得小樣區清單
+// 取得小樣方清單
         $subPlotList2010 = SubPlotEnv2010::where('PLOT_ID', $plot)
             ->select('PLOT_ID', 'HAB_TYPE', 'SUB_ID')
             ->get()
@@ -112,6 +112,7 @@ class QueryPlot extends Component
             ->values()                  // 重新索引（0,1,2...）
             ->toArray(); 
         $this->subPlotList=array_unique(array_merge($subPlotList2010, $subPlotList2025));
+        sort($this->subPlotList);
 // dd($plotPlant2025);
             
         // $this->dispatch('plotIDUpdated', plotID: '');

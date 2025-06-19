@@ -25,7 +25,7 @@
             <p>                
                 <b>{{ $thisCountyTitle }}</b> 共有 <span class="font-bold text-green-700">{{ $totalPlotCount }}</span> 個樣區，
                 其中 <span class="font-bold text-green-700">{{ $surveyedPlotCount }}</span> 個樣區已進行調查，
-                共完成 <span class="font-bold text-green-700">{{ $completedSubPlotCount }}</span> 個小樣區的調查。
+                共完成 <span class="font-bold text-green-700">{{ $completedSubPlotCount }}</span> 個小樣方的調查。
             </p>
         </div>
 
@@ -67,7 +67,7 @@
             <table class="text-sm border border-gray-300 w-full">
                 <thead class="bg-yellow-500/30">
                     <tr>
-                        <th class="border-b px-4 py-2">小樣區編號</th>
+                        <th class="border-b px-4 py-2">小樣方編號</th>
                         <th class="border-b px-4 py-2">生育地</th>
                         <th class="border-b px-4 py-2">流水號</th>                       
                         <th class="border-b px-4 py-2">植物筆數</th>

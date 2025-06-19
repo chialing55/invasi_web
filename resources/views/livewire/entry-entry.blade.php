@@ -54,7 +54,7 @@
     </div>
 @endif
 
-
+<pre>{{ json_encode($refHabitatCodes) }}</pre>
 <div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}">
 
     @foreach($habTypeOptions as $code => $label)

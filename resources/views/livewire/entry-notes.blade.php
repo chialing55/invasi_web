@@ -21,7 +21,7 @@
         </ul>
     </div>
 <div class='md:flex md:flex-row gap-2 mb-4'>
-    <div class="gray-card mb-4">
+    <div class="flex-1 gray-card mb-4">
         <h3 class="text-lg font-semibold mb-2">樣區環境資料</h3>
         <ul class="list-disc pl-5 space-y-1">
             <li>樣區編號為系統預設，無法修改。</li>
@@ -42,7 +42,7 @@
         </ul>
     </div>
 
-    <div class="gray-card">
+    <div class="flex-1 gray-card">
         <h3 class="text-lg font-semibold mb-2">植物調查資料</h3>
         <ul class="list-disc pl-5 space-y-1">
             <li>資料需包含「中文名」欄位，否則不會被儲存。</li>

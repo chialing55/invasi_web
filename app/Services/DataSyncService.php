@@ -40,7 +40,6 @@ class DataSyncService
                 if (!$missingRequired) {
                     $modelClass::create($data + $createExtra);
                     $changed = true; // ✅ 有變動
-
                 }
             } else {
                 // 先取得原資料

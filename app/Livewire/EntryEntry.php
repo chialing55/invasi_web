@@ -219,8 +219,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $islandCategoryMap = config('item_list.island_category');
         $plotEnvMap = config('item_list.plot_env');
         $subPlotEnvForm['subplot_area'] = $subPlotAreaMap[$subPlotEnvForm['subplot_area']];
-         $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
-          $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
+        //  $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
+        //   $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
         $this->subPlotEnvForm=$subPlotEnvForm;
 
         $this->showPlotEntryTable = true; // 顯示表單
@@ -360,11 +360,44 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
      
 
         $this->subPlotEnvForm=$subPlotEnvForm;
-
-        $where = ['plot_full_id' => $this->thisSubPlot];
+        if ( $this->thisSubPlot=='') {
+            $where = ['plot_full_id' => $subPlotEnvForm['plot_full_id']];
+        } else {
+            $where = ['plot_full_id' => $this->thisSubPlot];
+        }
 
         $originalData = SubPlotEnv2025::where($where)->get()->toArray();
         $newdata[]=$subPlotEnvForm;
+// dd($where);
+        if (!empty($originalData) && empty($subPlotEnvForm['id'])) {
+            $this->addError('小樣方流水號', '小樣方流水號重複');
+            return;
+        } 
+
+        // ✅ 根據 habitat_code 判斷是否要額外新增對應筆
+        $autoCopyMap = [
+            '08' => '88',
+            '09' => '99',
+        ];
+
+        if (array_key_exists($subPlotEnvForm['habitat_code'], $autoCopyMap)) {
+            $newdata[0]['subplot_area'] = 3;   // 強制設定為 5x5
+
+            $copyCode = $autoCopyMap[$subPlotEnvForm['habitat_code']];
+            $copiedPlotFullId = $subPlotEnvForm['plot'] . $copyCode . $subPlotEnvForm['subplot_id'];
+
+            $alreadyExists = SubPlotEnv2025::where('plot_full_id', $copiedPlotFullId)->exists();
+
+            if (!$alreadyExists) {
+                $copied = $subPlotEnvForm;
+                $copied['habitat_code'] = $copyCode;
+                $copied['subplot_area'] = 2; // 強制設定為 2x5
+                $copied['plot_full_id'] = $copiedPlotFullId;
+                $newdata[] = $copied;
+
+                session()->flash('saveMsg2', ', 同時新增 『' . $copiedPlotFullId . '』環境資料');
+            }
+        }
 
         $changed = DataSyncService::syncById(
             modelClass: SubPlotEnv2025::class,

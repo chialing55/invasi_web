@@ -13,6 +13,13 @@
             <li>所有修改動作皆會被紀錄，作為後續追蹤依據。</li>
         </ul>
     </div>
+    <div class="gray-card mb-4">
+        <h3 class="text-lg font-semibold mb-2">樣區生育地類型</h3>
+        <ul class="list-disc pl-5 space-y-1">
+            <li>淺綠色表示上次調查曾包含的生育地類型，提供參考。</li>
+            <li>此欄位將用於樣區完成度檢驗，請確實勾選實際涵蓋之生育地類型。</li>
+        </ul>
+    </div>
 <div class='md:flex md:flex-row gap-2 mb-4'>
     <div class="gray-card mb-4">
         <h3 class="text-lg font-semibold mb-2">樣區環境資料</h3>
@@ -21,6 +28,14 @@
             <li>調查者與紀錄者請填寫完整姓名。</li>
             <li>橘色框線欄位限定只能輸入數字。</li>
             <li>各欄位如有特殊格式要求，皆會於欄位提示中說明。</li>
+            <li>
+                當生育地類型為「08（天然林）」或「09（人工林）」時，系統會自動產生對應的草地類型資料（「88（天然林-草地）」或「99（人工林-草地）」）。
+                <ul class="list-['✳️'] list-outside pl-5 mt-1 space-y-1">
+                    <li>「08（天然林）」與「09（人工林）」的取樣面積固定為 5×5。</li>
+                    <li>「88（天然林-草地）」與「99（人工林-草地）」的取樣面積固定為 2×5。</li>
+                </ul>
+            </li>
+
             <li><b>請按 <button class="btn-submit">儲存環境資料</button> 才能完成儲存。</b></li>
             <li>如欄位有錯誤，將會顯示提示訊息，須更正所有錯誤後方可儲存。</li>
             <li>完成儲存後，將出現植物調查的輸入表單。</li>

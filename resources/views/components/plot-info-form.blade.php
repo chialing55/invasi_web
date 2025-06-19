@@ -28,7 +28,7 @@
       <input id="plot" name="plot" type="text" wire:model.defer="subPlotEnvForm.plot" class="border border-gray-300 px-2 py-1 w-40 bg-gray-100 text-gray-600" readonly>
 
       <label for="habitat_code" class="w-24 text-right">生育地類型</label>
-      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-40" maxlength="2" placeholder="01-20 / 除了19">
+      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-40" maxlength="2" placeholder="01-20(除了19)">
 
       <label for="subplot_id" class="w-32 text-right">小樣方流水號</label>
       <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id" class="border border-gray-300 px-2 py-1 w-40" maxlength="2" placeholder="01-50">

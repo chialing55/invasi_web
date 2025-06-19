@@ -55,7 +55,7 @@
 
     /* Tailwind 原始樣式之外，自訂 placeholder 樣式 */
     input::placeholder {
-    @apply italic text-lime-700 opacity-50;
+    @apply italic text-lime-700 opacity-50 text-sm;
     }
 
     input[type='checkbox']:checked {

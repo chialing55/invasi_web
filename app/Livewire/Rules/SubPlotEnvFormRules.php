@@ -20,7 +20,7 @@ trait SubPlotEnvFormRules
                 'string',
                 'regex:/^(0[1-9]|[1-4][0-9]|50)$/',
             ],
-            // 'subPlotEnvForm.subplot_area' => 'required|in:1x10,2x5,5x5',
+            'subPlotEnvForm.subplot_area' => 'required|in:1x10,2x5,5x5',
             // 'subPlotEnvForm.island_category' => 'required|in:本島,離島',
             // 'subPlotEnvForm.plot_env' => 'required|in:平地,都會,海岸,保護區,森林遊樂區',
             'subPlotEnvForm.elevation' => 'required|numeric|min:0|between:0,4000',
@@ -71,8 +71,8 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.subplot_id.string' => '流水號格式錯誤',
             'subPlotEnvForm.subplot_id.regex' => '小樣方代碼必須是 01 至 50 的兩位數字。',
 
-            // 'subPlotEnvForm.subplot_area.required' => '請選擇取樣面積',
-            // 'subPlotEnvForm.subplot_area.in' => '取樣面積格式錯誤',
+            'subPlotEnvForm.subplot_area.required' => '請選擇取樣面積',
+            'subPlotEnvForm.subplot_area.in' => '取樣面積格式錯誤',
 
             // 'subPlotEnvForm.island_category.required' => '請選擇樣區所屬地區',
             // 'subPlotEnvForm.island_category.in' => '樣區所屬地區格式錯誤',

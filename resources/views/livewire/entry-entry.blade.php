@@ -54,7 +54,6 @@
     </div>
 @endif
 
-<pre>{{ json_encode($refHabitatCodes) }}</pre>
 <div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}">
 
     @foreach($habTypeOptions as $code => $label)
@@ -105,15 +104,15 @@
     @endif
     </div>
     @if (session('form') === 'env' && session('saveMsg'))
-        <div class="mb-4 mt-4 rounded-md px-4 py-3">
-            <p class="font-semibold">{{ session('saveMsg') }}</p>
+        <div class="mt-4">
+            <p class="font-semibold">{{ session('saveMsg') }}{{session('saveMsg2')}}</p>
         </div>
     @endif
 
 
     @if($showPlotEntryTable)
     <div class='mt-8 gray-card' wire:key="plot-entry-table-{{ $thisPlot }}-{{ now()->timestamp }}">
-        <h3>{{$thisSubPlot}}小樣方環境資料</h3>
+        <h3>{{$thisSubPlot}} 小樣方環境資料</h3>
 
         @if ($errors->any() && session('form') === 'env')
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -139,7 +138,7 @@
     @if($showPlantEntryTable)
     
         <div id="plant-table-wrapper" class="mt-8 gray-card md:flex md:flex-col pb-16">
-            <h3>{{$thisSubPlot}}小樣方植物調查資料</h3>
+            <h3>{{$thisSubPlot}} 小樣方植物調查資料</h3>
     @if (session()->has('plantSaveMessage'))
         <div
             x-data="{ show: true }"

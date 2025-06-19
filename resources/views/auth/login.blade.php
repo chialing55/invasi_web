@@ -53,7 +53,7 @@
                         <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:underline">忘記密碼？</a>
                     </div>
 
-                    <button type="submit" class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-dark transition">登入</button>
+                    <button type="submit" class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">登入</button>
                 </form>
                 <!-- <div class="my-4 text-center relative">
 

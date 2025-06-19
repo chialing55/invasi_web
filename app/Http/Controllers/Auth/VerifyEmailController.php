@@ -15,13 +15,15 @@ class VerifyEmailController extends Controller
     public function __invoke(EmailVerificationRequest $request): RedirectResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('index', absolute: false).'?verified=1');
+            return redirect()->route('email.verified');
+            // return redirect()->intended(route('index', absolute: false).'?verified=1');
         }
 
         if ($request->user()->markEmailAsVerified()) {
             event(new Verified($request->user()));
         }
-
-        return redirect()->intended(route('index', absolute: false).'?verified=1');
+    // ✅ 驗證成功後導向 email.verified 頁面（會自動 logout）
+        return redirect()->route('email.verified');
+        // return redirect()->intended(route('index', absolute: false).'?verified=1');
     }
 }

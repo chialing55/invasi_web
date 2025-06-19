@@ -32,7 +32,7 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit"
-                    class="w-full text-sm text-gray-600 hover:underline mt-2">
+                    class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">
                     登出
                 </button>
             </form>

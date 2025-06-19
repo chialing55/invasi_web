@@ -14,7 +14,7 @@ use App\Http\Controllers\Auth\PasswordConfirmController;
 use App\Http\Controllers\GoogleBindingController;
 // use App\Http\Controllers\HomeController;
 use App\Http\Controllers\FileController;
-
+use Illuminate\Support\Facades\Auth;
 
 
 // 首頁（登入畫面 or dashboard）
@@ -70,6 +70,13 @@ Route::get('/verify-email/{id}/{hash}', [VerifyEmailController::class, '__invoke
     ->middleware(['auth', 'signed', 'throttle:6,1'])
     ->name('verification.verify');
 
+Route::get('/email-verified', function () {
+    Auth::logout(); // ✅ 驗證完登出
+    session()->flush(); // ✅ 清除 session（選擇性）
+
+    return view('auth.email-verified');
+})->name('email.verified');
+
 // 重新寄送驗證信
 Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
     ->middleware(['auth', 'throttle:6,1'])
@@ -82,8 +89,9 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('dashboard', function () {
-    return route('index'); // 或改為你客製首頁的 Blade
+    return redirect()->route('index'); // ✅ 正確：導向 index 頁面
 })->middleware(['auth', 'verified'])->name('dashboard');
+
 
 
 // web.php

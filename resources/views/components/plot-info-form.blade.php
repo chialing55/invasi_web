@@ -13,11 +13,11 @@
 
     <!-- 座標與編號 -->
     <div class="md:flex gap-2 items-center">
-      <label for="dd97_x" class="w-24 text-right">座標 X</label>
-      <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="dd97_X">
+      <label for="dd97_x" class="w-24 text-right">經度</label>
+      <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="20 - 27">
 
-      <label for="dd97_y" class="w-10 text-right">Y</label>
-      <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="dd97_Y">
+      <label for="dd97_y" class="w-10 text-right">緯度</label>
+      <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="118 - 123">
 
       <label for="gps_error" class="w-24 text-right">座標誤差</label>
       <input id="gps_error" name="gps_error" type="number" step="1" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32">
@@ -64,10 +64,10 @@
       <input id="elevation" name="elevation" type="number" step="any" wire:model.defer="subPlotEnvForm.elevation" class="border border-gray-300 px-2 py-1 w-24" >
 
       <label for="slope" class="w-20 text-right">坡度</label>
-      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 6-90">
+      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-90">
 
       <label for="aspect" class="w-20 text-right">坡向</label>
-      <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="0-359">
+      <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-359">
     </div>
 
     <!-- 全天光 -->

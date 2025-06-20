@@ -25,7 +25,7 @@ trait SubPlotEnvFormRules
             // 'subPlotEnvForm.plot_env' => 'required|in:平地,都會,海岸,保護區,森林遊樂區',
             'subPlotEnvForm.elevation' => 'required|numeric|min:0|between:0,4000',
             'subPlotEnvForm.slope' => 'required|integer|between:-1,90',
-            'subPlotEnvForm.aspect' => 'required|numeric|between:0,359',
+            'subPlotEnvForm.aspect' => 'required|numeric|between:-1,359',
             'subPlotEnvForm.light_0' => 'required|numeric|between:0,90',
             'subPlotEnvForm.light_45' => 'required|numeric|between:0,90',
             'subPlotEnvForm.light_90' => 'required|numeric|between:0,90',
@@ -54,10 +54,10 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.recorder.string' => '紀錄者姓名格式錯誤',
             'subPlotEnvForm.recorder.max' => '紀錄者姓名長度過長',
 
-            'subPlotEnvForm.dd97_x.required' => '請輸入座標 X',
-            'subPlotEnvForm.dd97_x.numeric' => '座標 X 必須是數字',
-            'subPlotEnvForm.dd97_y.required' => '請輸入座標 Y',
-            'subPlotEnvForm.dd97_y.numeric' => '座標 Y 必須是數字',
+            'subPlotEnvForm.dd97_x.required' => '請輸入經度',
+            'subPlotEnvForm.dd97_x.numeric' => '經度必須是數字',
+            'subPlotEnvForm.dd97_y.required' => '請輸入緯度',
+            'subPlotEnvForm.dd97_y.numeric' => '緯度必須是數字',
             'subPlotEnvForm.dd97_x.between' => '經度必須介於 118 到 123 之間。',
             'subPlotEnvForm.dd97_y.between' => '緯度必須介於 20 到 27 之間。',
             'subPlotEnvForm.gps_error.numeric' => 'GPS 誤差需為數字',
@@ -88,7 +88,7 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.slope.between' => '坡度必須介於 -1 到 90',
 
             'subPlotEnvForm.aspect.numeric' => '坡向需為數字',
-            'subPlotEnvForm.aspect.between' => '坡向必須介於 0 到 359',
+            'subPlotEnvForm.aspect.between' => '坡向必須介於 -1 到 359',
 
             // 全天光
             'subPlotEnvForm.light_0.numeric' => '全天光(0°)需為數字',

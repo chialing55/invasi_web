@@ -120,7 +120,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $this->dispatch('reset_plant_table');
         // 取得樣區資料
         $this->subPlotList = SubPlotEnv2025::where('plot', $plot)->pluck('plot_full_id')->toArray();
-        $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
+        // $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
         $this->selectedHabitatCodes=[];
         $this->loadPlotHab($plot); // 載入生育地類型選項
 
@@ -216,8 +216,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
         } 
         $subPlotAreaMap = config('item_list.sub_plot_area');
-        $islandCategoryMap = config('item_list.island_category');
-        $plotEnvMap = config('item_list.plot_env');
+        // $islandCategoryMap = config('item_list.island_category');
+        // $plotEnvMap = config('item_list.plot_env');
         $subPlotEnvForm['subplot_area'] = $subPlotAreaMap[$subPlotEnvForm['subplot_area']];
         //  $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
         //   $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
@@ -231,12 +231,21 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function loadSubPlotPlant($subPlot){
 
-        if (empty($this->plantList)) {
-             $this->plantList=$this->loadPlantList($this->thisPlot);
-        }
+        // if (empty($this->plantList)) {
+        //      $this->plantList=$this->loadPlantList($this->thisPlot);
+        // }
         // dd($this->plantList);
-        $data = SubPlotPlant2025::where('plot_full_id', $subPlot)->get();
-        
+        // $data = SubPlotPlant2025::where('plot_full_id', $subPlot)->get();
+        $data = SubPlotPlant2025::query()
+            ->where('plot_full_id', $subPlot)
+            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
+            ->select(
+                'im_spvptdata_2025.*',
+                'spinfo.chname',
+                'spinfo.chfamily',
+                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hit")
+            )
+            ->get();        
         if ($data->isNotEmpty()) {
             
             $this->subPlotPlantForm = $this->loadExistingPlantForm();           
@@ -244,7 +253,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $this->dispatch('plant_table', data: [
                 'data' => $this->subPlotPlantForm,
                 'thisSubPlot' =>$this->thisSubPlot,
-                'plantList' =>$this->plantList
+                // 'plantList' =>$this->plantList
             ]);
 
         } else {
@@ -260,12 +269,21 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $columns = $emptyRow ['columns'];
         $empty = $emptyRow ['empty'];
 
-        $data = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)->get();
-
+         $data = SubPlotPlant2025::query()
+            ->where('plot_full_id', $this->thisSubPlot)
+            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
+            ->select(
+                'im_spvptdata_2025.*',
+                'spinfo.chname',
+                'spinfo.chfamily',
+                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hit")
+            )
+            ->get();  
+// dd($data);
         $existingPlantForm = $data->map(function ($item) use ($columns) {
             return collect($item)->only($columns)->toArray();
         })->toArray();
-
+// dd($existingPlantForm);
         for ($i = 0; $i < 5; $i++) {
             $row = $empty;
             $row['plot_full_id'] = $this->thisSubPlot;
@@ -287,6 +305,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         ]);
 
         $columns = array_values($columns); // 儲存欄位順序
+        $columns[] = 'hit';
         $booleanFields = ['flowering', 'fruiting']; // 你要預設為 0 的欄位
         $emptyRow = [];
         foreach ($columns as $col) {
@@ -432,16 +451,14 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             ->filter(fn ($row) => !empty($row['chname_index'])) // 只處理有中文名的
             ->map(function ($row) {
                 // 比對中文名 → 取得 spcode
-                $spinfo = SpcodeIndex::where('chname_index', $row['chname_index'])->first() ??Spinfo::where('chname', $row['chname_index'])->first();
 
-                $row['spcode'] = $spinfo->spcode ?? null;
-                $row['unidentified'] = isset($spinfo->spcode) && $spinfo->spcode !== '' ? 0 : 1;
+                $row['unidentified'] = isset($row['spcode']) && $row['spcode'] !== '' ? 0 : 1;
 
                 // 覆蓋度錯誤標記
                 $cov = $row['coverage'] ?? null;
                 if (!is_numeric($cov) || $cov < 0 || $cov > 100 || $cov == 0 ) {
                     $row['cov_error'] = 1;
-                    // $row['coverage'] = 0;
+                    $row['coverage'] = 0;
                 } else {
                     $row['cov_error'] = 0;
                 }

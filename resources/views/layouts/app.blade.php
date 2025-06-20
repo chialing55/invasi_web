@@ -25,6 +25,13 @@
 
 .tabulator{
     font-size: 16px !important;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.tabulator-table-plant {
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 button.sort::after {
@@ -37,6 +44,17 @@ button.sort[data-order="asc"]::after {
 button.sort[data-order="desc"]::after {
     content: "▼";
 }
+
+.autocomplete-dropdown {
+    border-radius: 4px;
+    overflow: hidden;
+}
+.autocomplete-option:hover,
+.autocomplete-option.selected {
+    background: #97c498;
+}
+  
+
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
@@ -96,3 +114,6 @@ button.sort[data-order="desc"]::after {
     <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+    <!-- 載入 Tom Select（CDN） -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>

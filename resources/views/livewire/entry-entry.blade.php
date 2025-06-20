@@ -184,22 +184,22 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
 
     window.addEventListener('plant_table', (event) => {
         const data = event.detail.data; 
-        const rawPlantList = event.detail.data.plantList;
+        // const rawPlantList = event.detail.data.plantList;
         console.log(data.data);
-        const chnameList = rawPlantList.map(item => item.chname);
+        // const chnameList = rawPlantList.map(item => item.chname);
         if (window.plantTable != null) {
             // ✅ 更新 autocomplete name list（column editorParams）
-            const column = window.plantTable.getColumn("chname_index");
-            if (column) {
-                column.getDefinition().editorParams.values = chnameList;
-            }
+            // const column = window.plantTable.getColumn("chname_index");
+            // if (column) {
+            //     column.getDefinition().editorParams.values = chnameList;
+            // }
 
             // ✅ 再更新表格資料
             window.plantTable.replaceData(data.data);
             console.log("🔁 已有表格，用 replaceData");
         } else {
             console.log("🆕 沒有表格，新建");
-            initTabulatorStart(data.data, data.thisSubPlot, chnameList);
+            initTabulatorStart(data.data, data.thisSubPlot);
         }       
     });
 
@@ -232,24 +232,22 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
 
     }
 
-    function initTabulatorStart(tableData, thisSubPlot, nameList = []) {
+    function initTabulatorStart(tableData, thisSubPlot) {
         const columns = [
             { title: "#", formatter: "rownum", width: 40, hozAlign: "center", headerSort: false },
             {
+
                 title: "中文名",
                 field: "chname_index",
-                editor: "autocomplete",
                 width: 200,
-                editorParams: {
-                    values: nameList,
-                    freetext: true,
-                    allowEmpty: true,
-                    autocomplete: true, // ← 建議加上這行（有些版本需要）
-                    searchFunc: function (term, values) {
-                        term = term.toLowerCase();
-                        return values.filter(v => v.toLowerCase().includes(term));
-                    }
-                },
+                editor: remoteAutocompleteEditor('/api/plant-suggestions', {
+                    fontSize: "1rem",
+                    updateFields: (item) => ({
+                        spcode: item.spcode,
+                        hit: item.hit
+                    })
+                }),           
+
                 formatter: function (cell) {
                     const data = cell.getRow().getData();
                     const value = cell.getValue();
@@ -302,8 +300,10 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
                     // syncSubPlotToLivewire(cell);
                 }
             },
-            { title: "標本", field: "specimen_id", editor: "input" },
-            { title: "備註", field: "note", editor: "input" },
+            { title: "標本", field: "specimen_id", editor: "input", width: 80 },
+            { title: "備註", field: "note", editor: "input", width: 80 },
+            { title: "spcode", field: "spcode", visible: false },
+            { title: "中名 / 科名", field: "hit", width: 150 },
             { title: "id", field: "id", visible: false },
         ];
 
@@ -349,6 +349,144 @@ window.listenAndResetAllHabitatCheckboxes = function (eventName) {
 // 初始化監聽
 window.listenAndResetAllHabitatCheckboxes('reset_habitat');
 
+function remoteAutocompleteEditor(apiUrl, config = {}) {
+    return function (cell, onRendered, success, cancel) {
+        const input = document.createElement("input");
+        input.setAttribute("type", "text");
+        input.classList.add("remote-autocomplete");
+        input.style.fontSize = config.fontSize || "1.1rem";
+        input.style.padding = "6px 8px";
+        input.style.height = "2rem";
+        input.style.width = "100%";
+        input.autocomplete = "off";
+
+        const currentValue = cell.getValue() || "";
+        input.value = currentValue;
+
+        const dropdown = document.createElement("div");
+        dropdown.classList.add("autocomplete-dropdown");
+        dropdown.style.position = "absolute";
+        dropdown.style.zIndex = 9999;
+        dropdown.style.background = "white";
+        dropdown.style.border = "1px solid #ccc";
+        dropdown.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
+        dropdown.style.display = "none";
+        dropdown.style.maxHeight = "200px";
+        dropdown.style.overflowY = "auto";
+        dropdown.style.fontSize = config.fontSize || "1.1rem";
+        document.body.appendChild(dropdown);
+
+        let results = [];
+        let selectedIndex = -1;
+
+        const showDropdown = () => {
+            const rect = input.getBoundingClientRect();
+            dropdown.style.left = `${rect.left + window.scrollX}px`;
+            dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+            dropdown.style.width = `${rect.width}px`;
+            dropdown.style.display = results.length > 0 ? "block" : "none";
+        };
+
+        const hideDropdown = () => {
+            dropdown.style.display = "none";
+        };
+
+        const fetchSuggestions = (q) => {
+            if (!q.trim()) {
+                results = [];
+                dropdown.innerHTML = "";
+                hideDropdown();
+                return;
+            }
+
+            fetch(`${apiUrl}?q=${encodeURIComponent(q)}`)
+                .then((res) => res.json())
+                .then((data) => {
+                    results = data;
+                    dropdown.innerHTML = "";
+                    selectedIndex = -1;
+
+                    data.forEach((item, i) => {
+                        const option = document.createElement("div");
+                        option.classList.add("autocomplete-option");
+                        option.textContent = `${item.label} / ${item.family}`;
+                        option.style.padding = "4px 8px";
+                        option.style.cursor = "pointer";
+
+                        option.addEventListener("mousedown", (e) => {
+                            e.preventDefault(); // 避免 blur
+                            applySelection(item);
+                        });
+
+                        dropdown.appendChild(option);
+                    });
+
+                    showDropdown();
+                });
+        };
+
+        const applySelection = (item) => {
+            input.value = item.value;
+            const row = cell.getRow();
+
+            // 若有指定欄位對應更新
+            if (config.updateFields) {
+                row.update(config.updateFields(item));
+            }
+
+            cleanup();
+            success(item.value);
+        };
+
+        const highlightSelected = () => {
+            [...dropdown.children].forEach((el, i) => {
+                el.style.background = i === selectedIndex ? "#97c498" : "";
+            });
+        };
+
+        const handleKey = (e) => {
+            if (e.key === "ArrowDown") {
+                selectedIndex = Math.min(results.length - 1, selectedIndex + 1);
+                highlightSelected();
+                e.stopPropagation();
+            } else if (e.key === "ArrowUp") {
+                selectedIndex = Math.max(0, selectedIndex - 1);
+                highlightSelected();
+                e.stopPropagation();
+            } else if (e.key === "Enter") {
+                if (selectedIndex >= 0 && results[selectedIndex]) {
+                    applySelection(results[selectedIndex]);
+                } else {
+                    cleanup();
+                    success(input.value);
+                }
+                e.stopPropagation();
+            } else {
+                // fetch 建議清單
+                fetchSuggestions(input.value);
+            }
+        };
+
+        const cleanup = () => {
+            dropdown.remove();
+        };
+
+        input.addEventListener("keydown", handleKey);
+        input.addEventListener("blur", () => {
+            setTimeout(() => {
+                cleanup();
+                success(input.value);
+            }, 10);
+        });
+
+        onRendered(() => {
+            input.focus();
+            fetchSuggestions(input.value);
+        });
+
+        return input;
+    };
+}
 
 
 </script>

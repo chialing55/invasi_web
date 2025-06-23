@@ -123,7 +123,7 @@
 
     <table class="text-sm border border-gray-300 w-full">
             <!-- 桌機版表頭 -->
-            <thead class="bg-yellow-500/30 hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10">
+            <thead class=" hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300 ">
                     <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('county')">
                         縣市
@@ -181,7 +181,7 @@
             </thead>
 
             <!-- 手機版表頭 -->
-            <thead class="bg-yellow-500/30 sm:hidden sticky top-0 z-10">
+            <thead class=" sm:hidden sticky top-0 z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300">
                     <th class="px-4 py-2">縣市</th>
                     <th class="px-4 py-2">生育地</th>

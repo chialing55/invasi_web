@@ -1,6 +1,13 @@
 {{-- livewire/query-plot.blade.php --}}
 
 <div>
+<div
+    wire:loading.class="flex"
+    wire:loading.remove.class="hidden"
+    class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center"
+>
+    <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+</div>
     <h2 class="text-xl font-bold mb-4">樣區查詢</h2>
 
 <div class="space-y-4">
@@ -70,7 +77,7 @@
         </ul>
     </div>
     <table class="text-sm border border-gray-300">
-        <thead class="bg-yellow-500/30 sticky top-0 z-10">
+        <thead class=" sticky top-0 z-10" style="background-color: #F9E7AC;">
             <tr>
                 <th><button class="sort px-4 py-2" data-sort="chfamily">科名</button></th>
                 <th><button class="sort px-4 py-2" data-sort="chname">中文名</button></th>

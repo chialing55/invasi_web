@@ -58,7 +58,7 @@ window.initTabulator = function ({
                 rowFormatter: function (row) {
                     const data = row.getData();
                     if (data.cov_error === 2) {
-                        row.getElement().style.backgroundColor = '#f7cdc6';
+                        row.getElement().style.backgroundColor = '#fee2e2';
                     } else {
                         row.getElement().style.backgroundColor = '';
                     }

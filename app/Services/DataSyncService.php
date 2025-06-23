@@ -2,7 +2,7 @@
 namespace App\Services;
 
 use App\Models\FixLog;
-
+use App\Models\SpcodeIndex;
 class DataSyncService
 {
     public static function syncById(
@@ -20,10 +20,29 @@ class DataSyncService
 
         // 刪除：原本有但新資料沒有的
         foreach ($originalData as $old) {
-          
             if (!in_array($old['id'], $newIds)) {
-                $modelClass::where('id', $old['id'])->delete();
-                $changed = true; // ✅ 有變動
+                $model = $modelClass::find($old['id']);
+
+                if ($model) {
+                    // ✅ 若是 SpcodeIndex，記錄 FixLog
+                    if ($modelClass === SpcodeIndex::class && $userCode) {
+                        FixLog::create([
+                            'table_name' => $model->getTable(),
+                            'record_id' => $model->getKey(),
+                            'changes' => [
+                                '_deleted' => [
+                                    'spcode' => $model->spcode,
+                                    'chname_index' => $model->chname_index,
+                                ]
+                            ],
+                            'modified_by' => $userCode,
+                            'modified_at' => now(),
+                        ]);
+                    }
+
+                    $model->delete();
+                    $changed = true;
+                }
             }
         }
 

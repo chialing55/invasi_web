@@ -144,7 +144,7 @@
 
     @if($showPlantEntryTable)
     
-        <div id="plant-table-wrapper" class="mt-8 gray-card md:flex md:flex-col pb-16">
+        <div id="plant-table-wrapper" class="mt-8 gray-card md:flex md:flex-col mb-4">
             <h3>{{$thisSubPlot}} 小樣方植物調查資料</h3>
 
     @if (session()->has('plantSaveMessage'))
@@ -171,7 +171,12 @@
             </div>
         </div>
 
+    <div class="mt-8 gray-card md:flex md:flex-col mb-4">
+        <h3>{{$thisSubPlot}} 小樣方照片上傳</h3>
+    </div>
+
     @endif
+
 </div>
 
 
@@ -257,7 +262,7 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
                     fontSize: "1rem",
                     updateFields: (item) => ({
                         spcode: item.spcode,
-                        hit: item.hit
+                        hint: item.hint
                     })
                 }),           
 
@@ -316,7 +321,7 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
             { title: "標本", field: "specimen_id", editor: "input", width: 80 },
             { title: "備註", field: "note", editor: "input", width: 80 },
             { title: "spcode", field: "spcode", visible: false },
-            { title: "中名 / 科名", field: "hit", width: 150 },
+            { title: "中名 / 科名", field: "hint", width: 150 },
             { title: "id", field: "id", visible: false },
         ];
 

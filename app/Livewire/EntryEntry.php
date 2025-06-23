@@ -243,7 +243,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 'im_spvptdata_2025.*',
                 'spinfo.chname',
                 'spinfo.chfamily',
-                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hit")
+                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hint")
             )
             ->get();        
         if ($data->isNotEmpty()) {
@@ -276,7 +276,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 'im_spvptdata_2025.*',
                 'spinfo.chname',
                 'spinfo.chfamily',
-                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hit")
+                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hint")
             )
             ->get();  
 // dd($data);
@@ -305,7 +305,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         ]);
 
         $columns = array_values($columns); // 儲存欄位順序
-        $columns[] = 'hit';
+        $columns[] = 'hint';
         $booleanFields = ['flowering', 'fruiting']; // 你要預設為 0 的欄位
         $emptyRow = [];
         foreach ($columns as $col) {
@@ -468,6 +468,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 }
 
                 $row['plot_full_id']=$this->thisSubPlot;
+                unset($row['hint']); // ❌ 移除 hint 欄位
 
                 return $row;
             })->values()->toArray();

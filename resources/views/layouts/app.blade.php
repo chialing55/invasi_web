@@ -26,12 +26,12 @@
 .tabulator{
     font-size: 16px !important;
     max-width: 100%;
-    overflow-x: auto;
+
 }
 
 .tabulator-table-plant {
     max-width: 100%;
-    overflow-x: auto;
+
 }
 
 button.sort::after {

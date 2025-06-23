@@ -284,7 +284,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             return collect($item)->only($columns)->toArray();
         })->toArray();
 // dd($existingPlantForm);
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 15; $i++) {
             $row = $empty;
             $row['plot_full_id'] = $this->thisSubPlot;
             $existingPlantForm[] = $row;
@@ -335,9 +335,9 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $this->subPlotPlantForm[] = $row;
         }
 
-        if (empty($this->plantList)) {
-            $this->plantList=$this->loadPlantList($this->thisPlot);
-        }
+        // if (empty($this->plantList)) {
+        //     $this->plantList=$this->loadPlantList($this->thisPlot);
+        // }
 
         $this->dispatch('plant_table', data: [
             'data' => $this->subPlotPlantForm,
@@ -488,10 +488,11 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             requiredFields: ['chname_index'],
             userCode: $this->creatorCode
         );
+
         $this->markDuplicateCovError($this->thisSubPlot);
         $this->subPlotPlantForm = $this->loadExistingPlantForm();
         
-        $this->plantList=$this->loadPlantList($this->thisPlot);
+        // $this->plantList=$this->loadPlantList($this->thisPlot);
 
         $this->dispatch('plant_table', data: [
             'data' => $this->subPlotPlantForm,
@@ -499,7 +500,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             'plantList' =>$this->plantList
         ]);
 
-        
+     
         session()->flash('plantSaveMessage', $changed ? '植物資料已更新' : '無任何變更'); 
 
     }

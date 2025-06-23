@@ -1,5 +1,12 @@
 {{-- livewire/entry-entry.blade.php --}}
 <div>
+<div
+    wire:loading.class="flex"
+    wire:loading.remove.class="hidden"
+    class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center"
+>
+    <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+</div>
     <h2 class="text-xl font-bold mb-4">資料輸入</h2>
     <div class="space-y-4">
 
@@ -139,20 +146,26 @@
     
         <div id="plant-table-wrapper" class="mt-8 gray-card md:flex md:flex-col pb-16">
             <h3>{{$thisSubPlot}} 小樣方植物調查資料</h3>
+
     @if (session()->has('plantSaveMessage'))
         <div
             x-data="{ show: true }"
             x-init="setTimeout(() => show = false, 3000)"
             x-show="show"
             x-transition
+            wire:key="plant-msg-{{ now()->format('YmdHisv') }}"
             id="plant-msg"
             class="mb-2 text-red-800"
         >
             {{ session('plantSaveMessage') }}
         </div>
     @endif
-            
-            <div id="tabulator-table-plant"  wire:ignore class='mt-4'></div>
+            <div class="flex justify-end">
+                <button id="submit-btn-plant" class="btn-submit" type="button">儲存植物調查資料</button>
+            </div>
+
+                <div id="tabulator-table-plant"  wire:ignore class='mt-4'></div>
+
             <div class="mt-4 flex justify-end">
                 <button id="submit-btn-plant" class="btn-submit" type="button">儲存植物調查資料</button>
             </div>

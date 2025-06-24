@@ -57,9 +57,26 @@ class DataSyncService
                 });
 
                 if (!$missingRequired) {
-                    $modelClass::create($data + $createExtra);
+                    $newModel = $modelClass::create($data + $createExtra);
                     $changed = true; // ✅ 有變動
+
+                    // ✅ 若是 SpcodeIndex，記錄 FixLog
+                    if ($modelClass === SpcodeIndex::class && $userCode) {
+                        FixLog::create([
+                            'table_name' => $newModel->getTable(),
+                            'record_id' => $newModel->getKey(),
+                            'changes' => [
+                                '_created' => [
+                                    'spcode' => $newModel->spcode,
+                                    'chname_index' => $newModel->chname_index,
+                                ]
+                            ],
+                            'modified_by' => $userCode,
+                            'modified_at' => now(),
+                        ]);
+                    }
                 }
+
             } else {
                 // 先取得原資料
                 $existing = collect($originalData)->firstWhere('id', $item['id']);

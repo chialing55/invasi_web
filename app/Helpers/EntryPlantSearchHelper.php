@@ -22,7 +22,7 @@ class EntryPlantSearchHelper
                         'family' => $item->chfamily,
                         'label' => $item->chname,
                         'value' => $item->chname,
-                        'hit' => $item->chname.' / '.$item->chfamily,
+                        'hint' => $item->chname.' / '.$item->chfamily,
                         'spcode' => $item->spcode,
                     ];
                 }
@@ -42,7 +42,7 @@ class EntryPlantSearchHelper
                         'family' => $item->chfamily,
                         'label' => $item->chname,
                         'value' => $item->chname,
-                        'hit' => $item->chname.' / '.$item->chfamily,
+                        'hint' => $item->chname.' / '.$item->chfamily,
                         'spcode' => $item->spcode,
                     ];
                 }
@@ -71,7 +71,7 @@ class EntryPlantSearchHelper
                     'family' => $row->chfamily,
                     'label' => $row->chname_index.' / '.$row->chname,
                     'value' => $row->chname_index,
-                    'hit' => $row->chname.' / '.$row->chfamily,
+                    'hint' => $row->chname.' / '.$row->chfamily,
                     'spcode' => $row->spcode,
                 ];
             });

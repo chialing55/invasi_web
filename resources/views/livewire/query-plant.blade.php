@@ -39,14 +39,13 @@
 <!--有查詢結果  -->
 <!-- 植物名稱 -->
  @php
-    $inatLink = "https://taiwan.inaturalist.org/search?q=" . urlencode($spnameInfo['chname'] ?? '');
+    $inatLink1 = "https://taiwan.inaturalist.org/search?q=" . urlencode($spnameInfo['chname'] ?? '');
+    $inatLink2 = "https://tai2.ntu.edu.tw/search/1/" . urlencode($spnameInfo['chname'] ?? ''); $inatLink3 = "https://taicol.tw/catalogue?keyword=" . urlencode($spnameInfo['chname'] ?? '');
 @endphp
     <div class="mt-8">
-        <h2><a href="{{ $inatLink }}" target="_blank"
-                class=" hover:underline">
-                    <strong>{{ $spnameInfo['chname'] }}</strong>
-                    <strong><i>{{ $spnameInfo['simname'] }}</i></strong>
-                </a></h2>
+        <h2><strong>{{ $spnameInfo['chname'] }}</strong>
+            <strong><i>{{ $spnameInfo['simname'] }}</i></strong>
+        </h2>
         <p><strong>{{$spnameInfo['chfamily']}}  {{ $spnameInfo['family'] }} </strong></p>
         <p>
             @if($spnameInfo['endemic'] == 1)
@@ -67,6 +66,18 @@
         @endforeach
         </p>
         @endif
+        <div>
+            <div class="flex flex-wrap gap-x-4 gap-y-4 mt-4 mb-4">
+            <a href="{{ $inatLink1 }}" target="_blank">
+                <img src="{{ asset('images/inaturelist.png') }}" alt="Link 1" class="h-12">
+            </a>
+            <a href="{{ $inatLink2 }}" target="_blank" >
+                <img src="{{ asset('images/plants of taiwan.jpg') }}" alt="Link 2" class="h-12">
+            </a>
+            <a href="{{ $inatLink3 }}" target="_blank" >
+                <img src="{{ asset('images/taicol.png') }}" alt="Link 3" class="h-12">
+            </a>
+        </div>
     </div>
 <!-- 新增chnameIndex -->
     <button wire:click="toggle" class="btn-add">

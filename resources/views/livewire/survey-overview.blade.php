@@ -51,7 +51,7 @@
             <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
                 <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
                 <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40" wire:change="reloadPlotInfo($event.target.value)">
-                    <option value="">-- 請選擇 --</option>
+                    <option value="">-- All --</option>
                     @foreach ($subPlotHabList as $code => $label)
                         <option value="{{ $code }}">{{ $label }}</option>
                     @endforeach

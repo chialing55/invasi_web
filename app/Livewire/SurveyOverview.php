@@ -81,6 +81,8 @@ class SurveyOverview extends Component
     public function loadPlotInfo($value)
     {
         $this->thisPlot = $value;
+        $this->filteredSubPlotSummary =[];
+        $this->subPlotSummary = [];
         $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray(); // code => 中文名
         $thisPlotList = SubPlotEnv2025::where('plot', $value)->get();
 
@@ -128,6 +130,7 @@ class SurveyOverview extends Component
             $this->filteredSubPlotSummary = $this->subPlotSummary;
         } else {
             // 篩選指定 habitat_code
+            $this->filteredSubPlotSummary =[];
             $this->filteredSubPlotSummary = collect($this->subPlotSummary)
                 ->where('habitat_code', $value)
                 ->values()

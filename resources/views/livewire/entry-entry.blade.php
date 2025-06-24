@@ -43,9 +43,8 @@
             </a>
             以確保操作順利。
         </li>
-        <li><b>請務必按下儲存鈕</b>，資料才會儲存，否則將會遺失所填寫內容。</li>
-        <li>如有 <b>新增或刪除資料</b>，請儲存後才能正確套用變更。</li>
-        <li>若 <b>尚未儲存即切換樣區或離開頁面</b>，變更內容將不會保留。</li>
+        <li>新增或刪除資料後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
+
     </ul>
 </div>
 
@@ -255,7 +254,7 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
             { title: "#", formatter: "rownum", width: 40, hozAlign: "center", headerSort: false },
             {
 
-                title: "中文名",
+                title: "中名",
                 field: "chname_index",
                 width: 200,
                 editor: remoteAutocompleteEditor('/api/plant-suggestions', {

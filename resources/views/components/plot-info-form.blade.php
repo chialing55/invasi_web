@@ -14,13 +14,13 @@
     <!-- 座標與編號 -->
     <div class="md:flex gap-2 items-center">
       <label for="dd97_x" class="w-24 text-right">經度</label>
-      <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="20 - 27">
+      <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x" class="border border-gray-300 px-2 py-1 w-32" placeholder="118 - 123">
 
       <label for="dd97_y" class="w-10 text-right">緯度</label>
-      <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="118 - 123">
+      <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="20 - 27">
 
       <label for="gps_error" class="w-24 text-right">座標誤差</label>
-      <input id="gps_error" name="gps_error" type="number" step="1" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32">
+      <input id="gps_error" name="gps_error" type="number" step="any" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32" placeholder="0 - 10">
     </div>
 
     <div class="md:flex gap-2 items-center">
@@ -61,7 +61,7 @@
     <!-- 地形 -->
     <div class="md:flex gap-2 items-center">
       <label for="elevation" class="w-24 text-right">海拔(m)</label>
-      <input id="elevation" name="elevation" type="number" step="any" wire:model.defer="subPlotEnvForm.elevation" class="border border-gray-300 px-2 py-1 w-24" >
+      <input id="elevation" name="elevation" type="number" step="any" wire:model.defer="subPlotEnvForm.elevation" class="border border-gray-300 px-2 py-1 w-24" placeholder="0-5000">
 
       <label for="slope" class="w-20 text-right">坡度</label>
       <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-90">
@@ -76,7 +76,7 @@
       @foreach([0,45,90,135,180,225,270,315] as $deg)
         <div class="flex items-center gap-1">
           <label for="light_{{ $deg }}" class="text-xs w-6 text-right">{{ $deg }}</label>
-          <input id="light_{{ $deg }}" name="light_{{ $deg }}" type="number" wire:model.defer="subPlotEnvForm.light_{{ $deg }}" class="border border-gray-300 px-1 py-0.5 w-16 " placeholder="0-90">
+          <input id="light_{{ $deg }}" name="light_{{ $deg }}" type="number" wire:model.defer="subPlotEnvForm.light_{{ $deg }}" class="border border-gray-300 px-1 py-0.5 w-16 " step="1" min="0" max="90" placeholder="0-90">
         </div>
       @endforeach
     </div>

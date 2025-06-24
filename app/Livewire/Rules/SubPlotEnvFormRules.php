@@ -13,7 +13,7 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.recorder' => 'required|string|max:255',
             'subPlotEnvForm.dd97_x' => 'required|numeric|between:118,123',
             'subPlotEnvForm.dd97_y' => 'required|numeric|between:20,27',
-            'subPlotEnvForm.gps_error' => 'required|numeric',
+            'subPlotEnvForm.gps_error' => 'required|numeric|between:0,10',
             'subPlotEnvForm.habitat_code' => 'required|string|max:2|in:01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,20,88,99',
             'subPlotEnvForm.subplot_id' => [
                 'required',
@@ -23,17 +23,17 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.subplot_area' => 'required|in:1x10,2x5,5x5',
             // 'subPlotEnvForm.island_category' => 'required|in:本島,離島',
             // 'subPlotEnvForm.plot_env' => 'required|in:平地,都會,海岸,保護區,森林遊樂區',
-            'subPlotEnvForm.elevation' => 'required|numeric|min:0|between:0,4000',
+            'subPlotEnvForm.elevation' => 'required|numeric|min:0|between:0,5000',
             'subPlotEnvForm.slope' => 'required|integer|between:-1,90',
-            'subPlotEnvForm.aspect' => 'required|numeric|between:-1,359',
-            'subPlotEnvForm.light_0' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_45' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_90' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_135' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_180' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_225' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_270' => 'required|numeric|between:0,90',
-            'subPlotEnvForm.light_315' => 'required|numeric|between:0,90',
+            'subPlotEnvForm.aspect' => 'required|integer|between:-1,359',
+            'subPlotEnvForm.light_0' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_45' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_90' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_135' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_180' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_225' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_270' => 'required|integer|between:0,90',
+            'subPlotEnvForm.light_315' => 'required|integer|between:0,90',
             'subPlotEnvForm.photo_id' => 'nullable|string|max:255',
             'subPlotEnvForm.env_description' => 'nullable|string|max:1000',
         ];
@@ -61,6 +61,7 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.dd97_x.between' => '經度必須介於 118 到 123 之間。',
             'subPlotEnvForm.dd97_y.between' => '緯度必須介於 20 到 27 之間。',
             'subPlotEnvForm.gps_error.numeric' => 'GPS 誤差需為數字',
+            'subPlotEnvForm.gps_error.between' => 'GPS 誤差必須介於 0 到 10 之間。',
 
             'subPlotEnvForm.habitat_code.required' => '請輸入生育地類型',
             'subPlotEnvForm.habitat_code.string' => '生育地類型格式錯誤',
@@ -82,37 +83,37 @@ trait SubPlotEnvFormRules
 
             'subPlotEnvForm.elevation.numeric' => '海拔需為數字',
             'subPlotEnvForm.elevation.min' => '海拔不能小於 0',
-            'subPlotEnvForm.elevation.between' => '海拔必須介於 0 到 4000',
+            'subPlotEnvForm.elevation.between' => '海拔必須介於 0 到 5000',
 
-            'subPlotEnvForm.slope.numeric' => '坡度需為數字',
+            'subPlotEnvForm.slope.integer' => '坡度需為整數',
             'subPlotEnvForm.slope.between' => '坡度必須介於 -1 到 90',
 
-            'subPlotEnvForm.aspect.numeric' => '坡向需為數字',
+            'subPlotEnvForm.aspect.integer' => '坡向需為整數',
             'subPlotEnvForm.aspect.between' => '坡向必須介於 -1 到 359',
 
             // 全天光
-            'subPlotEnvForm.light_0.numeric' => '全天光(0°)需為數字',
+            'subPlotEnvForm.light_0.integer' => '全天光(0°)需為整數',
             'subPlotEnvForm.light_0.between' => '全天光(0°)需介於 0–90',
 
-            'subPlotEnvForm.light_45.numeric' => '全天光(45°)需為數字',
+            'subPlotEnvForm.light_45.integer' => '全天光(45°)需為整數',
             'subPlotEnvForm.light_45.between' => '全天光(45°)需介於 0–90',
 
-            'subPlotEnvForm.light_90.numeric' => '全天光(90°)需為數字',
+            'subPlotEnvForm.light_90.integer' => '全天光(90°)需為整數',
             'subPlotEnvForm.light_90.between' => '全天光(90°)需介於 0–90',
 
-            'subPlotEnvForm.light_135.numeric' => '全天光(135°)需為數字',
+            'subPlotEnvForm.light_135.integer' => '全天光(135°)需為整數',
             'subPlotEnvForm.light_135.between' => '全天光(135°)需介於 0–90',
 
-            'subPlotEnvForm.light_180.numeric' => '全天光(180°)需為數字',
+            'subPlotEnvForm.light_180.integer' => '全天光(180°)需為整數',
             'subPlotEnvForm.light_180.between' => '全天光(180°)需介於 0–90',
 
-            'subPlotEnvForm.light_225.numeric' => '全天光(225°)需為數字',
+            'subPlotEnvForm.light_225.integer' => '全天光(225°)需為整數',
             'subPlotEnvForm.light_225.between' => '全天光(225°)需介於 0–90',
 
-            'subPlotEnvForm.light_270.numeric' => '全天光(270°)需為數字',
+            'subPlotEnvForm.light_270.integer' => '全天光(270°)需為整數',
             'subPlotEnvForm.light_270.between' => '全天光(270°)需介於 0–90',
 
-            'subPlotEnvForm.light_315.numeric' => '全天光(315°)需為數字',
+            'subPlotEnvForm.light_315.integer' => '全天光(315°)需為整數',
             'subPlotEnvForm.light_315.between' => '全天光(315°)需介於 0–90',
 
             // 照片與描述

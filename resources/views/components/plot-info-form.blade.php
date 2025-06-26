@@ -70,7 +70,7 @@
       <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-359">
     </div>
 
-    <!-- 全天光 -->
+    <!-- 全天光
     <div class="md:flex gap-2 items-center flex-wrap">
       <label class="w-24 text-right">全天光</label>
       @foreach([0,45,90,135,180,225,270,315] as $deg)
@@ -79,7 +79,7 @@
           <input id="light_{{ $deg }}" name="light_{{ $deg }}" type="number" wire:model.defer="subPlotEnvForm.light_{{ $deg }}" class="border border-gray-300 px-1 py-0.5 w-16 " step="1" min="0" max="90" placeholder="0-90">
         </div>
       @endforeach
-    </div>
+    </div> -->
 
     <!-- 照片與環境描述 -->
     <div class="md:flex gap-2 items-center">

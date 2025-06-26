@@ -26,14 +26,14 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.elevation' => 'required|numeric|min:0|between:0,5000',
             'subPlotEnvForm.slope' => 'required|integer|between:-1,90',
             'subPlotEnvForm.aspect' => 'required|integer|between:-1,359',
-            'subPlotEnvForm.light_0' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_45' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_90' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_135' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_180' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_225' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_270' => 'required|integer|between:0,90',
-            'subPlotEnvForm.light_315' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_0' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_45' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_90' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_135' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_180' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_225' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_270' => 'required|integer|between:0,90',
+            // 'subPlotEnvForm.light_315' => 'required|integer|between:0,90',
             'subPlotEnvForm.photo_id' => 'nullable|string|max:255',
             'subPlotEnvForm.env_description' => 'nullable|string|max:1000',
         ];
@@ -92,29 +92,29 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.aspect.between' => '坡向必須介於 -1 到 359',
 
             // 全天光
-            'subPlotEnvForm.light_0.integer' => '全天光(0°)需為整數',
-            'subPlotEnvForm.light_0.between' => '全天光(0°)需介於 0–90',
+            // 'subPlotEnvForm.light_0.integer' => '全天光(0°)需為整數',
+            // 'subPlotEnvForm.light_0.between' => '全天光(0°)需介於 0–90',
 
-            'subPlotEnvForm.light_45.integer' => '全天光(45°)需為整數',
-            'subPlotEnvForm.light_45.between' => '全天光(45°)需介於 0–90',
+            // 'subPlotEnvForm.light_45.integer' => '全天光(45°)需為整數',
+            // 'subPlotEnvForm.light_45.between' => '全天光(45°)需介於 0–90',
 
-            'subPlotEnvForm.light_90.integer' => '全天光(90°)需為整數',
-            'subPlotEnvForm.light_90.between' => '全天光(90°)需介於 0–90',
+            // 'subPlotEnvForm.light_90.integer' => '全天光(90°)需為整數',
+            // 'subPlotEnvForm.light_90.between' => '全天光(90°)需介於 0–90',
 
-            'subPlotEnvForm.light_135.integer' => '全天光(135°)需為整數',
-            'subPlotEnvForm.light_135.between' => '全天光(135°)需介於 0–90',
+            // 'subPlotEnvForm.light_135.integer' => '全天光(135°)需為整數',
+            // 'subPlotEnvForm.light_135.between' => '全天光(135°)需介於 0–90',
 
-            'subPlotEnvForm.light_180.integer' => '全天光(180°)需為整數',
-            'subPlotEnvForm.light_180.between' => '全天光(180°)需介於 0–90',
+            // 'subPlotEnvForm.light_180.integer' => '全天光(180°)需為整數',
+            // 'subPlotEnvForm.light_180.between' => '全天光(180°)需介於 0–90',
 
-            'subPlotEnvForm.light_225.integer' => '全天光(225°)需為整數',
-            'subPlotEnvForm.light_225.between' => '全天光(225°)需介於 0–90',
+            // 'subPlotEnvForm.light_225.integer' => '全天光(225°)需為整數',
+            // 'subPlotEnvForm.light_225.between' => '全天光(225°)需介於 0–90',
 
-            'subPlotEnvForm.light_270.integer' => '全天光(270°)需為整數',
-            'subPlotEnvForm.light_270.between' => '全天光(270°)需介於 0–90',
+            // 'subPlotEnvForm.light_270.integer' => '全天光(270°)需為整數',
+            // 'subPlotEnvForm.light_270.between' => '全天光(270°)需介於 0–90',
 
-            'subPlotEnvForm.light_315.integer' => '全天光(315°)需為整數',
-            'subPlotEnvForm.light_315.between' => '全天光(315°)需介於 0–90',
+            // 'subPlotEnvForm.light_315.integer' => '全天光(315°)需為整數',
+            // 'subPlotEnvForm.light_315.between' => '全天光(315°)需介於 0–90',
 
             // 照片與描述
             'subPlotEnvForm.photo_id.string' => '照片編號格式錯誤',

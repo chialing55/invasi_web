@@ -76,7 +76,7 @@ class PlantListHelper
         // 依照 chfamily、chname 排序（中文）
         return collect($merged)->sortBy([['cov2025_sort', 'desc'], ['cov2010_sort', 'desc']])->values()->toArray();
     }
-
+//queryPlot => 取得小樣區/生育地類型的物種清單
 public static function getMergedPlotPlantList(string $plot, array $filter = []): array
 {
 
@@ -90,8 +90,22 @@ public static function getMergedPlotPlantList(string $plot, array $filter = []):
     )->where('im_spvptdata_2010.PLOT_ID', $plot);
 
     if (isset($filter['hab_type'])) {
-        $query2010->where('im_spvptdata_2010.HAB_TYPE', $filter['hab_type']);
+        if (in_array($filter['hab_type'], ['08', '09'])) {
+            // 若是 08 或 09 → 原始樣區，SUB_TYPE 必須是 2
+            $query2010->where('im_spvptdata_2010.HAB_TYPE', $filter['hab_type'])
+                    ->where('im_spvptdata_2010.SUB_TYPE', '2');
+
+        } elseif (in_array($filter['hab_type'], ['88', '99'])) {
+            // 88 對應 08、99 對應 09 → 搜原始類型，且 SUB_TYPE != 2
+            $originalHab = $filter['hab_type'] === '88' ? '08' : '09';
+            $query2010->where('im_spvptdata_2010.HAB_TYPE', $originalHab)
+                    ->where('im_spvptdata_2010.SUB_TYPE', '!=', '2');
+        } else {
+            // 其他類型 → 直接比對 HAB_TYPE
+            $query2010->where('im_spvptdata_2010.HAB_TYPE', $filter['hab_type']);
+        }
     }
+
 
     if (isset($filter['sub_id'])) {
         $query2010->where('im_spvptdata_2010.SUB_ID', $filter['sub_id']);

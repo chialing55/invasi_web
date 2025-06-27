@@ -72,7 +72,7 @@ class QueryPlot extends Component
             return;
         }
 
-        // 取得2010樣區資料
+        // 取得生育地清單
         $plotHab2010 = SubPlotEnv2010::where('PLOT_ID', $plot)
             ->pluck('HAB_TYPE')         // 只取出單欄位
             ->unique()                  // 移除重複值（可省略，pluck 已自動處理）
@@ -86,7 +86,14 @@ class QueryPlot extends Component
             ->toArray(); 
         
         $plotHabList=array_unique(array_merge($plotHab2010, $plotHab2025));
+        if(in_array('08', $plotHabList)){
+            $plotHabList[] = '88'; // 新增 '88' 生育地類型
+        }
+        if(in_array('09', $plotHabList)){
+            $plotHabList[] = '99'; // 新增 '99' 生育地類型
+        }
         $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+
 
         $this->habTypeOptions = collect($plotHabList)
             ->filter(fn($code) => isset($habTypeMap[$code]))   // 過濾掉沒有對應名稱的
@@ -104,6 +111,28 @@ class QueryPlot extends Component
             ->unique()
             ->values()
             ->toArray();
+
+        // 檢查是否有 '08' 或 '09'，若有則額外加入 '88' 或 '99'
+        $extra = [];
+
+        foreach ($subPlotList2010 as $code) {
+            $plotId = substr($code, 0, 6); // 假設 PLOT_ID 長度為 6（依實際情況調整）
+            $habType = substr($code, 6, 2);
+            $subId = substr($code, 8);
+
+            if ($habType === '08') {
+                $extra[] = $plotId . '88' . $subId;
+            } elseif ($habType === '09') {
+                $extra[] = $plotId . '99' . $subId;
+            }
+        }
+
+        // 合併並去除重複
+        $subPlotList2010 = collect(array_merge($subPlotList2010, $extra))
+            ->unique()
+            ->values()
+            ->toArray();
+
 
 
         $subPlotList2025 = SubPlotEnv2025::where('plot', $plot)
@@ -177,6 +206,7 @@ class QueryPlot extends Component
     //  dd($thisSubPlot); 
         $habType = substr($thisSubPlot, 6, 2);   // 第 7,8 位（index 從 0 開始）
         $sub_id  = substr($thisSubPlot, -2);     // 最後兩位
+
 
 
         $this->plotplantList = PlantListHelper::getMergedPlotPlantList($this->thisPlot, [

@@ -57,7 +57,7 @@ window.initTabulator = function ({
                 columns: columns,
                 rowFormatter: function (row) {
                     const data = row.getData();
-                    if (data.cov_error === 2) {
+                    if (data.data_error === 2) {
                         row.getElement().style.backgroundColor = '#fee2e2';
                     } else {
                         row.getElement().style.backgroundColor = '';
@@ -86,54 +86,78 @@ window.initTabulator = function ({
                     input.onkeydown = (e) => {
                         let nextCell = null;
 
-                        // ➤ ENTER：跳下一個可編輯欄位（橫向）
+                        // ➤ ENTER：跳下一行
                         if (e.key === "Enter") {
                             e.preventDefault();
 
                             const currentField = column.getField();
-                            let currentIndex = columns.findIndex(col => col.getField() === currentField);
+                            const columns = cell.getTable().getColumns();
+                            const currentIndex = columns.findIndex(col => col.getField() === currentField);
 
-                            for (let i = currentIndex + 1; i < columns.length; i++) {
-                                const colDef = columns[i].getDefinition();
-                                if (colDef.editor && colDef.editor !== false) {
-                                    const field = columns[i].getField();
-                                    nextCell = row.getCell(field);
-                                    break;
+                            const isLastEditableColumn = (() => {
+                                for (let i = currentIndex + 1; i < columns.length; i++) {
+                                    const colDef = columns[i].getDefinition();
+                                    if (colDef.editor && colDef.editor !== false) {
+                                        return false;
+                                    }
                                 }
-                            }
+                                return true;
+                            })();
 
-                            // 換行
-                            if (!nextCell) {
-                                const nextRow = row.getNextRow();
-                                if (nextRow) {
+                            const nextRow = row.getNextRow();
+                            if (nextRow) {
+                                let targetField = currentField;
+
+                                if (isLastEditableColumn) {
+                                    // 若是最右邊的欄位 → 找第一個可編輯欄
                                     for (let i = 0; i < columns.length; i++) {
                                         const colDef = columns[i].getDefinition();
                                         if (colDef.editor && colDef.editor !== false) {
-                                            const field = columns[i].getField();
-                                            nextCell = nextRow.getCell(field);
+                                            targetField = columns[i].getField();
                                             break;
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        // ➤ 左右鍵移動（橫向）
-                        if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                            e.preventDefault();
-
-                            const currentIndex = columns.findIndex(col => col.getField() === column.getField());
-                            const offset = e.key === "ArrowRight" ? 1 : -1;
-
-                            for (let i = currentIndex + offset; i >= 0 && i < columns.length; i += offset) {
-                                const colDef = columns[i].getDefinition();
-                                if (colDef.editor && colDef.editor !== false) {
-                                    const field = columns[i].getField();
-                                    nextCell = row.getCell(field);
-                                    break;
+                                const nextCell = nextRow.getCell(targetField);
+                                if (nextCell) {
+                                    nextCell.edit();
                                 }
                             }
+
+                            e.stopPropagation();
                         }
+
+
+
+                        // ➤ 左右鍵移動（橫向）
+                        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                            const cursorPos = input.selectionStart;
+                            const valueLength = input.value.length;
+
+                            const movingLeft = e.key === "ArrowLeft";
+                            const atBoundary = movingLeft ? (cursorPos === 0) : (cursorPos === valueLength);
+
+                            if (atBoundary) {
+                                e.preventDefault();
+
+                                const currentIndex = columns.findIndex(col => col.getField() === column.getField());
+                                const offset = movingLeft ? -1 : 1;
+
+                                for (let i = currentIndex + offset; i >= 0 && i < columns.length; i += offset) {
+                                    const colDef = columns[i].getDefinition();
+                                    if (colDef.editor && colDef.editor !== false) {
+                                        const field = columns[i].getField();
+                                        const nextCell = row.getCell(field);
+                                        if (nextCell) { nextCell.edit(); }
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // ❌ 否則不 preventDefault，讓游標自己左右移動
+                        }
+
 
                         // // ➤ 上下鍵移動（直向）
                         // if (e.key === "ArrowDown" || e.key === "ArrowUp") {

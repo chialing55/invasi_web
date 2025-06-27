@@ -282,7 +282,7 @@ window.plantTable = null; // 全域變數，存放 Tabulator 實例
                     const data = cell.getRow().getData();
                     const value = cell.getValue();
 
-                    if (data.cov_error === 1) {
+                    if (data.data_error === 1 || data.coverage === 0) {
                         const el = cell.getElement();
                         el.style.color = 'red';           // 深紅文字
                     } else {
@@ -368,6 +368,8 @@ window.listenAndResetAllHabitatCheckboxes('reset_habitat');
 
 function remoteAutocompleteEditor(apiUrl, config = {}) {
     return function (cell, onRendered, success, cancel) {
+        const row = cell.getRow();
+        const column = cell.getColumn();
         const input = document.createElement("input");
         input.setAttribute("type", "text");
         input.classList.add("remote-autocomplete");
@@ -458,19 +460,60 @@ function remoteAutocompleteEditor(apiUrl, config = {}) {
         const highlightSelected = () => {
             [...dropdown.children].forEach((el, i) => {
                 el.style.background = i === selectedIndex ? "#97c498" : "";
+                if (i === selectedIndex) {
+                    el.scrollIntoView({
+                        block: "nearest", // 不會整個跳動，僅捲動剛好看到它
+                        behavior: "auto"
+                    });
+                }
             });
         };
 
         const handleKey = (e) => {
+            const cursorPos = input.selectionStart;
+            const valueLength = input.value.length;
+            // console.log(cursorPos, valueLength);
             if (e.key === "ArrowDown") {
-                selectedIndex = Math.min(results.length - 1, selectedIndex + 1);
-                highlightSelected();
+                if (results.length > 0 && dropdown.style.display !== "none") {
+                    // 下拉選單開啟，選擇選項
+                    selectedIndex = Math.min(results.length - 1, selectedIndex + 1);
+                    highlightSelected();
+                } else {
+                    // 向下移動到下方格子
+                    e.preventDefault();
+                    cleanup();
+                    success(input.value);
+
+                    const nextRow = row.getNextRow();
+                    if (nextRow) {
+                        const nextCell = nextRow.getCell(column.getField());
+                        if (nextCell) nextCell.edit();
+                    }
+                }
                 e.stopPropagation();
             } else if (e.key === "ArrowUp") {
-                selectedIndex = Math.max(0, selectedIndex - 1);
-                highlightSelected();
+                const menuOpen = results.length > 0 && dropdown.style.display !== "none";
+
+                if (menuOpen && selectedIndex > 0) {
+                    // 🔼 選單開啟且不是第一筆 → 選單向上選擇
+                    selectedIndex = Math.max(0, selectedIndex - 1);
+                    highlightSelected();
+                } else {
+                    // ❗選單沒開 or 已經在第一筆 → 移動到上方格子
+                    e.preventDefault();
+                    cleanup();
+                    success(input.value);
+
+                    const prevRow = row.getPrevRow();
+                    if (prevRow) {
+                        const prevCell = prevRow.getCell(column.getField());
+                        if (prevCell) prevCell.edit();
+                    }
+                }
+
                 e.stopPropagation();
             } else if (e.key === "Enter") {
+
                 if (selectedIndex >= 0 && results[selectedIndex]) {
                     applySelection(results[selectedIndex]);
                 } else {
@@ -478,11 +521,64 @@ function remoteAutocompleteEditor(apiUrl, config = {}) {
                     success(input.value);
                 }
                 e.stopPropagation();
+            } else if (e.key === "Tab") {
+                if (selectedIndex >= 0 && results[selectedIndex]) {
+                    e.preventDefault();          // 選了項目 → 自己處理選取與跳欄
+                    applySelection(results[selectedIndex]);
+
+                    // 👉 自動跳下一格編輯
+                    // ✅ 從 cell 取得欄位資訊
+                    const columns = cell.getTable().getColumns();
+                    const currentIndex = columns.findIndex(col => col.getField() === column.getField());
+                    for (let i = currentIndex + 1; i < columns.length; i++) {
+                        const colDef = columns[i].getDefinition();
+                        if (colDef.editor && colDef.editor !== false) {
+                            const nextField = columns[i].getField();
+                            const nextCell = row.getCell(nextField);
+                            if (nextCell) {
+                                nextCell.edit(); // ✅ 右欄進入編輯
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    // ❌ 沒有選擇建議項目，讓 Tabulator 自己處理跳欄
+                    // 不要 preventDefault！
+                    cleanup();
+                    success(input.value);
+                }
+
+                e.stopPropagation();
+            } else if (e.key === "ArrowRight") {
+                const cursorPos = input.selectionStart;
+                const valueLength = input.value.length;
+
+                if (cursorPos === valueLength) {
+                    e.preventDefault();
+
+                    // ✅ 先結束編輯（否則 Tabulator 不會進入下一格編輯模式）
+                    cleanup();
+                    success(input.value);  // 非常重要！！
+
+                    // ✅ 再跳到下一格並啟用編輯
+                    // const currentIndex = columns.findIndex(col => col.getField() === column.getField());
+                    // for (let i = currentIndex + 1; i < columns.length; i++) {
+                    //     const colDef = columns[i].getDefinition();
+                    //     if (colDef.editor && colDef.editor !== false) {
+                    //         const nextField = columns[i].getField();
+                    //         const nextCell = row.getCell(nextField);
+                    //         if (nextCell) {
+                    //             nextCell.edit();  // ✅ 啟動右邊欄位的編輯器
+                    //         }
+                    //         break;
+                    //     }
+                    // }
+                }
             } else {
-                // fetch 建議清單
                 fetchSuggestions(input.value);
             }
         };
+
 
         const cleanup = () => {
             dropdown.remove();
@@ -504,6 +600,7 @@ function remoteAutocompleteEditor(apiUrl, config = {}) {
         return input;
     };
 }
+
 
 
 </script>

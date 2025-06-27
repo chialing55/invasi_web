@@ -457,10 +457,10 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 // 覆蓋度錯誤標記
                 $cov = $row['coverage'] ?? null;
                 if (!is_numeric($cov) || $cov < 0 || $cov > 100 || $cov == 0 ) {
-                    $row['cov_error'] = 1;
+                    $row['data_error'] = 1;
                     $row['coverage'] = 0;
                 } else {
-                    $row['cov_error'] = 0;
+                    $row['data_error'] = 0;
                 }
 
                 foreach (['flowering', 'fruiting'] as $boolField) {
@@ -585,14 +585,14 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             }
         }
 
-        // 更新重複資料的 cov_error = 2
+        // 更新重複資料的 data_error = 2
         foreach ($records as $record) {
             if (
                 isset($duplicates['chname_index'][$record->chname_index]) ||
                 isset($duplicates['spcode'][$record->spcode])
             ) {
-                if ($record->cov_error != 2) {
-                    $record->cov_error = 2;
+                if ($record->data_error != 2) {
+                    $record->data_error = 2;
                     $record->save();
                 }
             }

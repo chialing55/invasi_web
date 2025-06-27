@@ -21,7 +21,7 @@ class SubPlotPlant2025 extends Model
         'fruiting',
         'note',
         'specimen_id',
-        'cov_error',
+        'data_error',
         'unidentified',
         'created_by',
         'updated_by',

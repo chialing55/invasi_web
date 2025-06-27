@@ -19,9 +19,9 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('password.update') }}">
+            <form method="POST" action="{{ route('password.reset.store') }}">
                 @csrf
-                @method('PUT') <!-- ✅ 這一行是關鍵 -->
+                <!-- @method('PUT') ✅ 這一行是關鍵 -->
                 <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
                 <div class="mb-4">
@@ -32,8 +32,8 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium">新密碼</label>
-                    <input type="password" name="password" required
-                        class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest">
+                    <input type="password" name="password" required autocomplete="new-password"
+                            class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest" placeholder="至少8個字元，包含英文字母、數字和符號">
                 </div>
 
                 <div class="mb-6">
@@ -41,7 +41,7 @@
                     <input type="password" name="password_confirmation" required
                         class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest">
                 </div>
-
+ 
                 <button type="submit"
                     class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">
                     送出

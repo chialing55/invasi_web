@@ -30,12 +30,28 @@ class NewPasswordController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+
         $request->validate([
             'token' => ['required'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-    
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::min(8)
+                    ->letters()
+                    ->numbers()
+                    ->symbols(),
+            ],
+        ], [
+            'password.required' => '請輸入密碼。',
+            'password.confirmed' => '兩次輸入的密碼不一致。',
+            'password.min' => '密碼至少需 8 個字元。',
+            'password.letters' => '密碼必須包含英文字母。',
+            'password.numbers' => '密碼必須包含數字。',
+            'password.symbols' => '密碼必須包含符號（如 !@#$%^&* ）。',
+        ]);  
+
+// dd($request->all());
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user) use ($request) {

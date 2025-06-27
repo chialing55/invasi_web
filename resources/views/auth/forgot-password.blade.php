@@ -24,7 +24,7 @@
                     @endforeach
                 </div>
             @endif
-
+            @if (!session('status'))
             <form method="POST" action="{{ route('password.email') }}">
                 @csrf
 
@@ -39,7 +39,7 @@
                     發送重設密碼連結
                 </button>
             </form>
-
+            @endif
             <div class="text-center mt-4 text-sm">
                 <a href="{{ route('login') }}" class="text-forest hover:underline">回登入頁</a>
             </div>

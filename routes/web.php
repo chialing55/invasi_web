@@ -52,7 +52,7 @@ Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
     ->name('password.reset');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])
     ->middleware('guest')
-    ->name('password.update');
+    ->name('password.reset.store');
 
 // 確認密碼（敏感操作）
 Route::get('/confirm-password', [ConfirmablePasswordController::class, 'show'])

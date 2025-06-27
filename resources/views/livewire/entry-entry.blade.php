@@ -44,7 +44,7 @@
             以確保操作順利。
         </li>
         <li>新增或刪除資料後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
-
+        <li>若名錄中確實無該植物，且<b>確定需新增</b>，請填寫<a href='https://docs.google.com/spreadsheets/d/13GUOo_I5fhUBh2IeGb1TJpQeIPN0GqSQKfsMwulSTHE/edit?usp=sharing' target="_blank">「外來植物調查計畫-需新增的植物」</a>資料表。</li>
     </ul>
 </div>
 

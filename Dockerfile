@@ -33,6 +33,8 @@ COPY . .
 RUN composer install --no-interaction --prefer-dist \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
+RUN echo "upload_max_filesize=12M" >> /usr/local/etc/php/php.ini
+RUN echo "post_max_size=16M" >> /usr/local/etc/php/php.ini
 
 # 啟動
 # 預設啟動指令（含 sleep 讓 db 準備好）

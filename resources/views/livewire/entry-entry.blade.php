@@ -7,6 +7,7 @@
 >
     <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
 </div>
+
     <h2 class="text-xl font-bold mb-4">資料輸入</h2>
     <div class="space-y-4">
 
@@ -117,8 +118,14 @@
 
 
     @if($showPlotEntryTable)
+
+<!-- @php
+    $plotId = substr($thisSubPlot, 0, 6);
+    $habType = substr($thisSubPlot, 6, 2);
+    $subplotNo = substr($thisSubPlot, 8, 2);
+@endphp -->
     <div class='mt-8 gray-card' wire:key="plot-entry-table-{{ $thisPlot }}-{{ now()->timestamp }}">
-        <h3>{{$thisSubPlot}} 小樣方環境資料</h3>
+        <h3> {{ $thisSubPlot }} 小樣方環境資料</h3>
 
         @if ($errors->any() && session('form') === 'env')
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -169,14 +176,34 @@
                 <button id="submit-btn-plant" class="btn-submit" type="button">儲存植物調查資料</button>
             </div>
         </div>
-
+@if(substr($thisSubPlot, 6, 2) !== '99' && substr($thisSubPlot, 6, 2) !== '88')
     <div class="mt-8 gray-card md:flex md:flex-col mb-4">
         <h3>{{$thisSubPlot}} 小樣方照片上傳</h3>
+    @if (session()->has('success'))
+        <p class="font-semibold">{{ session('success') }}</p>
+    @endif
+        @if($thisPhoto)
+        <div class="mb-4">
+            <img src="{{ $thisPhoto }}" alt="小樣方照片" class="w-[500px] h-auto rounded shadow">
+        </div>
+        @endif
+        <div>
+
+            <input type="file" wire:model.defer="photo" accept="image/*">
+
+            <button id="submit-btn-photo" type="button" class="btn-submit" wire:click="clickUploadPhoto">
+                 {{ $thisPhoto ? '更新小樣方照片' : '上傳小樣方照片' }}
+            </button>
+
+            @error('photo') <div class="text-red-500 text-sm">{{ $message }}</div> @enderror
+
+        </div>
     </div>
 
     @endif
 
 </div>
+ @endif
 
 
 <script>

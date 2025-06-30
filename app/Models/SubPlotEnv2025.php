@@ -41,6 +41,7 @@ class SubPlotEnv2025 extends Model
         'validation_message',
         'created_by',
         'updated_by',
+        'file_uploaded_by',
     ];
 
 

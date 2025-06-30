@@ -24,7 +24,7 @@
     </div>
 <div class='md:flex md:flex-row gap-2 mb-4'>
     <div class="flex-1 gray-card mb-4">
-        <h3 class="text-lg font-semibold mb-2">樣區環境資料</h3>
+        <h3 class="text-lg font-semibold mb-2">小樣方環境資料</h3>
         <ul class="list-disc pl-5 space-y-1">
             <li>樣區編號為系統預設，無法修改。</li>
             <li>調查者與紀錄者請填寫完整姓名。</li>
@@ -42,6 +42,7 @@
                     <li>「08」與「09」的取樣面積固定為 5×5；「88」與「99」的取樣面積固定為 2×5。</li>
                 </ul>
             </li>
+            <li>若因生育地類型改變而需重新編碼樣區，請輸入原樣區編號，格式為「生育地編號-小樣區編號」，例如：01-01。</li>
 
             <li><b>請按 <button class="btn-submit">儲存環境資料</button> 才能完成儲存。</b></li>
             <li>如欄位有錯誤，將會顯示提示訊息，須更正所有錯誤後方可儲存。</li>
@@ -50,10 +51,11 @@
     </div>
 
     <div class="flex-1 gray-card">
-        <h3 class="text-lg font-semibold mb-2">植物調查資料</h3>
+        <h3 class="text-lg font-semibold mb-2">小樣方植物調查資料</h3>
         <ul class="list-disc pl-5 space-y-1">
             <li>初始表單提供 15 筆空白資料，可一次儲存 15 筆。完成儲存後，系統將自動新增 15 筆空白列供繼續填寫。</li>
             <li>在表單欄位上按右鍵，可選擇「新增一列」或「刪除此列」。</li>
+            <li>表單操作方式：可使用方向鍵上下左右移動；按 Enter 鍵向下移動；按 Tab 鍵或 Shift + Tab 鍵可左右移動，操作方式已盡量貼近 Excel。</li>
             <li>資料需包含「中名」欄位，否則不會被儲存。</li>            
             <li>關於植物名稱輸入，請參考以下說明：
                 <ul class="list-decimal pl-6 space-y-1 mt-1">
@@ -75,5 +77,15 @@
             <li>⚠️ 若未儲存即切換樣區或離開頁面，變更內容將不會保留。</li>
         </ul>
     </div>
+
 </div>
+    <div class="gray-card mb-4">
+        <h3 class="text-lg font-semibold mb-2">小樣方照片上傳</h3>
+        <ul class="list-disc pl-5 space-y-1">
+            <li>系統會自動將檔名更名為小樣方編號，並以 .jpg 儲存，檔案大小不得超過 12MB。</li>
+            <li>每個小樣方僅可上傳一張照片。</li>
+            <li>若需更換照片，請直接重新上傳，系統會自動覆蓋原有檔案。</li>
+            <li>生育地編號為 88 或 99 者，無需上傳小樣方照片。</li>
+        </ul>
+    </div>
 </div>

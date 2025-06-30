@@ -27,9 +27,12 @@ use App\Helpers\DateHelper;
 use App\Models\SpcodeIndex;
 use App\Models\SubPlotEnv2010;
 
+// use Illuminate\Http\Request;
+use Livewire\WithFileUploads;
 class EntryEntry extends Component
 {
     use SubPlotEnvFormRules;
+    use WithFileUploads;
 
     public $countyList=[];
     public $thisCounty;
@@ -289,7 +292,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $row['plot_full_id'] = $this->thisSubPlot;
             $existingPlantForm[] = $row;
         } 
-
+        $this->loadPhotoInfo();
         return $existingPlantForm;
 
     }
@@ -346,8 +349,24 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         ]);
 
         $this->showPlantEntryTable = true;
+        $this->loadPhotoInfo();
     }
 
+    public $thisPhoto;
+
+    public function loadPhotoInfo(){
+        $hab = substr($this->thisSubPlot, 6, 2);
+
+        $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/$hab/{$this->thisSubPlot}.jpg";
+        $fullPath = public_path($relativePath);
+
+        if (file_exists($fullPath)) {
+            $this->thisPhoto = asset($relativePath);
+        } else {
+            $this->thisPhoto = null;
+        }        
+
+    }
 
     public function envInfoSave(FormAuditService $audit)
     {
@@ -598,6 +617,65 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             }
         }
     }
+
+    public $photo;
+    // public function updatedPhoto()
+    // {
+    //     $this->resetErrorBag('photo');
+    // }
+    public function clickUploadPhoto()
+    {
+        // dd('test');
+        // $request->validate([
+        //     'photo' => 'required|image|max:12288'
+        // ]);
+
+        if (!$this->photo) {
+            $this->addError('photo', '請先選擇檔案');
+            return;
+        }
+        $this->resetErrorBag();
+
+        $filename = $this->thisSubPlot . '.jpg';
+        $hab = substr($this->thisSubPlot, 6, 2);
+        $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/$hab";
+// dd($relativePath);
+
+        // 確保資料夾存在
+        $destination = public_path($relativePath);
+        if (!file_exists($destination)) {
+            mkdir($destination, 0755, true);
+        }
+
+        SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)->update(
+            ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
+        );
+
+        $this->photo->storeAs($relativePath, $filename, 'public');
+        $this->loadPhotoInfo();
+        session()->flash('success', '上傳成功！');
+
+    }
+//     public function uploadPhoto(Request $request)
+//     {
+//         // $request->validate([
+//         //     'photo' => 'required|image|max:12288'
+//         // ]);
+
+//         $filename = $request->subplot . '.jpg';
+//         $relativePath = "invasi_files/subPlotPhoto/{$request->county}/{$request->plot}";
+// // dd($relativePath);
+//         $destination = public_path($relativePath);
+
+//         if (!file_exists($destination)) {
+//             mkdir($destination, 0755, true);
+//         }
+
+//         $request->file('photo')->move($destination, $filename);
+
+//         session()->flash('success', '上傳成功！');
+//     }
+    
 
 
     public function render()

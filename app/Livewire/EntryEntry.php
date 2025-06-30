@@ -417,7 +417,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 session()->flash('saveMsg2', ', 同時新增 『' . $copiedPlotFullId . '』環境資料');
             }
         }
-
+// dd($newdata);
         $changed = DataSyncService::syncById(
             modelClass: SubPlotEnv2025::class,
             originalData: $originalData,

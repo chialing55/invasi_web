@@ -20,7 +20,7 @@
       <input id="dd97_y" name="dd97_y" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_y" class="border border-gray-300 px-2 py-1 w-32" placeholder="20 - 27">
 
       <label for="gps_error" class="w-24 text-right">座標誤差</label>
-      <input id="gps_error" name="gps_error" type="number" step="any" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-32" placeholder="0 - 10">
+      <input id="gps_error" name="gps_error" type="number" step="any" wire:model.defer="subPlotEnvForm.gps_error" class="border border-gray-300 px-2 py-1 w-24" placeholder="0 - 10">
     </div>
 
     <div class="md:flex gap-2 items-center">
@@ -28,10 +28,10 @@
       <input id="plot" name="plot" type="text" wire:model.defer="subPlotEnvForm.plot" class="border border-gray-300 px-2 py-1 w-40 bg-gray-100 text-gray-600" readonly>
 
       <label for="habitat_code" class="w-24 text-right">生育地類型</label>
-      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-40" maxlength="2" placeholder="01-20(除了19)">
+      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-28" maxlength="2" placeholder="01-20(除了19)">
 
       <label for="subplot_id" class="w-32 text-right">小樣方流水號</label>
-      <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id" class="border border-gray-300 px-2 py-1 w-40" maxlength="2" placeholder="01-50">
+      <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id" class="border border-gray-300 px-2 py-1 w-24" maxlength="2" placeholder="01-50">
     </div>
 
     <!-- 取樣面積 -->
@@ -79,5 +79,10 @@
 
       <label for="env_description" class="w-24 mb-1 text-right">環境描述</label>
       <textarea id="env_description" name="env_description" wire:model.defer="subPlotEnvForm.env_description" rows="1" class="w-64 border border-gray-300"></textarea>
+    </div>
+  <!-- 舊樣區編號 -->
+    <div class="md:flex gap-2 items-center bg-orange-100 pl-8 p-2">
+      <label for="original_plot_id" class="text-right">當生育地類型改變，請輸入原樣區編號</label>
+      <input id="original_plot_id" name="original_plot_id" type="text" wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64" placeholder="生育地類型-小樣區編號">
     </div>
   </div>

@@ -36,6 +36,7 @@ trait SubPlotEnvFormRules
             // 'subPlotEnvForm.light_315' => 'required|integer|between:0,90',
             'subPlotEnvForm.photo_id' => 'nullable|string|max:255',
             'subPlotEnvForm.env_description' => 'nullable|string|max:1000',
+            'subPlotEnvForm.original_plot_id' => 'nullable|string|max:1000',
         ];
     }
 
@@ -122,6 +123,8 @@ trait SubPlotEnvFormRules
 
             'subPlotEnvForm.env_description.string' => '環境描述格式錯誤',
             'subPlotEnvForm.env_description.max' => '環境描述不可超過 1000 字元',
+
+            'subPlotEnvForm.original_plot_id.string' => '舊樣區編號格式錯誤',
         ];
 
     }

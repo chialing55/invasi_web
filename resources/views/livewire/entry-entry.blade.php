@@ -82,7 +82,28 @@
        
 
         </div>
+    <div class="mt-8 gray-card md:flex md:flex-col mb-4">
+        <h3>{{$thisPlot}} 樣區調查資料上傳</h3>
+    @if (session()->has('fileUploadSuccess'))
+        <p class="font-semibold">{{ session('fileUploadSuccess') }}</p>
+    @endif
+        @if($thisPlotFile)
+        <div class="mb-4">
+            <a href='{{$thisPlotFile}}' target="_blank"><img src="/images/PDF_file_icon.svg" alt="PDF" class="inline w-5 h-5 mr-1"> {{$thisPlot}}.pdf</a>
+        </div>
+        @endif
+        <div>
 
+            <input type="file" wire:model.defer="plotFile" accept=".pdf">
+
+            <button id="submit-btn-file" type="button" class="btn-submit" wire:click="clickUploadFile">
+                 {{ $thisPlotFile ? '更新樣區調查資料' : '上傳樣區調查資料' }}
+            </button>
+
+            @error('plotFile') <div class="text-red-500 text-sm">{{ $message }}</div> @enderror
+
+        </div>
+    </div>
         <div class="flex flex-col gap-4 mt-8">
             <div class="flex flex-row flex-wrap items-center gap-4">
                 @if ($subPlotList)
@@ -179,8 +200,8 @@
 @if(substr($thisSubPlot, 6, 2) !== '99' && substr($thisSubPlot, 6, 2) !== '88')
     <div class="mt-8 gray-card md:flex md:flex-col mb-4">
         <h3>{{$thisSubPlot}} 小樣方照片上傳</h3>
-    @if (session()->has('success'))
-        <p class="font-semibold">{{ session('success') }}</p>
+    @if (session()->has('photoUploadSuccess'))
+        <p class="font-semibold">{{ session('photoUploadSuccess') }}</p>
     @endif
         @if($thisPhoto)
         <div class="mb-4">

@@ -126,6 +126,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         // $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
         $this->selectedHabitatCodes=[];
         $this->loadPlotHab($plot); // 載入生育地類型選項
+        $this->loadFileInfo();
 
 // dd($this->selectedHabitatCodes);
     }
@@ -152,6 +153,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             ->values() 
             ->toArray();
 
+        
     }
 
     public function saveHabitatSelection()
@@ -293,6 +295,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $existingPlantForm[] = $row;
         } 
         $this->loadPhotoInfo();
+
         return $existingPlantForm;
 
     }
@@ -350,6 +353,22 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
         $this->showPlantEntryTable = true;
         $this->loadPhotoInfo();
+    }
+    public $thisPlotFile;
+
+    public function loadFileInfo(){
+
+        $relativePath = "invasi_files/plotData/{$this->thisCounty}/{$this->thisPlot}.pdf";
+        $fullPath = public_path($relativePath);
+
+        if (file_exists($fullPath)) {
+            $this->thisPlotFile = asset($relativePath);
+        } else {
+            $this->thisPlotFile = null;
+        }        
+// dd($this->thisPlotFile);
+        // $this->thisPhoto = asset($relativePath);
+        // dd($this->thisPhoto);
     }
 
     public $thisPhoto;
@@ -619,10 +638,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
     }
 
     public $photo;
-    // public function updatedPhoto()
-    // {
-    //     $this->resetErrorBag('photo');
-    // }
+
     public function clickUploadPhoto()
     {
         // dd('test');
@@ -653,29 +669,45 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
         $this->photo->storeAs($relativePath, $filename, 'public');
         $this->loadPhotoInfo();
-        session()->flash('success', '上傳成功！');
+        session()->flash('photoUploadSuccess', '上傳成功！');
 
     }
-//     public function uploadPhoto(Request $request)
-//     {
-//         // $request->validate([
-//         //     'photo' => 'required|image|max:12288'
-//         // ]);
 
-//         $filename = $request->subplot . '.jpg';
-//         $relativePath = "invasi_files/subPlotPhoto/{$request->county}/{$request->plot}";
-// // dd($relativePath);
-//         $destination = public_path($relativePath);
+    public $plotFile;
 
-//         if (!file_exists($destination)) {
-//             mkdir($destination, 0755, true);
-//         }
+    public function clickUploadFile()
+    {
+        // dd('test');
+        // $request->validate([
+        //     'photo' => 'required|image|max:12288'
+        // ]);
 
-//         $request->file('photo')->move($destination, $filename);
+        if (!$this->plotFile) {
+            $this->addError('plotFile', '請先選擇檔案');
+            return;
+        }
+        $this->resetErrorBag();
 
-//         session()->flash('success', '上傳成功！');
-//     }
-    
+        $filename = $this->thisPlot . '.pdf';
+
+        $relativePath = "invasi_files/plotData/{$this->thisCounty}";
+// dd($relativePath);
+
+        // 確保資料夾存在
+        $destination = public_path($relativePath);
+        if (!file_exists($destination)) {
+            mkdir($destination, 0755, true);
+        }
+
+        PlotList2025::where('plot', $this->thisPlot)->update(
+            ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
+        );
+
+        $this->plotFile->storeAs($relativePath, $filename, 'public');
+        $this->loadFileInfo();
+        session()->flash('fileUploadSuccess', '上傳成功！');
+
+    }    
 
 
     public function render()

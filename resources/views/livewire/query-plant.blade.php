@@ -158,8 +158,8 @@
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
                         @endif
                     </th>
-                    <th colspan="3" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
-                    <th colspan="3" class="px-4 py-2 text-center bg-orange-200">2025</th>
+                    <th colspan="4" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
+                    <th colspan="4" class="px-4 py-2 text-center bg-orange-200">2025</th>
                 </tr>
                 <tr class="border-b border-gray-300">
                     <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('plot_2010')">
@@ -174,7 +174,7 @@
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
                         @endif
                     </th>
-                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('cov_2010')">
+                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('cov_2010')" colspan="2">
                         覆蓋度
                         @if ($sortField === 'cov_2010')
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
@@ -192,7 +192,7 @@
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
                         @endif
                     </th>
-                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('cov_2025')">
+                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('cov_2025')" colspan="2">
                         覆蓋度
                         @if ($sortField === 'cov_2025')
                             {{ $sortDirection === 'asc' ? '▲' : '▼' }}
@@ -206,8 +206,8 @@
                 <tr class="border-b border-gray-300">
                     <th class="px-4 py-2">縣市</th>
                     <th class="px-4 py-2">生育地</th>
-                    <th class="px-4 py-2 text-center bg-lime-200/50">2010 覆蓋度</th>
-                    <th class="px-4 py-2 text-center bg-orange-200">2025 覆蓋度</th>
+                    <th class="px-4 py-2 text-center bg-lime-200/50 " colspan="2">2010 覆蓋度</th>
+                    <th class="px-4 py-2 text-center bg-orange-200" colspan="2">2025 覆蓋度</th>
                 </tr>
             </thead>
 
@@ -223,10 +223,12 @@
                     <td class="px-4 py-2 group-hover:bg-amber-800/10">{{ $row['habitat'] }}</td>
                     <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">{{ $row['plot_2010'] }}</td>
                     <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">{{ $row['sub_2010'] }}</td>
-                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50">{{ $row['cov_sd_2010'] }}</td>
+                    <td class="pl-4 py-2 text-right group-hover:bg-amber-800/10 bg-lime-100/50">{{ $row['cov_2010'] }}</td>
+                    <td class="pr-4 py-2 text-left group-hover:bg-amber-800/10 bg-lime-100/50">{{ $row['sd_2010'] }}</td>
                     <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">{{ $row['plot_2025'] }}</td>
                     <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">{{ $row['sub_2025'] }}</td>
-                    <td class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100">{{ $row['cov_sd_2025'] }}</td>
+                    <td class="pl-4 py-2 text-right group-hover:bg-amber-800/10 bg-orange-100">{{ $row['cov_2025'] }}</td>
+                    <td class="pr-4 py-2 text-left group-hover:bg-amber-800/10 bg-orange-100">{{ $row['sd_2025'] }}</td>
                 </tr>
             @endforeach
             </tbody>

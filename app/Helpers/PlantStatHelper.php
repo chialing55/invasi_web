@@ -100,11 +100,13 @@ class PlantStatHelper
                 'plot_2010' => $p10,
                 'sub_2010' => $s10,
                 'cov_sd_2010' => $s10 > 1 ? "{$m10}±{$sd10}" : "{$m10}",
-                'cov_2010' => $m10,
+                'cov_2010' => number_format($m10, 1),
+                'sd_2010' => $s10 > 1 ? "±{$sd10}" : "",
                 'plot_2025' => $p25,
                 'sub_2025' => $s25,
                 'cov_sd_2025' => $s25 > 1 ? "{$m25}±{$sd25}" : "{$m25}",
-                'cov_2025' => $m25,
+                'cov_2025' => number_format($m25, 1),
+                'sd_2025' => $s25 > 1 ? "±{$sd25}" : "",
             ];
         })->sortBy(['county', 'habitat'])->values()->toArray();
 

@@ -31,6 +31,7 @@ class SurveyOverview extends Component
     public $allPlotInfo = [];
     public $showAllPlotInfo = [];
     public $thisListType='';
+    public $thisSelectedHabitat = ''; // 用來記錄目前選擇的 habitat_code
 
 
     public function mount()
@@ -172,7 +173,26 @@ class SurveyOverview extends Component
                 ->groupBy('habitat_code')
                 ->pluck('subplot_count', 'habitat_code')  // 轉成 key-value 陣列
                 ->toArray();
+            $rawData = SubPlotPlant2025::where('plot_full_id', 'like', $plot . '%')->get();
 
+            $grouped = $rawData->groupBy(function ($item) {
+                return substr($item->plot_full_id, 6, 2); // 第 7、8 碼為 habitat code
+            });
+
+            $habitatStats = [];
+
+            foreach ($grouped as $habCode => $group) {
+                $dataErrorCount = $group->filter(function ($item) {
+                    return $item->coverage == 0 || $item->data_error != 0;
+                })->count();
+
+                $unidentifiedCount = $group->where('unidentified', 1)->count();
+
+                $habitatStats[$habCode] = [
+                    'data_error_count' => $dataErrorCount,
+                    'unidentified_count' => $unidentifiedCount,
+                ];
+            }
 
             // 組合所有 habitat_code 的結果
 
@@ -185,6 +205,8 @@ class SurveyOverview extends Component
                         'hab_name' => $habName,
                         'subplot_count_2025' => $plotQuery2025[$habCode] ?? 0,
                         'plotFile' => $thisPlotFile,
+                        'unidentified_count' => $habitatStats[$habCode]['unidentified_count'] ?? 0,
+                        'data_error_count' => $habitatStats[$habCode]['data_error_count'] ?? 0,
                     ];
                 }
             } else {
@@ -195,6 +217,8 @@ class SurveyOverview extends Component
                     'hab_name' => null,
                     'subplot_count_2025' => null,
                     'plotFile' => $thisPlotFile,
+                    'unidentified_count' => null,
+                    'data_error_count' => null,
                 ];
             }          
         }
@@ -217,6 +241,7 @@ class SurveyOverview extends Component
     public function loadPlotInfo($value)
     { 
         $this->thisPlot = $value;
+        $this->thisSelectedHabitat = ''; 
         $this->refreshKey = now(); // 加一個 dummy key 讓 view 重繪
   
         if ($this->allPlotInfo !=[]){
@@ -280,8 +305,13 @@ class SurveyOverview extends Component
 
                 $total = $plantQuery->count();
                 $unidentified = (clone $plantQuery)->where('unidentified', 1)->count();
-                //包含覆蓋度錯誤(cov_error == 1)與物種重複(cov_error == 2)
-                $dataError = (clone $plantQuery)->where('data_error', '!=', 0)->count();
+                //包含覆蓋度錯誤(coverage == 0)與物種重複(cov_error == 2)
+                $dataError = (clone $plantQuery)
+                    ->where(function ($query) {
+                        $query->where('data_error', '!=', 0)
+                            ->orWhere('coverage', 0);
+                    })
+                    ->count();
 
                 $this->subPlotSummary[] = [
                     'plot_full_id' => $plotFullID,
@@ -303,13 +333,17 @@ class SurveyOverview extends Component
 
     }
 
+    
+
     public function reloadPlotInfo($value)
     {
         if ($value === '') {
             // 顯示全部
             $this->filteredSubPlotSummary = $this->subPlotSummary;
+            $this->thisSelectedHabitat = ''; 
         } else {
             // 篩選指定 habitat_code
+            $this->thisSelectedHabitat = "{$value} {$this->subPlotHabList[$value]}"; // 更新目前選擇的 habitat_code
             $this->filteredSubPlotSummary =[];
             $this->filteredSubPlotSummary = collect($this->subPlotSummary)
                 ->where('habitat_code', $value)

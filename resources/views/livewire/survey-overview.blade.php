@@ -18,7 +18,7 @@
 @if ($thisCounty=='')
    
 <div class="gray-card mb-6 space-y-3">
-    <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標: 完成 20-25 個樣區</span></h3>
+    <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標：完成 20-25 個 1 ×1 km<sup>2</sup>樣區</span><span class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
     @foreach ($showTeamInfo as $row)
 @php
     $target = 20;
@@ -51,6 +51,8 @@
                 🎉 完成了！
             @elseif ($plotDone >= 15)
                 🌟 就快完成了！
+            @elseif ($plotDone >= 10)
+                🌟 期中進度達標！
             @else
                 💪 加油加油
             @endif
@@ -83,7 +85,7 @@
             <div wire:click="surveryedPlotInfo('{{ $row['county'] }}')" wire:key="card-{{ $row['county'] }}" 
                 class="cursor-pointer w-[200px] sm:w-[220px] md:w-[240px] rounded p-4 shadow transition bg-white hover:bg-gray-50 hover:shadow-xl">
                 <div class="mb-2 flex justify-between">
-                <h3 class="text-lg font-bold text-forest mb-2">{{ $row['county'] }} </h3>
+                <h3>{{ $row['county'] }} </h3>
                 <p>{{ $row['teams'] }}</p>
                 </div>
 
@@ -137,12 +139,6 @@
             @endif
         </div>
 
-        @if($thisPlotFile)
-        <div class="mb-4">
-            <a href='{{$thisPlotFile}}' target="_blank">樣區調查資料 <img src="/images/PDF_file_icon.svg" alt="PDF" class="inline w-5 h-5 mr-1"> {{$thisPlot}}.pdf</a>
-        </div>
-        @endif
-
     @endif
 
     @if($showAllPlotInfo)
@@ -156,13 +152,15 @@
     $printedPlots = []; // 記錄已經輸出過的 plot
 @endphp
     <div class="gray-card w-fit mb-6">
-        <h2>樣區列表</h2>
+        <h3>樣區列表</h3>
 <table class="text-sm border border-gray-300 w-full">
     <thead  style="background-color: #F9E7AC;">
         <tr>
             <th class="border-b px-4 py-2">樣區編號</th>
-            <th class="border-b px-4 py-2">生育地類型</th>
+            <th class="border-b px-4 py-2 text-left">生育地類型</th>
             <th class="border-b px-4 py-2">小樣區數量</th>
+            <th class="border-b px-4 py-2">未鑑定植物</th>
+            <th class="border-b px-4 py-2">資料錯誤</th>
             <th class="border-b px-4 py-2">樣區資料檔案</th>
         </tr>
     </thead>
@@ -183,6 +181,8 @@
 
                     <td class="border-b px-4 py-2">{!! $row['hab_code'] !!} {!! $row['hab_name'] !!}</td>
                     <td class="border-b px-4 py-2 text-center">{{ $row['subplot_count_2025'] }}</td>
+                    <td class="border-b px-4 py-2 text-center">{{ $row['unidentified_count'] }}</td>
+                    <td class="border-b px-4 py-2 text-center">{{ $row['data_error_count'] }}</td>
 
                     @if ($index === 0)
                         <td class="border-b px-4 py-2 text-center align-top" rowspan="{{ count($rows) }}">
@@ -208,13 +208,17 @@
         @if (!empty($filteredSubPlotSummary))
 
             <div class="gray-card w-fit">
-                <h2>{{$thisPlot}} 調查結果</h2>
-
+                <h3>{{$thisPlot}} {{$thisSelectedHabitat}} 調查結果</h3>
+                @if($thisPlotFile)
+                <div class="mb-4">
+                    <a href='{{$thisPlotFile}}' target="_blank">樣區調查資料 <img src="/images/PDF_file_icon.svg" alt="PDF" class="inline w-5 h-5 mr-1"> {{$thisPlot}}.pdf</a>
+                </div>
+                @endif
                 <table class="text-sm border border-gray-300 w-full">
                     <thead class="bg-yellow-500/30">
                         <tr>
                             <th class="border-b px-4 py-2">小樣方編號</th>
-                            <th class="border-b px-4 py-2">生育地</th>
+                            <th class="border-b px-4 py-2 text-left">生育地類型</th>
                             <th class="border-b px-4 py-2">流水號</th>
                             <th class="border-b px-4 py-2">調查日期</th>
                             <th class="border-b px-4 py-2">植物筆數</th>

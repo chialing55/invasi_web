@@ -48,7 +48,7 @@
                 <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40" wire:change="loadPlotHab($event.target.value)">
                     <option value="">-- 請選擇 --</option>
                     @foreach ($habTypeOptions as $code => $label)
-                        <option value="{{ $code }}">{{ $label }}</option>
+                        <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                     @endforeach
                 </select>
             </div>

@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Services\DataSyncService;
 use App\Helpers\PlantStatHelper;
 use App\Helpers\PlantSearchHelper;
-
+use App\Helpers\HabHelper;
 class QueryPlant extends Component
 {
 
@@ -76,6 +76,8 @@ class QueryPlant extends Component
     public $thisCounty = '';
     public $thisHabType = '';
     public $filteredComparisonTable = [];
+    public $habTypeOptions = [];
+
     public function plantInfo($value)
     {
         
@@ -109,7 +111,7 @@ class QueryPlant extends Component
             ->sort()
             ->values()
             ->toArray();
-
+        $this->habTypeOptions = HabHelper::habitatOptions($this->habList);
 
         $this->filteredComparisonTable = $this->comparisonTable; // 初始化為全部資料
 

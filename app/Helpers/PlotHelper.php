@@ -3,7 +3,8 @@ namespace App\Helpers;
 
 use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
-use App\Models\HabitatInfo;
+
+use App\Helpers\HabHelper;
 
 class PlotHelper
 {
@@ -27,12 +28,7 @@ class PlotHelper
         if (in_array('08', $plotHabList)) $plotHabList[] = '88';
         if (in_array('09', $plotHabList)) $plotHabList[] = '99';
 
-        $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
-        $habTypeOptions = collect($plotHabList)
-            ->filter(fn($code) => isset($habTypeMap[$code]))
-            ->mapWithKeys(fn($code) => [$code => $habTypeMap[$code]])
-            ->sortBy(fn($label, $code) => $label)
-            ->toArray();
+        $habTypeOptions = HabHelper::habitatOptions($plotHabList);
 
         // 小樣方清單（2010）
         $subPlotList2010 = SubPlotEnv2010::where('PLOT_ID', $plot)

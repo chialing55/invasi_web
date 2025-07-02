@@ -667,6 +667,15 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
         );
 
+        if ($hab=='08' || $hab=='09') {
+            // 如果是 08 或 09，則同時更新 88 或 99 的樣區
+            $copyHab = $hab == '08' ? '88' : '99';
+            $copySubPlot = substr($this->thisSubPlot, 0, 6) . $copyHab . substr($this->thisSubPlot, 8);
+            SubPlotEnv2025::where('plot_full_id', $copySubPlot)->update(
+                ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
+            );
+        }   
+
         $this->photo->storeAs($relativePath, $filename, 'public');
         $this->loadPhotoInfo();
         session()->flash('photoUploadSuccess', '上傳成功！');

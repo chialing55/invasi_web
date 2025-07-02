@@ -12,7 +12,7 @@ use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\PlantListHelper;
-
+use App\Helpers\PlotHelper;
 
 class QueryPlot extends Component
 {
@@ -71,77 +71,10 @@ class QueryPlot extends Component
         if (empty($plot)) {
             return;
         }
-
-        // 取得生育地清單
-        $plotHab2010 = SubPlotEnv2010::where('PLOT_ID', $plot)
-            ->pluck('HAB_TYPE')         // 只取出單欄位
-            ->unique()                  // 移除重複值（可省略，pluck 已自動處理）
-            ->values()                  // 重新索引（0,1,2...）
-            ->toArray(); 
-
-        $plotHab2025 = SubPlotEnv2025::where('plot', $plot)
-            ->pluck('habitat_code')         // 只取出單欄位
-            ->unique()                  // 移除重複值（可省略，pluck 已自動處理）
-            ->values()                  // 重新索引（0,1,2...）
-            ->toArray(); 
-        
-        $plotHabList=array_unique(array_merge($plotHab2010, $plotHab2025));
-        if(in_array('08', $plotHabList)){
-            $plotHabList[] = '88'; // 新增 '88' 生育地類型
-        }
-        if(in_array('09', $plotHabList)){
-            $plotHabList[] = '99'; // 新增 '99' 生育地類型
-        }
-        $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
-
-
-        $this->habTypeOptions = collect($plotHabList)
-            ->filter(fn($code) => isset($habTypeMap[$code]))   // 過濾掉沒有對應名稱的
-            ->mapWithKeys(fn($code) => [$code => $habTypeMap[$code]]) // 轉成 code => habitat
-            ->sortBy(fn($label, $code) => $label) // 依 habitat 名稱排序（可省略）
-            ->toArray();
-
-// 取得小樣方清單
-        $subPlotList2010 = SubPlotEnv2010::where('PLOT_ID', $plot)
-            ->select('PLOT_ID', 'HAB_TYPE', 'SUB_ID')
-            ->get()
-            ->map(function ($item) {
-                return $item->PLOT_ID . $item->HAB_TYPE . $item->SUB_ID;
-            })
-            ->unique()
-            ->values()
-            ->toArray();
-
-        // 檢查是否有 '08' 或 '09'，若有則額外加入 '88' 或 '99'
-        $extra = [];
-
-        foreach ($subPlotList2010 as $code) {
-            $plotId = substr($code, 0, 6); // 假設 PLOT_ID 長度為 6（依實際情況調整）
-            $habType = substr($code, 6, 2);
-            $subId = substr($code, 8);
-
-            if ($habType === '08') {
-                $extra[] = $plotId . '88' . $subId;
-            } elseif ($habType === '09') {
-                $extra[] = $plotId . '99' . $subId;
-            }
-        }
-
-        // 合併並去除重複
-        $subPlotList2010 = collect(array_merge($subPlotList2010, $extra))
-            ->unique()
-            ->values()
-            ->toArray();
-
-
-
-        $subPlotList2025 = SubPlotEnv2025::where('plot', $plot)
-            ->pluck('plot_full_id')         // 只取出單欄位
-            ->unique()                  // 移除重複值（可省略，pluck 已自動處理）
-            ->values()                  // 重新索引（0,1,2...）
-            ->toArray(); 
-        $this->subPlotList=array_unique(array_merge($subPlotList2010, $subPlotList2025));
-        sort($this->subPlotList);
+//取得生育地類型列表、小樣區清單
+        $data = PlotHelper::getSubPlotInfo($plot);
+        $this->habTypeOptions = $data['habTypeOptions'];
+        $this->subPlotList = $data['subPlotList'];
 // dd($plotPlant2025);
             
         // $this->dispatch('plotIDUpdated', plotID: '');

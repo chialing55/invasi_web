@@ -1,5 +1,5 @@
 {{-- livewire/entry-entry.blade.php --}}
-<div>
+<div class="space-y-4">
 <div
     wire:loading.class="flex"
     wire:loading.remove.class="hidden"
@@ -104,7 +104,7 @@
 
         </div>
     </div>
-        <div class="flex flex-col gap-4 mt-8">
+        <div class="flex flex-col gap-4 !mt-8">
             <div class="flex flex-row flex-wrap items-center gap-4">
                 @if ($subPlotList)
                     <div class="flex items-center gap-2 mr-8">

@@ -38,39 +38,56 @@ class PlantListHelper
                 $nat_type = '栽培';
             }
 
-            // COV 2010 資訊
+            // 取得 COV 2010 數值
+            $covAvg2010 = round($item2010['cov_avg'] ?? 0, 2) ?? null;
+            $covSd2010 = round($item2010['cov_sd'] ?? 0, 2) ?? null;
             $covFreq2010 = $item2010['cov_freq'] ?? 0;
-            $cov2010 = ($item2010['cov_avg'] ?? null) !== null
-                ? round($item2010['cov_avg'], 2)
-                    . ($covFreq2010 > 1
-                        ? ' ± ' . round($item2010['cov_sd'], 2)
-                        : '')
-                    . ($totalPlots2010 > 1 && $covFreq2010 > 0
-                        ? ' (' . $covFreq2010 . ' / ' . $totalPlots2010 . ')'
-                        : '')
+
+            $cov2010Display = $covAvg2010 !== null
+                ? round($covAvg2010, 2)
+                    . ($covFreq2010 > 1 ? ' ± ' . round($covSd2010 ?? 0, 2) : '')
+                    . ($totalPlots2010 > 1 && $covFreq2010 > 0 ? ' (' . $covFreq2010 . ' / ' . $totalPlots2010 . ')' : '')
                 : '';
 
-            // COV 2025 資訊
+            // 取得 COV 2025 數值
+            $covAvg2025 = round($item2025['cov_avg'] ?? 0, 2) ?? null;
+            $covSd2025 = round($item2025['cov_sd'] ?? 0, 2) ?? null;
             $covFreq2025 = $item2025['cov_freq'] ?? 0;
-            $cov2025 = ($item2025['cov_avg'] ?? null) !== null
-                ? round($item2025['cov_avg'], 2)
-                    . ($covFreq2025 > 1
-                        ? ' ± ' . round($item2025['cov_sd'], 2)
-                        : '')
-                    . ($totalPlots2025 > 1 && $covFreq2025 > 0
-                        ? ' (' . $covFreq2025 . ' / ' . $totalPlots2025 . ')'
-                        : '')
+
+            $cov2025Display = $covAvg2025 !== null
+                ? round($covAvg2025, 2)
+                    . ($covFreq2025 > 1 ? ' ± ' . round($covSd2025 ?? 0, 2) : '')
+                    . ($totalPlots2025 > 1 && $covFreq2025 > 0 ? ' (' . $covFreq2025 . ' / ' . $totalPlots2025 . ')' : '')
                 : '';
 
+            // 合併後加入陣列
             $merged[] = [
-                'chfamily' => $chfamily,
-                'chname' => $chname,
-                'nat_type' => $nat_type,
-                'cov2010' => $cov2010,
-                'cov2010_sort' =>$item2010['cov_avg'] ?? 0,
-                'cov2025_sort' => $item2025['cov_avg'] ?? 0,
-                'cov2025' => $cov2025,
+                'chfamily'       => $chfamily,
+                'chname'         => $chname,
+                'nat_type'       => $nat_type,
+
+                // 顯示用文字（含 ± 與 freq 資訊）
+                'covsd2010'      => $cov2010Display,
+                'covsd2025'      => $cov2025Display,
+
+                // 數值欄位（用於排序、統計等）
+                'cov2010'        => number_format($covAvg2010, 2),
+                'sd2010'         => $covFreq2010 > 1 ? "±{$covSd2010}" : "",
+                'freq2010'       => ($totalPlots2010 > 1 && $covFreq2010 > 0 ? ' (' . $covFreq2010 . ' / ' . $totalPlots2010 . ')' : ''),
+                'plot2010'     => $totalPlots2010,
+                'sub2010'      => intval($covFreq2010 ?? 0),
+
+                'cov2025'        => number_format($covAvg2025, 2),
+                'sd2025'         => $covFreq2025 > 1 ? "±{$covSd2025}" : "",
+                'freq2025'       => ($totalPlots2025 > 1 && $covFreq2025 > 0 ? ' (' . $covFreq2025 . ' / ' . $totalPlots2025 . ')' : ''),
+                'plot2025'     => $totalPlots2025,
+                'sub2025'      => intval($covFreq2025 ?? 0),
+
+                // 排序欄位（顯示與 cov2010/2025 同值）
+                'cov2010_sort'   => $covAvg2010 ?? 0,
+                'cov2025_sort'   => $covAvg2025 ?? 0,
             ];
+
         }
 
         // 依照 chfamily、chname 排序（中文）

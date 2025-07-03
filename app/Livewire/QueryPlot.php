@@ -33,6 +33,14 @@ class QueryPlot extends Component
     {
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
 
+        if (session()->has('query.county')) {
+            $county  = session()->pull('query.county');
+            $plot    = session()->pull('query.plot');
+            $subPlot = session()->pull('query.subPlot');
+
+            $this->fromOverview($county, $plot, $subPlot);
+        }
+
     }
 
     public function loadPlots($county)
@@ -154,6 +162,16 @@ class QueryPlot extends Component
        
         $this->dispatch('thisHabTypeUpdated');
         $this->dispatch('plantListLoaded');
+
+    }
+
+    public function fromOverview($county, $plot, $subPlot)
+    {
+        $this->thisCounty = $county;
+        $this->loadPlots($county);
+        $this->loadPlotInfo($plot);
+
+        $this->loadSubPlot($subPlot);
 
     }
 

@@ -224,7 +224,9 @@
                             <th class="border-b px-4 py-2">植物筆數</th>
                             <th class="border-b px-4 py-2">未鑑定</th>
                             <th class="border-b px-4 py-2">資料錯誤</th>
-                            <th class="border-b px-4 py-2">照片上傳</th>
+                            <th class="border-b px-4 py-2">小樣方照片</th>
+                            <th class="border-b px-4 py-2">查看資料</th>
+                            
                         </tr>
                     </thead>
                     <tbody>
@@ -244,6 +246,24 @@
                                 <td class="px-4 py-2 text-center">{{ $row['data_error_count'] }}</td>
                                 <td class="px-4 py-2 text-center">
                                     {!! !empty($row['uploaded_at']) ? "<a href='{$row['photo_path']}' target='_blank' class='hover:no-underline no-underline'>✅</a>" : '' !!}
+                                </td>
+                                <td class="px-4 py-2 text-center">
+@php 
+    if ($userOrg == $row['team'] || $userRole == 'admin')  {
+        $entryLink = route('overview.to.entry.entry', ['county' => $thisCounty, 'plot' => $thisPlot, 'subPlot' => $row['plot_full_id']]);
+    } else {
+        $entryLink = '#';
+    }
+
+@endphp
+                                    <a href="{{ route('overview.to.query.plot', ['county' => $thisCounty, 'plot' => $thisPlot, 'subPlot' => $row['plot_full_id']]) }}"
+                                    target="_blank"
+                                    class="hover:no-underline no-underline">🔍</a>
+                                    @if($entryLink != '#')
+                                    <a href="{{ $entryLink }}"
+                                    target="_blank"
+                                    class="hover:no-underline no-underline">✏️</a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

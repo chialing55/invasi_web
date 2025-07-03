@@ -14,6 +14,8 @@ use App\Http\Controllers\Auth\PasswordConfirmController;
 use App\Http\Controllers\GoogleBindingController;
 // use App\Http\Controllers\HomeController;
 use App\Http\Controllers\FileController;
+
+use App\Http\Livewire\QueryPlot;
 use Illuminate\Support\Facades\Auth;
 
 
@@ -118,7 +120,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('/data/export', 'page.data-export')->name('data.export');
 });
 
-
 //  // 下載檔案
 Route::get('/download/{path}', [FileController::class, 'download'])
     ->where('path', '.*')
@@ -134,4 +135,20 @@ Route::get('/test', function () {
     return view('test');
 });
 
+Route::get('/redirect-to-query-plot', function () {
+    session([
+        'query.county' => request('county'),
+        'query.plot' => request('plot'),
+        'query.subPlot' => request('subPlot'),
+    ]);
+    return redirect('/query/plot');
+})->name('overview.to.query.plot');
 
+Route::get('/redirect-to-entry-entry', function () {
+    session([
+        'query.county' => request('county'),
+        'query.plot' => request('plot'),
+        'query.subPlot' => request('subPlot'),
+    ]);
+    return redirect('/entry/entry');
+})->name('overview.to.entry.entry');

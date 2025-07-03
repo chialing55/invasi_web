@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\HabHelper;
 use App\Helpers\PlotHelper;
 use App\Helpers\PlotCompletedHelper;
+use Illuminate\Support\Facades\Auth;
 
 class SurveyOverview extends Component
 {
@@ -32,7 +33,8 @@ class SurveyOverview extends Component
     public $showAllPlotInfo = [];
     public $thisListType='';
     public $thisSelectedHabitat = ''; // 用來記錄目前選擇的 habitat_code
-
+    public $userOrg;
+    public $userRole;
 
     public function mount()
     {
@@ -40,6 +42,9 @@ class SurveyOverview extends Component
         // 預設顯示全部 plot; 統
         $this->allContyInfo();
         // $this->surveryedPlotInfo('', '');
+        $user = Auth::user(); // 取代 auth()->user()
+        $this->userOrg = $user->organization ?? '未知單位';
+        $this->userRole = $user->role;
 
     }
     public $allContyInfo = [];
@@ -249,6 +254,10 @@ class SurveyOverview extends Component
             $this->thisPlotFile = $index !== false ? $this->allPlotInfo[$index]['plotFile'] : null;            
         }
 
+        $thisPlotTeam=PlotList2025::where('plot', $value)
+            ->pluck('team')
+            ->first();
+
         $this->filteredSubPlotSummary =[];
         if ($value==''){
             $this->showAllPlotInfo = $this->allPlotInfo; 
@@ -301,7 +310,7 @@ class SurveyOverview extends Component
                         $photopath = null;
                     }
                 }
-    
+                
 
                 $total = $plantQuery->count();
                 $unidentified = (clone $plantQuery)->where('unidentified', 1)->count();
@@ -314,6 +323,7 @@ class SurveyOverview extends Component
                     ->count();
 
                 $this->subPlotSummary[] = [
+                    'team' => $thisPlotTeam,
                     'plot_full_id' => $plotFullID,
                     'subplot_id' => substr($plotFullID , 8, 2),
                     'habitat_code' => $habitatCode,  // ⬅️ 需保留 code 才能篩選

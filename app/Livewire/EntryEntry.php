@@ -53,36 +53,45 @@ class EntryEntry extends Component
     public $user;
     public $creatorCode;
 
-public function mount()
-{
-    $user = Auth::user(); // 取代 auth()->user()
+    public function mount()
+    {
+        $user = Auth::user(); // 取代 auth()->user()
 
-    if (!$user) {
-        return redirect('/'); // ⬅️ 若未登入，退回首頁
+        if (!$user) {
+            return redirect('/'); // ⬅️ 若未登入，退回首頁
+        }
+
+        // 已登入情況
+        $this->userOrg = $user->organization ?? '未知單位';
+        $this->creatorCode = explode('@', $user->email)[0];
+        $this->user = $user;
+
+        if ($user->role == 'member') {
+            $this->countyList = PlotList2025::select('county')
+                ->where('team', $this->userOrg)
+                ->distinct()
+                ->pluck('county')
+                ->toArray(); 
+        } else {
+            $this->countyList = PlotList2025::select('county')
+                ->distinct()
+                ->pluck('county')
+                ->toArray();
+        }
+
+        $this->showPlotEntryTable = false;
+        $this->showPlantEntryTable = false;
+        $this->thisPlot = '';
+
+        if (session()->has('query.county')) {
+            $county  = session()->pull('query.county');
+            $plot    = session()->pull('query.plot');
+            $subPlot = session()->pull('query.subPlot');
+
+            $this->fromOverview($county, $plot, $subPlot);
+        }
+
     }
-
-    // 已登入情況
-    $this->userOrg = $user->organization ?? '未知單位';
-    $this->creatorCode = explode('@', $user->email)[0];
-    $this->user = $user;
-
-    if ($user->role == 'member') {
-        $this->countyList = PlotList2025::select('county')
-            ->where('team', $this->userOrg)
-            ->distinct()
-            ->pluck('county')
-            ->toArray(); 
-    } else {
-        $this->countyList = PlotList2025::select('county')
-            ->distinct()
-            ->pluck('county')
-            ->toArray();
-    }
-
-    $this->showPlotEntryTable = false;
-    $this->showPlantEntryTable = false;
-    $this->thisPlot = '';
-}
 
 
     public function call($method, ...$params)
@@ -717,6 +726,19 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         session()->flash('fileUploadSuccess', '上傳成功！');
 
     }    
+
+    public function fromOverview($county, $plot, $subPlot)
+    {
+        $this->thisCounty = $county;
+        $this->loadPlots($county);
+        $this->loadPlotInfo($plot);
+        $this->thisSubPlot = $subPlot;
+        $this->loadSubPlotEnv($subPlot);
+        $this->loadSubPlotPlant($subPlot);
+        $this->showPlotEntryTable = true;
+        $this->showPlantEntryTable = true;  
+
+    }
 
 
     public function render()

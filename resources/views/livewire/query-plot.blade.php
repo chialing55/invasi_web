@@ -78,36 +78,59 @@
     </div>
     <table class="text-sm border border-gray-300">
             <!-- 桌機版表頭 -->
+            <!-- 桌機版表頭 -->
             <thead class=" hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300 ">
-                    <th rowspan="2">
-                       <button class="sort px-4 py-2" data-sort="chfamily">科名</button>
-                    </th>
-                    <th rowspan="2">
-                        <button class="sort px-4 py-2" data-sort="chname">中文名</button>
-                    </th>
-                    <th rowspan="2"><button class="sort px-4 py-2" data-sort="nat">外來/栽培</button></th>
+                    <x-th-sort field="chfamily" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
+                        科名
+                    </x-th-sort>
+                    <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
+                        中文名
+                    </x-th-sort>
+                    <x-th-sort field="nat_type" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
+                        外來/栽培
+                    </x-th-sort>
                     <th colspan="4" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
                     <th colspan="4" class="px-4 py-2 text-center bg-orange-200">2025</th>
                 </tr>
                 <tr class="border-b border-gray-300">
-                    <th><button class="sort px-4 py-2  bg-lime-200/50" >樣區數</button></th>
-                    <th><button class="sort px-4 py-2  bg-lime-200/50" data-sort="sub2010">小樣區數</button></th>
-                    <th colspan="2"><button class="sort px-4 py-2 w-full bg-lime-200/50" data-sort="cov2010">覆蓋度</button></th>
-                    <th><button class="sort px-4 py-2  bg-orange-200" >樣區數</button></th>
-                    <th><button class="sort px-4 py-2  bg-orange-200" data-sort="sub2025">小樣區數</button></th>
-                    <th colspan="2"><button class="sort px-4 py-2 w-full  bg-orange-200" data-sort="cov2025">覆蓋度</button></th>
+                    <x-th-sort field="plot2010" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-lime-200/50'>
+                        總小樣方數
+                    </x-th-sort>
+                    <x-th-sort field="sub2010" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-lime-200/50'>
+                        出現小樣方數
+                    </x-th-sort>
+                    <x-th-sort field="cov2010" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-lime-200/50'>
+                        覆蓋度
+                    </x-th-sort>
+
+                    <x-th-sort field="plot2025" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-orange-200'>
+                        總小樣方數
+                    </x-th-sort>
+                    <x-th-sort field="sub2025" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-orange-200'>
+                        出現小樣方數
+                    </x-th-sort>
+                    <x-th-sort field="cov2025" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-orange-200'>
+                        覆蓋度
+                    </x-th-sort>
                 </tr>
             </thead>
 
             <!-- 手機版表頭 -->
             <thead class=" sm:hidden sticky top-0 z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300">
-                    <th><button class="sort px-4 py-2" data-sort="chfamily">科名</button></th>
-                    <th><button class="sort px-4 py-2" data-sort="chname">中文名</button></th>
-                    <th><button class="sort px-4 py-2" data-sort="nat">外來/栽培</button></th>
-                    <th colspan="2"><button class="sort px-4 py-2 w-full  bg-lime-200/50" data-sort="cov2010">2010 覆蓋度</button></th>
-                    <th colspan="2"><button class="sort px-4 py-2 w-full  bg-orange-200" data-sort="cov2025">覆蓋度</button></th>
+                    <x-th-sort field="chfamily" :sort-field="$sortField" :sort-direction="$sortDirection" >
+                        科名
+                    </x-th-sort>
+                    <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection" >
+                        中文名
+                    </x-th-sort>
+                    <x-th-sort field="cov2010" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-lime-200/50'>
+                        2010 覆蓋度
+                    </x-th-sort>
+                    <x-th-sort field="cov2025" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-orange-200'>
+                        2025 覆蓋度
+                    </x-th-sort>
                 </tr>
             </thead>
         <tbody class="list">
@@ -124,15 +147,15 @@
             >
                 <td class="group-hover:bg-amber-800/10 chfamily px-4 py-2 border-b ">{{ $item['chfamily'] }}</td>
                 <td class="group-hover:bg-amber-800/10 chname px-4 py-2 border-b ">{{ $item['chname'] }}</td>
-                <td class="group-hover:bg-amber-800/10 nat border-b px-4 py-2 text-center">{{ $item['nat_type'] }}</td>
-                <td class="group-hover:bg-amber-800/10 border-b px-4 py-2  bg-lime-200/50 text-center">{{ $item['plot2010'] }}</td>
-                <td class="group-hover:bg-amber-800/10 sub2010 border-b px-4 py-2  bg-lime-200/50 text-center" data-sort="{{ $item['sub2010'] ?? 0 }}">{{ $item['sub2010'] }}</td>
-                <td class="group-hover:bg-amber-800/10 cov2010 border-b pl-4 py-2  bg-lime-200/50 text-right" data-sort="{{ $item['cov2010_sort'] ?? 0 }}">{{ $item['cov2010'] }}</td>
+                <td class="group-hover:bg-amber-800/10 nat border-b px-4 py-2 text-center hidden sm:table-cell">{{ $item['nat_type'] }}</td>
+                <td class="group-hover:bg-amber-800/10 border-b px-4 py-2  bg-lime-200/50 text-center hidden sm:table-cell">{{ $item['plot2010'] }}</td>
+                <td class="group-hover:bg-amber-800/10 sub2010 border-b px-4 py-2  bg-lime-200/50 text-center hidden sm:table-cell" >{{ $item['sub2010'] }}</td>
+                <td class="group-hover:bg-amber-800/10 cov2010 border-b pl-4 py-2  bg-lime-200/50 text-right">{{ $item['cov2010'] }}</td>
                 <td class="group-hover:bg-amber-800/10 border-b pr-4 py-2   bg-lime-200/50 text-left">{{ $item['sd2010'] }}</td>
                 
-                <td class="group-hover:bg-amber-800/10 border-b px-4 py-2  bg-orange-200 text-center">{{ $item['plot2025'] }}</td>
-                <td class="group-hover:bg-amber-800/10 sub2025 border-b px-4 py-2  bg-orange-200 text-center" data-sort="{{ $item['sub2025'] ?? 0 }}">{{ $item['sub2025'] }}</td>
-                <td class="group-hover:bg-amber-800/10 cov2025 border-b pl-4 py-2 bg-orange-200 text-right" data-sort="{{ $item['cov2025_sort'] ?? 0 }}">{{ $item['cov2025'] }}</td>
+                <td class="group-hover:bg-amber-800/10 border-b px-4 py-2  bg-orange-200 text-center hidden sm:table-cell">{{ $item['plot2025'] }}</td>
+                <td class="group-hover:bg-amber-800/10 sub2025 border-b px-4 py-2  bg-orange-200 text-center hidden sm:table-cell">{{ $item['sub2025'] }}</td>
+                <td class="group-hover:bg-amber-800/10 cov2025 border-b pl-4 py-2 bg-orange-200 text-right">{{ $item['cov2025'] }}</td>
                 <td class="group-hover:bg-amber-800/10 border-b pr-4 py-2 bg-orange-200 text-left">{{ $item['sd2025'] }}</td>
 
             </tr>
@@ -162,81 +185,81 @@ let currentSortField = null;
 let currentSortOrder = 'asc';
 
 
-window.addEventListener('plantListLoaded', () => {
-    console.log("🟡 plantListLoaded received");
+// window.addEventListener('plantListLoaded', () => {
+//     console.log("🟡 plantListLoaded received");
 
-    // 等 DOM 插入完成
-    setTimeout(() => {
-        if (window.plantListSorter) {
-            // ⚠ 不 destroy，避免干擾 DOM
-            window.plantListSorter.reIndex(); // ✅ 讓 sorter 讀到最新 DOM
-            console.log("🔁 plantListSorter reIndex 完成");
-        } else {
-            // 第一次初始化
-            window.plantListSorter = new List("plant-list-wrapper", {
-                valueNames: [
-                    'chfamily', 'chname', 'nat',
-                    { name: 'cov2010', attr: 'data-sort' },
-                    { name: 'cov2025', attr: 'data-sort' },
-                    { name: 'sub2010', attr: 'data-sort' },
-                    { name: 'sub2025', attr: 'data-sort' }
-                ]
-            });
-            console.log("✅ plantListSorter 初始化成功");
-        }
-    }, 200); // 讓 DOM 有足夠時間插入
-});
-
-
-function initPlantListSorter() {
-    console.log("🟢 初始化 plantListSorter");
-    const wrapper = document.getElementById("plant-list-wrapper");
-    const listBody = wrapper?.querySelector(".list");
-
-    if (!wrapper || !listBody || listBody.children.length === 0) {
-        console.warn("⚠️ 找不到表格或資料還沒渲染");
-        return;
-    }
-
-    if (plantListSorter) {
-        plantListSorter = null;
-    }
-
-    // ✅ 初始化 List.js
-    plantListSorter = new List("plant-list-wrapper", {
-        valueNames: ['chfamily', 'chname', 'nat', { name: 'cov2010', attr: 'data-sort' }, { name: 'cov2025', attr: 'data-sort' }, { name: 'sub2010', attr: 'data-sort' }, { name: 'sub2025', attr: 'data-sort' }],
-    });
+//     // 等 DOM 插入完成
+//     setTimeout(() => {
+//         if (window.plantListSorter) {
+//             // ⚠ 不 destroy，避免干擾 DOM
+//             window.plantListSorter.reIndex(); // ✅ 讓 sorter 讀到最新 DOM
+//             console.log("🔁 plantListSorter reIndex 完成");
+//         } else {
+//             // 第一次初始化
+//             window.plantListSorter = new List("plant-list-wrapper", {
+//                 valueNames: [
+//                     'chfamily', 'chname', 'nat',
+//                     { name: 'cov2010', attr: 'data-sort' },
+//                     { name: 'cov2025', attr: 'data-sort' },
+//                     { name: 'sub2010', attr: 'data-sort' },
+//                     { name: 'sub2025', attr: 'data-sort' }
+//                 ]
+//             });
+//             console.log("✅ plantListSorter 初始化成功");
+//         }
+//     }, 200); // 讓 DOM 有足夠時間插入
+// });
 
 
-    // ✅ 排序切換
-document.querySelector("#plant-list-wrapper").addEventListener("click", (event) => {
-    const btn = event.target.closest(".sort");
-    if (!btn || !window.plantListSorter) return;
+// function initPlantListSorter() {
+//     console.log("🟢 初始化 plantListSorter");
+//     const wrapper = document.getElementById("plant-list-wrapper");
+//     const listBody = wrapper?.querySelector(".list");
 
-    const sortField = btn.dataset.sort;
-    currentSortOrder = (currentSortField === sortField && currentSortOrder === 'asc') ? 'desc' : 'asc';
-    currentSortField = sortField;
+//     if (!wrapper || !listBody || listBody.children.length === 0) {
+//         console.warn("⚠️ 找不到表格或資料還沒渲染");
+//         return;
+//     }
 
-    btn.setAttribute("data-order", currentSortOrder);
-    document.querySelectorAll(".sort").forEach(b => {
-        if (b !== btn) b.removeAttribute('data-order');
-    });
+//     if (plantListSorter) {
+//         plantListSorter = null;
+//     }
 
-    // ✅ 確保排序前有更新 list items
-    plantListSorter.reIndex();
+//     // ✅ 初始化 List.js
+//     plantListSorter = new List("plant-list-wrapper", {
+//         valueNames: ['chfamily', 'chname', 'nat', { name: 'cov2010', attr: 'data-sort' }, { name: 'cov2025', attr: 'data-sort' }, { name: 'sub2010', attr: 'data-sort' }, { name: 'sub2025', attr: 'data-sort' }],
+//     });
 
-    plantListSorter.sort(sortField, {
-        order: currentSortOrder,
-        sortFunction: function (a, b) {
-            const aVal = a.values()[sortField]?.toString() ?? '';
-            const bVal = b.values()[sortField]?.toString() ?? '';
-            return aVal.localeCompare(bVal, 'zh-Hant', { sensitivity: 'base', numeric: true });
-        }
-    });
 
-    resetRowColors();
-    console.log(`🔃 排序 ${sortField} - ${currentSortOrder}`);
-});
+//     // ✅ 排序切換
+// document.querySelector("#plant-list-wrapper").addEventListener("click", (event) => {
+//     const btn = event.target.closest(".sort");
+//     if (!btn || !window.plantListSorter) return;
+
+//     const sortField = btn.dataset.sort;
+//     currentSortOrder = (currentSortField === sortField && currentSortOrder === 'asc') ? 'desc' : 'asc';
+//     currentSortField = sortField;
+
+//     btn.setAttribute("data-order", currentSortOrder);
+//     document.querySelectorAll(".sort").forEach(b => {
+//         if (b !== btn) b.removeAttribute('data-order');
+//     });
+
+//     // ✅ 確保排序前有更新 list items
+//     plantListSorter.reIndex();
+
+//     plantListSorter.sort(sortField, {
+//         order: currentSortOrder,
+//         sortFunction: function (a, b) {
+//             const aVal = a.values()[sortField]?.toString() ?? '';
+//             const bVal = b.values()[sortField]?.toString() ?? '';
+//             return aVal.localeCompare(bVal, 'zh-Hant', { sensitivity: 'base', numeric: true });
+//         }
+//     });
+
+//     resetRowColors();
+//     console.log(`🔃 排序 ${sortField} - ${currentSortOrder}`);
+// });
 
 
 

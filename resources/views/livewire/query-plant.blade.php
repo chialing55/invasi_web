@@ -146,68 +146,53 @@
             <!-- 桌機版表頭 -->
             <thead class=" hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300 ">
-                    <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('county')">
+                    <x-th-sort field="county" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
                         縣市
-                        @if ($sortField === 'county')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th rowspan="2" class="px-4 py-2 cursor-pointer" wire:click="sortBy('habitat')">
+                    </x-th-sort>
+                    <x-th-sort field="habitat" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
                         生育地類型
-                        @if ($sortField === 'habitat')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
+                    </x-th-sort>
                     <th colspan="4" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
                     <th colspan="4" class="px-4 py-2 text-center bg-orange-200">2025</th>
                 </tr>
                 <tr class="border-b border-gray-300">
-                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('plot_2010')">
+                    <x-th-sort field="plot_2010" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-lime-200/50'>
                         樣區數
-                        @if ($sortField === 'plot_2010')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('sub_2010')">
+                    </x-th-sort>
+                    <x-th-sort field="sub_2010" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-lime-200/50'>
                         小樣方數
-                        @if ($sortField === 'sub_2010')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th class="px-4 py-2 text-center bg-lime-200/50 cursor-pointer" wire:click="sortBy('cov_2010')" colspan="2">
+                    </x-th-sort>
+                    <x-th-sort field="cov_2010" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-lime-200/50'>
                         覆蓋度
-                        @if ($sortField === 'cov_2010')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('plot_2025')">
+                    </x-th-sort>
+
+                    <x-th-sort field="plot_2025" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-orange-200'>
                         樣區數
-                        @if ($sortField === 'plot_2025')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('sub_2025')">
+                    </x-th-sort>
+                    <x-th-sort field="sub_2025" :sort-field="$sortField" :sort-direction="$sortDirection" class='bg-orange-200'>
                         小樣方數
-                        @if ($sortField === 'sub_2025')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
-                    <th class="px-4 py-2 text-center bg-orange-200 cursor-pointer" wire:click="sortBy('cov_2025')" colspan="2">
+                    </x-th-sort>
+                    <x-th-sort field="cov_2025" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-orange-200'>
                         覆蓋度
-                        @if ($sortField === 'cov_2025')
-                            {{ $sortDirection === 'asc' ? '▲' : '▼' }}
-                        @endif
-                    </th>
+                    </x-th-sort>
                 </tr>
             </thead>
 
             <!-- 手機版表頭 -->
             <thead class=" sm:hidden sticky top-0 z-10" style="background-color: #F9E7AC;">
                 <tr class="border-b border-gray-300">
-                    <th class="px-4 py-2">縣市</th>
-                    <th class="px-4 py-2">生育地</th>
-                    <th class="px-4 py-2 text-center bg-lime-200/50 " colspan="2">2010 覆蓋度</th>
-                    <th class="px-4 py-2 text-center bg-orange-200" colspan="2">2025 覆蓋度</th>
+                    <x-th-sort field="county" :sort-field="$sortField" :sort-direction="$sortDirection">
+                        縣市
+                    </x-th-sort>
+                    <x-th-sort field="habitat" :sort-field="$sortField" :sort-direction="$sortDirection">
+                        生育地類型
+                    </x-th-sort>
+                    <x-th-sort field="cov_2010" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-lime-200/50'>
+                        2010 覆蓋度
+                    </x-th-sort>
+                    <x-th-sort field="cov_2025" :sort-field="$sortField" :sort-direction="$sortDirection" colspan="2" class='bg-orange-200'>
+                        2025 覆蓋度
+                    </x-th-sort>
                 </tr>
             </thead>
 

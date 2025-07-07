@@ -82,7 +82,7 @@
     </div>
   <!-- 舊樣區編號 -->
     <div class="md:flex gap-2 items-center bg-orange-100 pl-8 p-2">
-      <label for="original_plot_id" class="text-right">當生育地類型改變，請輸入原樣區編號</label>
-      <input id="original_plot_id" name="original_plot_id" type="text" wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64" placeholder="生育地類型-小樣區編號">
+      <label for="original_plot_id" class="text-right">當生育地類型改變，請輸入原小樣方編號</label>
+      <input id="original_plot_id" name="original_plot_id" type="text" wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64" placeholder="生育地類型-小樣方流水號">
     </div>
   </div>

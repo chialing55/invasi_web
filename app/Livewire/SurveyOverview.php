@@ -331,6 +331,7 @@ class SurveyOverview extends Component
                     'plant_count' => $total,
                     'unidentified_count' => $unidentified,
                     'data_error_count' => $dataError,
+                    'original_plot_id' =>$plotQuery['original_plot_id'] ?? null,
                     'date' => $plotQuery['date'] ?? null,
                     'uploaded_at' => $plotQuery['file_uploaded_at'] ?? null,
                     'photo_path' => $photopath ?? null,

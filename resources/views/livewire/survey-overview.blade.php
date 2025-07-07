@@ -48,7 +48,7 @@
             @if ($plotDone >= $plotTotal)
                 🎊 全部完成！
             @elseif ($plotDone >= $target)
-                🎉 完成了！
+                🎉 完成目標！
             @elseif ($plotDone >= 15)
                 🌟 就快完成了！
             @elseif ($plotDone >= 10)
@@ -158,7 +158,7 @@
         <tr>
             <th class="border-b px-4 py-2">樣區編號</th>
             <th class="border-b px-4 py-2 text-left">生育地類型</th>
-            <th class="border-b px-4 py-2">小樣區數量</th>
+            <th class="border-b px-4 py-2">小樣方數量</th>
             <th class="border-b px-4 py-2">未鑑定植物</th>
             <th class="border-b px-4 py-2">資料錯誤</th>
             <th class="border-b px-4 py-2">樣區資料檔案</th>
@@ -224,6 +224,7 @@
                             <th class="border-b px-4 py-2">植物筆數</th>
                             <th class="border-b px-4 py-2">未鑑定</th>
                             <th class="border-b px-4 py-2">資料錯誤</th>
+                            <th class="border-b px-4 py-2">原編號</th>
                             <th class="border-b px-4 py-2">小樣方照片</th>
                             <th class="border-b px-4 py-2">查看資料</th>
                             
@@ -244,6 +245,7 @@
                                 <td class="px-4 py-2 text-center">{{ $row['plant_count'] }}</td>
                                 <td class="px-4 py-2 text-center">{{ $row['unidentified_count'] }}</td>
                                 <td class="px-4 py-2 text-center">{{ $row['data_error_count'] }}</td>
+                                <td class="px-4 py-2 text-center">{{ $row['original_plot_id'] }}</td>
                                 <td class="px-4 py-2 text-center">
                                     {!! !empty($row['uploaded_at']) ? "<a href='{$row['photo_path']}' target='_blank' class='hover:no-underline no-underline'>✅</a>" : '' !!}
                                 </td>

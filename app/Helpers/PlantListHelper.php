@@ -15,19 +15,29 @@ class PlantListHelper
         $merged = [];
 
         // 將 2010 清單整理成以 spcode 為 key 的 map
-        $map2010 = collect($list2010)->keyBy('spcode');
-        $map2025 = collect($list2025)->keyBy('spcode');
+        $map2010 = collect($list2010)->mapWithKeys(function ($item, $index) {
+            $key = $item['spcode'] ?: "unidentified_2010_{$index}";
+            $item['__key'] = $key;
+            return [$key => $item];
+        });
+
+        $map2025 = collect($list2025)->mapWithKeys(function ($item, $index) {
+            $key = $item['spcode'] ?: "unidentified_2025_{$index}";
+            $item['__key'] = $key;
+            return [$key => $item];
+        });
+
 
         // 所有 spcode 的聯集
         $allSpcodes = $map2010->keys()->merge($map2025->keys())->unique();
 
 
 
-        foreach ($allSpcodes as $spcode) {
-            $item2010 = $map2010->get($spcode);
-            $item2025 = $map2025->get($spcode);
+        foreach ($allSpcodes as $key) {
+            $item2010 = $map2010->get($key);
+            $item2025 = $map2025->get($key);
 
-            $chname = $item2010['chname'] ?? $item2025['chname'] ?? $item2010['chname_index'] ?? $item2025['chname_index'] ?? '';
+            $chname = $item2010['chname'] ?? $item2025['chname'] ?? $item2010['chname_index'] ?? $item2025['chname_index'] ?? '未鑑定';
             $chfamily = $item2010['chfamily'] ?? $item2025['chfamily'] ?? '--';
 
             // 決定 nat_type

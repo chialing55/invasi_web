@@ -16,17 +16,16 @@ class PlantListHelper
 
         // 將 2010 清單整理成以 spcode 為 key 的 map
         $map2010 = collect($list2010)->mapWithKeys(function ($item, $index) {
-            $key = $item['spcode'] ?: "unidentified_2010_{$index}";
+            $key = $item['spcode'] ?: "un_2010_{$item['chname_index']}";
             $item['__key'] = $key;
             return [$key => $item];
         });
-
+// dd($list2025)   ;
         $map2025 = collect($list2025)->mapWithKeys(function ($item, $index) {
-            $key = $item['spcode'] ?: "unidentified_2025_{$index}";
+            $key = $item['spcode'] ?: "un_2025_{$item['chname_index']}";
             $item['__key'] = $key;
             return [$key => $item];
         });
-
 
         // 所有 spcode 的聯集
         $allSpcodes = $map2010->keys()->merge($map2025->keys())->unique();
@@ -154,45 +153,61 @@ public static function getMergedPlotPlantList(string $plot, array $filter = []):
     }
 
     // 處理 2025 年資料
-    $query2025 = SubPlotPlant2025::select(
-        DB::raw('COALESCE(im_spvptdata_2025.spcode, im_spvptdata_2025.chname_index) as spcode'),
-        'im_spvptdata_2025.chname_index',
-        DB::raw('AVG(im_spvptdata_2025.coverage) as cov_avg'),
-        DB::raw('STD(im_spvptdata_2025.coverage) as cov_sd'),
-        DB::raw('COUNT(*) as cov_freq')
-    );
+$query2025 = SubPlotPlant2025::select(
+    'im_spvptdata_2025.spcode', // ⚠️ 保留原始 spcode 欄位
+    DB::raw('im_spvptdata_2025.chname_index as chname_index'),
+    DB::raw('AVG(im_spvptdata_2025.coverage) as cov_avg'),
+    DB::raw('STD(im_spvptdata_2025.coverage) as cov_sd'),
+    DB::raw('COUNT(*) as cov_freq')
+);
 
-    if (isset($filter['sub_plot'])) {
-        $query2025->where('plot_full_id', $filter['sub_plot']);
-    } else if (isset($filter['hab_type'])){
-        $filterHab=$plot.$filter['hab_type'];
-        $query2025->whereRaw('LEFT(plot_full_id, 8) = ?', [$filterHab]);
+if (isset($filter['sub_plot'])) {
+    $query2025->where('plot_full_id', $filter['sub_plot']);
+} elseif (isset($filter['hab_type'])) {
+    $filterHab = $plot . $filter['hab_type'];
+    $query2025->whereRaw('LEFT(plot_full_id, 8) = ?', [$filterHab]);
+} else {
+    $query2025->whereRaw('LEFT(plot_full_id, 6) = ?', [$plot]);
+}
+
+// 拿出原始 spcode，不覆蓋成 coalesce
+$plotPlant2025 = $query2025
+    ->groupBy('im_spvptdata_2025.spcode', 'im_spvptdata_2025.chname_index')
+    ->get()
+    // ->map(function ($item) {
+    //     return (array) $item;
+    // })
+    // ->values()
+    ->toArray();
+
+// 從原始 spcode 中撈出非空清單以查詢 spinfo
+$spcodeList = array_filter(array_column($plotPlant2025, 'spcode'), fn($v) => !empty($v));
+$spinfo2025 = Spinfo::whereIn('spcode', $spcodeList)->get()->keyBy('spcode');
+
+// 填補完整資料欄位
+foreach ($plotPlant2025 as &$item) {
+    $spcode = $item['spcode'] ?? null;
+
+    if (!empty($spcode) && isset($spinfo2025[$spcode])) {
+        $info = $spinfo2025[$spcode];
+        $item['spcode'] = $spcode; // 保留原始 spcode
+        $item['chname'] = $info['chname'] ?? null;
+        $item['chfamily'] = $info['chfamily'] ?? null;
+        $item['naturalized'] = $info['naturalized'] ?? null;
+        $item['cultivated'] = $info['cultivated'] ?? null;
     } else {
-        $query2025->whereRaw('LEFT(plot_full_id, 6) = ?', [$plot]);
+        // 未鑑定者：spcode 為空，改用 chname_index
+        $item['spcode'] = $spcode; // 保留原始 spcode
+        $item['chname'] = $item['chname_index'];
+        $item['chfamily'] = null;
+        $item['naturalized'] = null;
+        $item['cultivated'] = null;
     }
+}
+unset($item);
 
-    $plotPlant2025 = $query2025
-        ->groupBy('spcode', 'im_spvptdata_2025.chname_index')
-        ->get()
-        ->keyBy('spcode')
-        ->toArray();
+// 結果資料保存在 $plotPlant2025 中
 
-    $spinfo2025 = Spinfo::whereIn('spcode', array_keys($plotPlant2025))->get()->keyBy('spcode');
-
-    foreach ($plotPlant2025 as $key => &$item) {
-        if (isset($spinfo2025[$key])) {
-            $info = $spinfo2025[$key];
-            $item['chname'] = $info['chname'] ?? null;
-            $item['chfamily'] = $info['chfamily'] ?? null;
-            $item['naturalized'] = $info['naturalized'] ?? null;
-            $item['cultivated'] = $info['cultivated'] ?? null;
-        } else {
-            $item['chname'] = $item['chname_index'] ?? null;
-            $item['chfamily'] = null;
-            $item['naturalized'] = null;
-            $item['cultivated'] = null;
-        }
-    }
 
     $subQuery = SubPlotEnv2010::selectRaw("DISTINCT CONCAT(PLOT_ID, '.', HAB_TYPE, '.', SUB_ID) AS subkey")
         ->where('PLOT_ID', $plot)

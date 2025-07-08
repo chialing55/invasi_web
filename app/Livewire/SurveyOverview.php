@@ -246,6 +246,7 @@ class SurveyOverview extends Component
     public function loadPlotInfo($value)
     { 
         $this->thisPlot = $value;
+        $this->thisHabType = ''; // 清除目前選擇的 habitat_code
         $this->thisSelectedHabitat = ''; 
         $this->refreshKey = now(); // 加一個 dummy key 讓 view 重繪
   
@@ -344,7 +345,7 @@ class SurveyOverview extends Component
 
     }
 
-    
+    public $thisHabType=''; // 用來記錄目前選擇的 habitat_code
 
     public function reloadPlotInfo($value)
     {
@@ -354,6 +355,7 @@ class SurveyOverview extends Component
             $this->thisSelectedHabitat = ''; 
         } else {
             // 篩選指定 habitat_code
+            $this->thisHabType = $value; // 更新目前選擇的 habitat_code
             $this->thisSelectedHabitat = "{$value} {$this->subPlotHabList[$value]}"; // 更新目前選擇的 habitat_code
             $this->filteredSubPlotSummary =[];
             $this->filteredSubPlotSummary = collect($this->subPlotSummary)

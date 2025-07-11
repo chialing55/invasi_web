@@ -26,12 +26,20 @@
     <div class="md:flex gap-2 items-center">
       <label for="plot" class="w-24 text-right">樣區編號</label>
       <input id="plot" name="plot" type="text" wire:model.defer="subPlotEnvForm.plot" class="border border-gray-300 px-2 py-1 w-40 bg-gray-100 text-gray-600" readonly>
-
+     @php 
+     if($subPlotEnvForm['habitat_code']=='88' || $subPlotEnvForm['habitat_code']=='99') {
+        $readonly = 'readonly';
+        $addclass = 'bg-gray-100 text-gray-600';
+     } else {
+        $readonly = '';
+        $addclass = '';
+     }
+     @endphp
       <label for="habitat_code" class="w-24 text-right">生育地類型</label>
-      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-28" maxlength="2" placeholder="01-20(除了19)">
+      <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code" class="border border-gray-300 px-2 py-1 w-28 {{$addclass}}" maxlength="2" placeholder="01-20(除了19)" {{$readonly}}>
 
       <label for="subplot_id" class="w-32 text-right">小樣方流水號</label>
-      <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id" class="border border-gray-300 px-2 py-1 w-24" maxlength="2" placeholder="01-50">
+      <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id" class="border border-gray-300 px-2 py-1 w-24 {{$addclass}}" maxlength="2" placeholder="01-50" {{$readonly}}>
     </div>
 
     <!-- 取樣面積 -->
@@ -83,6 +91,6 @@
   <!-- 舊樣區編號 -->
     <div class="md:flex gap-2 items-center bg-orange-100 pl-8 p-2">
       <label for="original_plot_id" class="text-right">當生育地類型改變，請輸入原小樣方編號</label>
-      <input id="original_plot_id" name="original_plot_id" type="text" wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64" placeholder="生育地類型-小樣方流水號">
+      <input id="original_plot_id" name="original_plot_id" type="text" wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64" placeholder="生育地類型小樣方流水號(ex: 0101)">
     </div>
   </div>

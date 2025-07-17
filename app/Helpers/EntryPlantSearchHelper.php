@@ -76,9 +76,32 @@ class EntryPlantSearchHelper
                 ];
             });
 
+        // 🔍 4. 學名 比對
+
+        $simnameMatches = SpInfo::where(function ($query) use ($value) {
+                $query->where('simname', 'like', "%{$value}%")->whereNotNull('chname');
+            })
+            ->limit(20)
+            ->get()
+            ->flatMap(function ($item) {
+                $list = [];
+                if ($item->chname) {
+                    $list[] = [
+                        'family' => $item->chfamily,
+                        'label' => $item->simname.' / '.$item->chname,
+                        'value' => $item->chname,
+                        'hint' => $item->chname.' / '.$item->chfamily,
+                        'spcode' => $item->spcode,
+                    ];
+                }
+                return $list;
+            });
+
+        $subMatches = $indexMatches->concat($simnameMatches);
+
         // ✅ 4. 合併主名與別名結果
         $merged = $mainMatches
-            ->merge($indexMatches)
+            ->merge($subMatches)
             ->sortByDesc(fn($item) => $item['label'] === $value ? 1 : 0) // 完全符合優先
             ->values();
 

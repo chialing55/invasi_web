@@ -38,9 +38,12 @@
     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
         <ul class="list-['🌱'] pl-5 space-y-1 mt-2 text-sm">
             <li>
-                當未出現選單時，表示該植物名稱尚未收錄於資料庫中。建議可改用學名再次查詢。
+                當未出現中名選單時，表示該植物名稱尚未收錄於資料庫中。建議可改用學名再次查詢。
             </li>
-            <li>若名錄中確實無該植物，且<b>確定需新增</b>，請填寫<a href='https://docs.google.com/spreadsheets/d/13GUOo_I5fhUBh2IeGb1TJpQeIPN0GqSQKfsMwulSTHE/edit?usp=sharing' target="_blank">「外來植物調查計畫-需新增的植物」</a>資料表。</li>
+            <li>
+                若仍未能查詢到植物，請至<a href='https://tai2.ntu.edu.tw/search/1/' target="_blank">「臺灣植物資訊整合查詢系統」</a>查詢，以確認資料庫所使用之中文名與學名。
+            </li>
+            <li>若資料庫名錄中確實無該植物，且<b>確定需新增</b>，請填寫<a href='https://docs.google.com/spreadsheets/d/13GUOo_I5fhUBh2IeGb1TJpQeIPN0GqSQKfsMwulSTHE/edit?usp=sharing' target="_blank">「外來植物調查計畫-需新增的植物」</a>資料表。</li>
         </ul>
     </div>
 @if($spnameInfo!=[])

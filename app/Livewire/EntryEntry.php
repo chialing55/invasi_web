@@ -553,7 +553,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     }
 
-
+//已棄用
     public function loadPlantList($plot)
 
     {
@@ -671,7 +671,11 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         if (!file_exists($destination)) {
             mkdir($destination, 0755, true);
         }
-
+// ✅ 2. 若有舊檔案，先刪除
+        $fullPath = $destination . '/' . $filename;
+        if (file_exists($fullPath)) {
+            unlink($fullPath);
+        }        
         SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)->update(
             ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
         );
@@ -688,6 +692,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $this->photo->storeAs($relativePath, $filename, 'public');
         $this->loadPhotoInfo();
         session()->flash('photoUploadSuccess', '上傳成功！');
+        $this->photo = null;
 
     }
 

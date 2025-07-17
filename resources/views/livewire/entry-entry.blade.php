@@ -39,13 +39,12 @@
     <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
         <li>
             請先詳讀
-            <a href="{{ url('/entry/notes') }}" target="_blank" class="underline hover:text-blue-900">
+            <a href="{{ url('/entry/notes') }}" target="_blank" class="underline hover:text-green-900">
                 資料輸入說明
             </a>
             以確保操作順利。
         </li>
         <li>新增或刪除資料後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
-        <li>若名錄中確實無該植物，且<b>確定需新增</b>，請填寫<a href='https://docs.google.com/spreadsheets/d/13GUOo_I5fhUBh2IeGb1TJpQeIPN0GqSQKfsMwulSTHE/edit?usp=sharing' target="_blank">「外來植物調查計畫-需新增的植物」</a>資料表。</li>
     </ul>
 </div>
 
@@ -173,7 +172,14 @@
     
         <div id="plant-table-wrapper" class="mt-8 gray-card md:flex md:flex-col mb-4">
             <h3>{{$thisSubPlot}} 小樣方植物調查資料</h3>
-
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
+                <p class="font-bold">⚠️ 重要提醒</p>
+                <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
+                    <li>新增: 可在中名欄位以植物學名查詢中名，但仍以中名為輸入值。</li>
+                    <li>若植物名單內無目標物種，請至<a href='https://tai2.ntu.edu.tw/search/1/' class="underline hover:text-green-900" target="_blank">「臺灣植物資訊整合查詢系統」</a>查詢，以確認資料庫所使用之中名與學名。</li>
+                    <li>若資料庫名錄中確實無該植物，且<b>確定需新增</b>，請填寫<a href='https://docs.google.com/spreadsheets/d/13GUOo_I5fhUBh2IeGb1TJpQeIPN0GqSQKfsMwulSTHE/edit?usp=sharing' target="_blank" class="underline hover:text-green-900">「外來植物調查計畫-需新增的植物」</a>資料表。</li>
+                </ul>
+            </div>
     @if (session()->has('plantSaveMessage'))
         <div
             x-data="{ show: true }"
@@ -205,12 +211,12 @@
     @endif
         @if($thisPhoto)
         <div class="mb-4">
-            <img src="{{ $thisPhoto }}" alt="小樣方照片" class="w-[500px] h-auto rounded shadow">
+            <img src="{{ $thisPhoto }}?v={{ now()->timestamp }}" alt="小樣方照片" class="w-[500px] h-auto rounded shadow">
         </div>
         @endif
         <div>
 
-            <input type="file" wire:model.defer="photo" accept="image/*">
+            <input type="file" wire:model="photo" accept="image/*">
 
             <button id="submit-btn-photo" type="button" class="btn-submit" wire:click="clickUploadPhoto">
                  {{ $thisPhoto ? '更新小樣方照片' : '上傳小樣方照片' }}

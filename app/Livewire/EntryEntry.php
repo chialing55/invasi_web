@@ -117,8 +117,8 @@ class EntryEntry extends Component
     // public $thisPlotHabRatioForm = [];
     // public $habTypeOptions = [];
     // public array $selectedHabitatCodes = []; // 勾選的 habitat_code  
-public array $selectedHabitatCodes = []; // 使用者勾選的 habitat_code 陣列
-public array $refHabitatCodes = [];      // 2010 參考用代碼
+    public array $selectedHabitatCodes = []; // 使用者勾選的 habitat_code 陣列
+    public array $refHabitatCodes = [];      // 2010 參考用代碼
 public array $habTypeOptions = [];       // 全部 habitat_code => label
     
     

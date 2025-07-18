@@ -1,18 +1,40 @@
+# .editorconfig
 root = true
 
+# 所有檔案的通用設定
 [*]
 charset = utf-8
 end_of_line = lf
-indent_size = 4
-indent_style = space
 insert_final_newline = true
+indent_style = space
+indent_size = 4
 trim_trailing_whitespace = true
 
+# Blade 模板 (.blade.php)
+[*.blade.php]
+indent_size = 4
+
+# PHP 檔案
+[*.php]
+indent_size = 4
+
+# JavaScript / JSX / Vue
+[*.js]
+indent_size = 2
+
+# JSON (含 tailwind.config.js 的延伸設定)
+[*.json]
+indent_size = 2
+
+# CSS / SCSS
+[*.css]
+indent_size = 2
+
+# Markdown，不移除行尾空白（避免破壞格式）
 [*.md]
 trim_trailing_whitespace = false
 
-[*.{yml,yaml}]
+# .env 檔案通常以空格為縮排
+[.env]
+indent_style = space
 indent_size = 2
-
-[docker-compose.yml]
-indent_size = 4

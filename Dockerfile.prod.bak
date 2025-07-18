@@ -5,12 +5,10 @@ FROM composer:2 AS composer
 FROM php:8.2-fpm
 
 RUN apt-get update && apt-get install -y \
-    git curl unzip zip \
-    libpng-dev libjpeg-dev libfreetype6-dev \
-    libzip-dev libxml2-dev \
-    ca-certificates nodejs npm \
+    git curl unzip zip libpng-dev libjpeg-dev libfreetype6-dev libzip-dev ca-certificates \
+    nodejs npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql zip gd xml
+    && docker-php-ext-install pdo_mysql zip gd
 
 WORKDIR /app
 

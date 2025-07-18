@@ -5,14 +5,16 @@ FROM composer:2 AS composer
 FROM php:8.2-fpm
 
 RUN apt-get update && apt-get install -y \
-    git curl unzip zip libpng-dev libjpeg-dev libfreetype6-dev libzip-dev ca-certificates \
-    nodejs npm \
+    git curl unzip zip \
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    libzip-dev libxml2-dev \
+    ca-certificates nodejs npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo_mysql zip gd
+    && docker-php-ext-install pdo_mysql zip gd xml
 
 WORKDIR /app
 
-# 安裝前端套件（可選，可保留以備未來改為 CI Build）
+# 安裝前端套件
 COPY package*.json ./
 ENV PATH="./node_modules/.bin:$PATH"
 RUN npm install -D vite@5.4.19 \
@@ -26,7 +28,7 @@ RUN npm install -D vite@5.4.19 \
 # 安裝 Composer
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
-# 複製 Laravel 專案檔案
+# 複製 Laravel 專案
 COPY . .
 
 # 安裝 PHP 套件並設定權限
@@ -36,7 +38,5 @@ RUN composer install --no-interaction --prefer-dist \
 RUN echo "upload_max_filesize=12M" >> /usr/local/etc/php/php.ini
 RUN echo "post_max_size=16M" >> /usr/local/etc/php/php.ini
 
-# 啟動
 # 預設啟動指令（含 sleep 讓 db 準備好）
 CMD ["sh", "-c", "sleep 5 && bash init.sh && npm run dev & exec php-fpm"]
-

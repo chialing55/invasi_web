@@ -83,7 +83,7 @@
                 <h3>{{ $thisPlot }} 樣區調查資料上傳</h3>
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
                     <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
-                        <li>請在資料輸入完成、物種鑑定完成，並確認紙本資料無誤後，再上傳樣區調查資料。</li>
+                        <li>請在資料輸入完成、物種鑑定完成、小樣區照片上傳，並確認紙本資料無誤後，再上傳樣區調查資料。</li>
                         <li>系統將以樣區調查資料是否已上傳，作為判定該樣區是否完成調查的依據。</li>
                     </ul>
                 </div>

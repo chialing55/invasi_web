@@ -44,8 +44,8 @@
                     <div class="w-[60px] font-semibold text-sm">{{ $row['team'] }}</div>
 
                     {{-- 完成數 + 達標狀態（手機隱藏 emoji） --}}
-                    <div class="w-[120px] md:w-[160px] text-sm">
-                        <span class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }}">
+                    <div class="w-[110px] md:w-[220px] text-sm">
+                        <span class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[90px] inline-block">
                             {{ $plotDone }} / {{ $plotTotal }} ({{ $plotPercent }}%)
                         </span>
                         <span class="hidden md:inline">
@@ -226,7 +226,7 @@
                         <h3>{{ $thisPlot }} {{ $thisSelectedHabitat }} 調查結果</h3>
                         @if ($thisPlotFile)
                             <div class="mb-4">
-                                <a href='{{ $thisPlotFile }}' target="_blank">樣區調查資料 <img
+                                樣區調查資料：<a href='{{ $thisPlotFile }}' target="_blank"><img
                                         src="/images/PDF_file_icon.svg" alt="PDF" class="inline w-5 h-5 mr-1">
                                     {{ $thisPlot }}.pdf</a>
                             </div>

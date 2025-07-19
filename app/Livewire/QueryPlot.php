@@ -13,6 +13,7 @@ use App\Models\HabitatInfo;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\PlantListHelper;
 use App\Helpers\PlotHelper;
+use App\Helpers\HabHelper;
 
 class QueryPlot extends Component
 {
@@ -52,6 +53,7 @@ class QueryPlot extends Component
         $this->thisListType = '';
         $this->habTypeOptions = [];
         $this->plotplantList = [];
+        $this->subPlotEnvForm = [];
         $this->dispatch('thisPlotUpdated');
         $this->dispatch('thisHabTypeUpdated');
         $this->dispatch('thisSubPlotUpdated');
@@ -81,6 +83,7 @@ class QueryPlot extends Component
         $data = PlotHelper::getSubPlotInfo($plot);
         $this->habTypeOptions = $data['habTypeOptions'];
         $this->subPlotList = $data['subPlotList'];
+        $this->subPlotEnvForm =[];
         // dd($plotPlant2025);
 
         // $this->dispatch('plotIDUpdated', plotID: '');
@@ -106,6 +109,7 @@ class QueryPlot extends Component
         if ($habType === '') {
             // 顯示全部樣區
             $this->thisHabType = '';
+            $this->subPlotEnvForm = [];
             $this->plotplantList = $this->plotplantListAll;
             $this->thisListType = $this->thisPlot;
             return;
@@ -122,10 +126,13 @@ class QueryPlot extends Component
         // $this->plotplantListAll =  $this->plotplantList;
         // $this->dispatch('SubPlotIDUpdated', subPlotID: $subPlot);
         $this->thisListType = $this->thisPlot . " " . $this->habTypeOptions[$habType];
+        $this->subPlotEnvForm = [];
 
         $this->dispatch('thisSubPlotUpdated');
         $this->dispatch('plantListLoaded');
     }
+
+    public $subPlotEnvForm=[];
 
     public function loadSubPlot($thisSubPlot)
     {
@@ -135,6 +142,7 @@ class QueryPlot extends Component
             // 顯示全部樣區
             $this->thisSubPlot = '';
             $this->thisListType = $this->thisPlot;
+            $this->subPlotEnvForm = [];
             $this->plotplantList = $this->plotplantListAll;
             return;
         }
@@ -144,7 +152,20 @@ class QueryPlot extends Component
         $habType = substr($thisSubPlot, 6, 2);   // 第 7,8 位（index 從 0 開始）
         $sub_id  = substr($thisSubPlot, -2);     // 最後兩位
 
+        $data = SubPlotEnv2025::where('plot_full_id', $thisSubPlot)->first();
 
+        if ($data) {
+            $hab[] = $habType;
+            $habTypeOptions = HabHelper::habitatOptions($hab);
+            // dd($habTypeOptions);
+            $data->hab_type = $habTypeOptions[$habType] ?? '未知';
+            $subPlotAreaMap = config('item_list.sub_plot_area');
+            $data->subplot_area_data = $subPlotAreaMap[$data->subplot_area];
+
+            $this->subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
+        } else {
+            $this->subPlotEnvForm = [];
+        }
 
         $this->plotplantList = PlantListHelper::getMergedPlotPlantList($this->thisPlot, [
             'hab_type' => $habType,

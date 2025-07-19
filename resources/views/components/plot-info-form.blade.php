@@ -71,11 +71,11 @@
       <label for="elevation" class="w-24 text-right">海拔(m)</label>
       <input id="elevation" name="elevation" type="number" step="any" wire:model.defer="subPlotEnvForm.elevation" class="border border-gray-300 px-2 py-1 w-24" placeholder="0-5000">
 
-      <label for="slope" class="w-20 text-right">坡度</label>
-      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-90">
+      <label for="slope" class="w-24 text-right">坡度</label>
+      <input id="slope" name="slope" type="number" step="1" wire:model.defer="subPlotEnvForm.slope" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1(未調查), 0-90">
 
-      <label for="aspect" class="w-20 text-right">坡向</label>
-      <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1, 0-359">
+      <label for="aspect" class="w-24 text-right">坡向</label>
+      <input id="aspect" name="aspect" type="number" step="1" wire:model.defer="subPlotEnvForm.aspect" class="border border-gray-300 px-2 py-1 w-24" placeholder="-1(未調查), 0-359">
     </div>
 
    

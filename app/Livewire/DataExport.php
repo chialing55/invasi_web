@@ -123,9 +123,8 @@ class DataExport extends Component
         $summary = [];
         foreach ($plotList as $plot) {
 
-            $county = PlotList2025::where('plot', $plot)
-                ->select('county')->first();
-            $relativePath = "invasi_files/plotData/{$this->thisCounty}/{$plot}.pdf";
+            $county = PlotList2025::where('plot', $plot)->value('county');
+            $relativePath = "invasi_files/plotData/{$county}/{$plot}.pdf";
             $fullPath = public_path($relativePath);
 
             if (file_exists($fullPath)) {
@@ -136,7 +135,7 @@ class DataExport extends Component
 
 
             $summary[] = [
-                'county' => $county->county,
+                'county' => $county,
                 'plot' => $plot,
                 'plotFile' => $thisPlotFile,
 

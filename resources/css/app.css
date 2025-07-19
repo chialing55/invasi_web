@@ -33,7 +33,7 @@
         @apply text-base font-semibold mb-2 text-forest-soil;
     }
     a {
-        @apply no-underline;
+        @apply underline underline-offset-2 decoration-[1px];
     }
 
     a:hover {

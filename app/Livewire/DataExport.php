@@ -167,8 +167,9 @@ class DataExport extends Component
                 'im_splotdata_2025.*',
                 'plot_list.county',
             )
+            ->orderby('im_splotdata_2025.plot_full_id', 'asc')
             ->get()->toArray();
-        $plantdata = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
+        $plantdata = SubPlotPlant2025::leftjoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
             ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
             ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
@@ -186,6 +187,7 @@ class DataExport extends Component
                 'im_splotdata_2025.subplot_id',
                 'plot_list.county'
             )
+            ->orderby('im_spvptdata_2025.plot_full_id', 'asc')
             ->get()
             ->toArray();
         if ($this->downloadFormat=='txt.1'){

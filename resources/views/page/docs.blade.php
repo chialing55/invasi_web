@@ -5,7 +5,7 @@
 
     <ul class="list-disc ml-6 space-y-2 mb-6">
         <li>
-            <a href="https://hospitable-nickel-b27.notion.site/21ced0b14d7e80129b0dc115345a7da6}}" target="_blank">輸入網站說明</a>
+            <a href="https://hospitable-nickel-b27.notion.site/21ced0b14d7e80129b0dc115345a7da6?pvs=143}}" target="_blank">輸入網站說明</a>
         </li>
         <li>
             <a href="{{ route('file.view', ['path' => 'invasi_files/files/survey-guide.pdf']) }}" target="_blank">

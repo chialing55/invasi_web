@@ -234,7 +234,27 @@
 
                     <div class="gray-card w-fit">
                         <h3>{{ $thisPlot }} {{ $thisSelectedHabitat }} 調查結果</h3>
-                        <pre>@json($status, JSON_PRETTY_PRINT)</pre>
+                        @php
+
+                            $labels = [
+                                'dataCorrect' => '資料正確',
+                                'subPlotImage' => '小樣方照片',
+                                'subPlotData' => '小樣方資料',
+                                'plotFile' => '樣區檔案',
+                                'plotHabData' => '生育地類型',
+                                'plotCompleted' => '是否完成',
+                            ];
+                        @endphp
+
+                        <p>
+                            @foreach ($status as $key => $val)
+                                {{ $labels[$key] ?? $key }}：{{ $val === '1' ? '✔' : '✘' }}
+                                @if (!$loop->last)
+                                    ｜
+                                @endif
+                            @endforeach
+                        </p>
+
                         @if ($thisPlotFile)
                             <div class="mb-4">
                                 樣區調查資料：<a href='{{ $thisPlotFile }}' target="_blank"><img

@@ -15,11 +15,11 @@ class PlotCompletedCheckHelper
     {
 //1. 沒有錯誤資料
 
-        $dataError = '0';   //0
+        $dataCorrect = '0';   //1 
         $subPlotImage = '0';   //1
         $subPlotData = '0';   //1
         $plotFile = '0';   //1
-        $plotHabData = '0';   //0
+        $plotHabData = '0';   //1
         $plotCompleted = '0';   //1
 
         $prefix = substr($plot, 0, 6);
@@ -30,8 +30,8 @@ class PlotCompletedCheckHelper
         $thisHabData = PlotHab::where('plot', $plot)->get();
 
         if ($thisEnvData) {
-            // 1. $dataError：如果 $thisPlantData 有 data_error = 1 的資料
-            $dataError = $thisPlantData->contains('data_error', 1) ? '1' : '0';
+            // 1. $dataCorrect：如果 $thisPlantData 有 data_error = 1 的資料
+            $dataCorrect = $thisPlantData->contains('data_error', 1) ? '0' : '1';
 
             // 2. $subPlotImage：檢查 $thisEnvData 中 file_uploaded_at 欄位是否全都有值
             $subPlotImage = $thisEnvData->every(function ($row) {
@@ -55,16 +55,16 @@ class PlotCompletedCheckHelper
         }
 
         $plotCompleted = (
-            $dataError === '0' &&
+            $dataCorrect === '1' &&
             $subPlotImage === '1' &&
             $subPlotData === '1' &&
             $plotFile === '1' &&
-            $plotHabData === '0'
+            $plotHabData === '1'
         ) ? '1' : '0';
 
 
         return [
-            'dataError'      => $dataError,
+            'dataCorrect'      => $dataCorrect,
             'subPlotImage'   => $subPlotImage,
             'subPlotData'    => $subPlotData,
             'plotFile'       => $plotFile,

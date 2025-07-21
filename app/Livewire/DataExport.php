@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\HabHelper;
 use App\Helpers\PlotHelper;
 use App\Helpers\PlotCompletedHelper;
+use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
 
 use App\Exports\PlotExport;
@@ -127,17 +128,13 @@ class DataExport extends Component
             $relativePath = "invasi_files/plotData/{$county}/{$plot}.pdf";
             $fullPath = public_path($relativePath);
 
-            if (file_exists($fullPath)) {
-                $thisPlotFile = asset($relativePath);
-            } else {
-                $thisPlotFile = null;
-            }
+            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
 
 
             $summary[] = [
                 'county' => $county,
                 'plot' => $plot,
-                'plotFile' => $thisPlotFile,
+                'completed' => $status['plotCompleted'] == '1' ? true : false,
 
             ];
         }

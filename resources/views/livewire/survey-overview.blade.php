@@ -170,6 +170,7 @@
                                 <th class="border-b px-4 py-2">未鑑定植物</th>
                                 <th class="border-b px-4 py-2">資料錯誤</th>
                                 <th class="border-b px-4 py-2">樣區資料檔案</th>
+                                <th class="border-b px-4 py-2">樣區完成</th>
                             </tr>
                         </thead>
 
@@ -210,6 +211,14 @@
                                                     <span class="text-gray-400 text-xs">-</span>
                                                 @endif
                                             </td>
+                                            <td class="border-b px-4 py-2 text-center align-top"
+                                                rowspan="{{ count($rows) }}">
+                                                @if ($row['completed'])
+                                                    <span>✔️</span>
+                                                @else
+                                                    <span class="text-gray-400 text-xs">-</span>
+                                                @endif
+                                            </td>                                            
                                         @endif
                                     </tr>
                                 @endforeach

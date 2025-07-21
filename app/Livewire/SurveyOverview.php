@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\HabHelper;
 use App\Helpers\PlotHelper;
 use App\Helpers\PlotCompletedHelper;
+use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
 
 class SurveyOverview extends Component
@@ -55,71 +56,61 @@ class SurveyOverview extends Component
     public $subPlotHabList = [];
     public $thisHabitat = '';           // 使用者目前選的 habitat_code
     public $filteredSubPlotSummary = []; // 用來顯示的表格資料
+
     public function allContyInfo()
     {
-        $stats = DB::connection('invasiflora')->select("
-            SELECT 
-                pl.county AS county,
-                pl.team AS team,
-                COUNT(DISTINCT pl.plot) AS total_plots,
-                COUNT(DISTINCT CASE WHEN pl.file_uploaded_at IS NOT NULL THEN pl.plot END) AS completed_plots
-            FROM plot_list pl
-            GROUP BY pl.county, pl.team
-            ORDER BY total_plots desc
-        ");
+        // 先取得所有 plot 的基本資料
+        $plotList = DB::connection('invasiflora')->table('plot_list')->get();
 
-    // $stats = DB::connection('invasiflora')->select("
-    //     SELECT 
-    //         pl.county AS county,
-    //         pl.team AS team,
-    //         COUNT(DISTINCT pl.plot) AS total_plots,
-    //         COUNT(DISTINCT CASE WHEN pl.file_uploaded_at IS NOT NULL THEN pl.plot END) AS completed_plots,
-    //         COUNT(DISTINCT sp2010.id) AS total_subplots,
-    //         COUNT(DISTINCT sp2025.id) AS completed_subplots
-    //     FROM plot_list pl
-    //     LEFT JOIN im_splotdata_2010 sp2010 ON pl.plot = sp2010.PLOT_ID
-    //     LEFT JOIN im_splotdata_2025 sp2025 ON pl.plot = sp2025.plot
-    //     GROUP BY pl.county, pl.team
-    //     ORDER BY pl.county
-    // ");
-        $grouped_county = collect($stats)
-            ->map(fn ($row) => (array) $row)
+        // 先轉為 Collection 並統計每個 plot 是否完成
+        $plotWithStatus = collect($plotList)->map(function ($row) {
+            $row = (array) $row;
+            $plot = $row['plot'];
+
+            // 呼叫 helper 判斷是否完成
+            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
+            $row['plotCompleted'] = $status['plotCompleted'];
+
+            return $row;
+        });
+
+        // group by county
+        $grouped_county = $plotWithStatus
             ->groupBy('county')
             ->map(function ($rows, $county) {
                 return [
                     'county' => $county,
                     'teams' => $rows->pluck('team')->unique()->implode(', '),
-                    'total_plots' => $rows->sum('total_plots'),
-                    'completed_plots' => $rows->sum('completed_plots'),
+                    'total_plots' => $rows->pluck('plot')->unique()->count(),
+                    'completed_plots' => $rows->where('plotCompleted', '1')->pluck('plot')->unique()->count(),
                 ];
             })
             ->values()
             ->sortByDesc('completed_plots')
             ->toArray();
-        $grouped_team = collect($stats)
-            ->map(fn ($row) => (array) $row)
+
+        // group by team
+        $grouped_team = $plotWithStatus
             ->groupBy('team')
             ->map(function ($rows, $team) {
                 return [
                     'county' => $rows->pluck('county')->unique()->implode(', '),
                     'team' => $team,
-                    'total_plots' => $rows->sum('total_plots'),
-                    'completed_plots' => $rows->sum('completed_plots'),
-                    // 'total_subplots' => $rows->sum('total_subplots'),
-                    // 'completed_subplots' => $rows->sum('completed_subplots'),
+                    'total_plots' => $rows->pluck('plot')->unique()->count(),
+                    'completed_plots' => $rows->where('plotCompleted', '1')->pluck('plot')->unique()->count(),
                 ];
             })
             ->values()
             ->sortByDesc('completed_plots')
             ->toArray();
 
+        // 存到元件的 public 屬性
         $this->allContyInfo = $grouped_county;
         $this->showContyInfo = $grouped_county;
-
         $this->allTeamInfo = $grouped_team;
         $this->showTeamInfo = $grouped_team;
-        // dd($this->showTeamInfo);        
     }
+
 //選擇縣市之後
     public function surveryedPlotInfo($thisCounty)
     {
@@ -160,6 +151,7 @@ class SurveyOverview extends Component
         foreach ($plotList as $plot) {
             
             $data = PlotCompletedHelper::plotCompleted($plot);
+            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
 
             $plotHabList = $data['habTypeOptions'];
 // dd($plotHabList);
@@ -212,6 +204,7 @@ class SurveyOverview extends Component
                         'plotFile' => $thisPlotFile,
                         'unidentified_count' => $habitatStats[$habCode]['unidentified_count'] ?? 0,
                         'data_error_count' => $habitatStats[$habCode]['data_error_count'] ?? 0,
+                        'completed' => $status['plotCompleted'] == '1' ? true : false,
                     ];
                 }
             } else {
@@ -224,6 +217,7 @@ class SurveyOverview extends Component
                     'plotFile' => $thisPlotFile,
                     'unidentified_count' => null,
                     'data_error_count' => null,
+                    'completed' => null,
                 ];
             }          
         }

@@ -1,0 +1,76 @@
+<?php
+namespace App\Helpers;
+
+
+use App\Models\SubPlotEnv2025;
+use App\Models\SubPlotPlant2025;
+use App\Models\PlotList2025;
+use App\Models\PlotHab;
+
+use App\Helpers\HabHelper;
+
+class PlotCompletedCheckHelper
+{
+    public static function getPlotCompletedInfo(string $plot): array
+    {
+//1. 沒有錯誤資料
+
+        $dataError = '0';   //0
+        $subPlotImage = '0';   //1
+        $subPlotData = '0';   //1
+        $plotFile = '0';   //1
+        $plotHabData = '0';   //0
+        $plotCompleted = '0';   //1
+
+        $prefix = substr($plot, 0, 6);
+
+        $thisEnvData = SubPlotEnv2025::where('plot', $plot)->get();
+        $thisPlantData = SubPlotPlant2025::whereRaw('LEFT(plot_full_id, 6) = ?', [$prefix])->get();
+        $thisPLotData = PlotList2025::where('plot', $plot)->get();
+        $thisHabData = PlotHab::where('plot', $plot)->get();
+
+        if ($thisEnvData) {
+            // 1. $dataError：如果 $thisPlantData 有 data_error = 1 的資料
+            $dataError = $thisPlantData->contains('data_error', 1) ? '1' : '0';
+
+            // 2. $subPlotImage：檢查 $thisEnvData 中 file_uploaded_at 欄位是否全都有值
+            $subPlotImage = $thisEnvData->every(function ($row) {
+                return !empty($row->file_uploaded_at);
+            }) ? '1' : '0';
+
+            // 3. $plotHabData：比較 habitat_code 是否一致
+            $habCodesInEnv = $thisEnvData->pluck('habitat_code')->unique()->sort()->values();
+            $habCodesInHab = $thisHabData->pluck('habitat_code')->unique()->sort()->values();
+            $plotHabData = $habCodesInEnv->diff($habCodesInHab)->isEmpty() && $habCodesInHab->diff($habCodesInEnv)->isEmpty() ? '1' : '0';
+
+            // 4. $subPlotData：每個 habitat_code 在 $thisEnvData 中出現超過 5 筆
+            $grouped = $thisEnvData->groupBy('habitat_code');
+            $subPlotData = $habCodesInHab->every(function ($code) use ($grouped) {
+                return isset($grouped[$code]) && count($grouped[$code]) > 4;
+            }) ? '1' : '0';
+
+            // 5. $plotFile：檢查 $thisPLotData 的 file_uploaded_at 是否有任何非空值
+            $plotFile = !empty($thisPLotData->first()?->file_uploaded_at) ? '1' : '0';
+
+        }
+
+        $plotCompleted = (
+            $dataError === '0' &&
+            $subPlotImage === '1' &&
+            $subPlotData === '1' &&
+            $plotFile === '1' &&
+            $plotHabData === '0'
+        ) ? '1' : '0';
+
+
+        return [
+            'dataError'      => $dataError,
+            'subPlotImage'   => $subPlotImage,
+            'subPlotData'    => $subPlotData,
+            'plotFile'       => $plotFile,
+            'plotHabData'    => $plotHabData,
+            'plotCompleted'  => $plotCompleted,
+        ];
+
+    }
+}

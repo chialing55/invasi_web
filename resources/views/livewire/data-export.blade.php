@@ -82,7 +82,7 @@
                                         {{ $row['plot'] }}
                                     </td>
                                     <td class="border-b px-4 py-2 text-center align-middle">
-                                        @if ($row['plotFile'])
+                                        @if ($row['completed'])
                                             ✔️
                                         @else
                                             <span class="text-gray-400 text-xs">—</span>

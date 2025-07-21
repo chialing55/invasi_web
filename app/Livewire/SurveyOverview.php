@@ -235,7 +235,7 @@ class SurveyOverview extends Component
     }
     public $refreshKey;
     public $subPlotinfomessage = ''; // 用來顯示小樣方資料的訊息
-
+    public $status = []; // 用來存放 plot 的完成狀態
 //選擇樣區之後
     public function loadPlotInfo($value)
     { 
@@ -243,6 +243,7 @@ class SurveyOverview extends Component
         $this->thisHabType = ''; // 清除目前選擇的 habitat_code
         $this->thisSelectedHabitat = ''; 
         $this->refreshKey = now(); // 加一個 dummy key 讓 view 重繪
+        $this->status = PlotCompletedCheckHelper::getPlotCompletedInfo($value);
   
         if ($this->allPlotInfo !=[]){
             $index = array_search($value, array_column($this->allPlotInfo, 'plot'));

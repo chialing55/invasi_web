@@ -45,7 +45,8 @@
 
                     {{-- 完成數 + 達標狀態（手機隱藏 emoji） --}}
                     <div class="w-[110px] md:w-[220px] text-sm">
-                        <span class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[90px] inline-block">
+                        <span
+                            class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[90px] inline-block">
                             {{ $plotDone }} / {{ $plotTotal }} ({{ $plotPercent }}%)
                         </span>
                         <span class="hidden md:inline">
@@ -218,7 +219,7 @@
                                                 @else
                                                     <span class="text-gray-400 text-xs">-</span>
                                                 @endif
-                                            </td>                                            
+                                            </td>
                                         @endif
                                     </tr>
                                 @endforeach
@@ -233,6 +234,7 @@
 
                     <div class="gray-card w-fit">
                         <h3>{{ $thisPlot }} {{ $thisSelectedHabitat }} 調查結果</h3>
+                        <pre>@json($status, JSON_PRETTY_PRINT)</pre>
                         @if ($thisPlotFile)
                             <div class="mb-4">
                                 樣區調查資料：<a href='{{ $thisPlotFile }}' target="_blank"><img

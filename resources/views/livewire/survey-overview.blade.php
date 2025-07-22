@@ -247,8 +247,8 @@
                         @endphp
 
                         <p>
-                            @foreach ($status as $key => $val)
-                                {{ $labels[$key] ?? $key }}：{{ $val === '1' ? '✔' : '✘' }}
+                            @foreach ($labels as $key => $label)
+                                {{ $label }}：{{ ($status[$key] ?? '0') === '1' ? '✔' : '✘' }}
                                 @if (!$loop->last)
                                     ｜
                                 @endif

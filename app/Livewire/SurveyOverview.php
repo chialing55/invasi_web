@@ -56,7 +56,7 @@ class SurveyOverview extends Component
     public $subPlotHabList = [];
     public $thisHabitat = '';           // 使用者目前選的 habitat_code
     public $filteredSubPlotSummary = []; // 用來顯示的表格資料
-
+    public $thisPlotWithStatus = [];
     public function allContyInfo()
     {
         // 先取得所有 plot 的基本資料
@@ -69,11 +69,11 @@ class SurveyOverview extends Component
 
             // 呼叫 helper 判斷是否完成
             $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-            $row['plotCompleted'] = $status['plotCompleted'];
+            $row = array_merge($row, $status);
 
             return $row;
         });
-
+        $this->thisPlotWithStatus = $plotWithStatus;
         // group by county
         $grouped_county = $plotWithStatus
             ->groupBy('county')
@@ -151,8 +151,9 @@ class SurveyOverview extends Component
         foreach ($plotList as $plot) {
             
             $data = PlotCompletedHelper::plotCompleted($plot);
-            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-
+            // $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
+            $status = collect($this->thisPlotWithStatus)->firstWhere('plot', $plot);
+            // dd($status);
             $plotHabList = $data['habTypeOptions'];
 // dd($plotHabList);
 
@@ -204,7 +205,7 @@ class SurveyOverview extends Component
                         'plotFile' => $thisPlotFile,
                         'unidentified_count' => $habitatStats[$habCode]['unidentified_count'] ?? 0,
                         'data_error_count' => $habitatStats[$habCode]['data_error_count'] ?? 0,
-                        'completed' => $status['plotCompleted'] == '1' ? true : false,
+                        'completed' => is_array($status) && ($status['plotCompleted'] ?? null) === '1',
                     ];
                 }
             } else {
@@ -243,8 +244,9 @@ class SurveyOverview extends Component
         $this->thisHabType = ''; // 清除目前選擇的 habitat_code
         $this->thisSelectedHabitat = ''; 
         $this->refreshKey = now(); // 加一個 dummy key 讓 view 重繪
-        $this->status = PlotCompletedCheckHelper::getPlotCompletedInfo($value);
-  
+        // $this->status = PlotCompletedCheckHelper::getPlotCompletedInfo($value);
+        $this->status = collect($this->thisPlotWithStatus)->firstWhere('plot', $value);
+//   dd($this->status);
         if ($this->allPlotInfo !=[]){
             $index = array_search($value, array_column($this->allPlotInfo, 'plot'));
             $this->thisPlotFile = $index !== false ? $this->allPlotInfo[$index]['plotFile'] : null;            

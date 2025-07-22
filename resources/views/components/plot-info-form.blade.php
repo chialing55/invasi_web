@@ -45,9 +45,9 @@
     <!-- 取樣面積 -->
     <div class="md:flex gap-4 items-center">
       <label class="w-24 text-right">取樣面積</label>
-      <label for="area_1x10"><input id="area_1x10" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="1x10"> 1 x 10</label>
-      <label for="area_2x5"><input id="area_2x5" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="2x5"> 2 x 5</label>
-      <label for="area_5x5"><input id="area_5x5" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="5x5"> 5 x 5</label>
+      <label for="area_1x10"><input id="area_1x10" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="1"> 1 x 10</label>
+      <label for="area_2x5"><input id="area_2x5" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="2"> 2 x 5</label>
+      <label for="area_5x5"><input id="area_5x5" type="radio" wire:model.defer="subPlotEnvForm.subplot_area" name="subplot_area" value="3"> 5 x 5</label>
     </div>
 
     <!-- 樣區所屬與類型

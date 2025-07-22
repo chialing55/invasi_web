@@ -169,19 +169,44 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
     {
         $plot = $this->thisPlot;
 
-        // 清空舊資料（視需求保留或覆蓋）
-        PlotHab::where('plot', $plot)->delete();
+        // ➤ 1. 原始選擇
+        $selected = $this->selectedHabitatCodes;
 
-        foreach ($this->selectedHabitatCodes as $code) {
-            PlotHab::create([
-                'plot' => $plot,
-                'habitat_code' => $code,
-                'created_by' => $this->creatorCode,
-            ]);
+        // ➤ 2. 自動加入對應的 88/99
+        if (in_array('08', $selected)) {
+            $selected[] = '88';
+        }
+        if (in_array('09', $selected)) {
+            $selected[] = '99';
         }
 
+        // ➤ 3. 沒有 08/09 則移除 88/99
+        if (!in_array('08', $selected)) {
+            $selected = array_diff($selected, ['88']);
+        }
+        if (!in_array('09', $selected)) {
+            $selected = array_diff($selected, ['99']);
+        }
+
+        // ➤ 4. 整理為乾淨陣列
+        $selected = array_values(array_unique($selected));
+        $this->selectedHabitatCodes = $selected;
+
+        // ➤ 5. 清空舊資料
+        PlotHab::where('plot', $plot)->delete();
+
+        // ➤ 6. 儲存新資料
+        foreach ($selected as $code) {
+            PlotHab::firstOrCreate(
+                ['plot' => $plot, 'habitat_code' => $code],
+                ['created_by' => $this->creatorCode]
+            );
+        }
+
+        // ➤ 7. 成功提示
         session()->flash('habSaveMessage', '生育地類型已儲存。');
     }
+
 
 
     public function updatedThisSubPlot($value)
@@ -232,7 +257,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $subPlotAreaMap = config('item_list.sub_plot_area');
         // $islandCategoryMap = config('item_list.island_category');
         // $plotEnvMap = config('item_list.plot_env');
-        $subPlotEnvForm['subplot_area'] = $subPlotAreaMap[$subPlotEnvForm['subplot_area']];
+        
+        // $subPlotEnvForm['subplot_area'] = $subPlotAreaMap[$subPlotEnvForm['subplot_area']];
         //  $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
         //   $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
         $this->subPlotEnvForm=$subPlotEnvForm;
@@ -417,10 +443,10 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             DateHelper::splitYmd($subPlotEnvForm['date'])
         );
 
-        $subPlotAreaMap = config('item_list.sub_plot_area');
+        // $subPlotAreaMap = config('item_list.sub_plot_area');
         // $islandCategoryMap = config('item_list.island_category');
         // $plotEnvMap = config('item_list.plot_env');
-        $subPlotEnvForm['subplot_area'] = array_search($subPlotEnvForm['subplot_area'], $subPlotAreaMap, true);
+        // $subPlotEnvForm['subplot_area'] = array_search($subPlotEnvForm['subplot_area'], $subPlotAreaMap, true);
         // $subPlotEnvForm['plot_env'] = array_search($subPlotEnvForm['plot_env'], $plotEnvMap, true);
         // $subPlotEnvForm['island_category'] = array_search($subPlotEnvForm['island_category'], $islandCategoryMap, true);
      

@@ -60,7 +60,7 @@
                     </div>
                 @endif
 
-                <div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}">
+                <div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}-{{ implode('-', $selectedHabitatCodes) }}">
 
                     @foreach ($habTypeOptions as $code => $label)
                         <label for="hab_{{ $code }}"
@@ -696,4 +696,6 @@
             return input;
         };
     }
+
+
 </script>

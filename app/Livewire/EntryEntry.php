@@ -10,6 +10,7 @@ use App\Models\SubPlotPlant2010;
 use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use App\Models\PlotHab;
+use App\Models\FixLog;
 
 use App\Livewire\Rules\SubPlotEnvFormRules;
 
@@ -131,7 +132,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $this->showPlantEntryTable = false;
         $this->dispatch('reset_plant_table');
         // 取得樣區資料
-        $this->subPlotList = SubPlotEnv2025::where('plot', $plot)->pluck('plot_full_id')->toArray();
+        $this->subPlotList = SubPlotEnv2025::where('plot', $plot)->orderBy('plot_full_id')->pluck('plot_full_id')->toArray();
         // $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
         $this->selectedHabitatCodes=[];
         $this->loadPlotHab($plot); // 載入生育地類型選項
@@ -421,15 +422,16 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         }        
 
     }
-
+    public $hasUnderData = '';
     public function envInfoSave(FormAuditService $audit)
     {
+        $this->hasUnderData = '';
         session()->flash('form', 'env');
         $this->validate(
             $this->subPlotEnvRules(),
             $this->subPlotEnvMessages()
         );
-        
+        $msg = '';
         $subPlotEnvForm=$this->subPlotEnvForm;
 
         $subPlotEnvForm['team'] = $this->userOrg;
@@ -443,53 +445,159 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             DateHelper::splitYmd($subPlotEnvForm['date'])
         );
 
-        // $subPlotAreaMap = config('item_list.sub_plot_area');
-        // $islandCategoryMap = config('item_list.island_category');
-        // $plotEnvMap = config('item_list.plot_env');
-        // $subPlotEnvForm['subplot_area'] = array_search($subPlotEnvForm['subplot_area'], $subPlotAreaMap, true);
-        // $subPlotEnvForm['plot_env'] = array_search($subPlotEnvForm['plot_env'], $plotEnvMap, true);
-        // $subPlotEnvForm['island_category'] = array_search($subPlotEnvForm['island_category'], $islandCategoryMap, true);
-     
-
-        $this->subPlotEnvForm=$subPlotEnvForm;
-        if ( $this->thisSubPlot=='') {
-            $where = ['plot_full_id' => $subPlotEnvForm['plot_full_id']];
-        } else {
-            $where = ['plot_full_id' => $this->thisSubPlot];
-        }
-
-        $originalData = SubPlotEnv2025::where($where)->get()->toArray();
         $newdata[]=$subPlotEnvForm;
+  
+        $this->subPlotEnvForm=$subPlotEnvForm;
+        if ( $this->thisSubPlot=='') {  //新增小樣方
+            $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
+            $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
+        } else {  // 修改小樣方資料
+            //如果是更改樣區編號  1.更改生育地  2. 更改小樣方
+            //先處理更改編號
+            $plot = $subPlotEnvForm['plot'];
+            $o_habitat_code = substr($this->thisSubPlot, 6, 2);
+            $o_subplot_id = substr($this->thisSubPlot, 8, 2);
+            $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
+
+            if ($subPlotEnvForm['plot_full_id'] != $this->thisSubPlot) {
+                //1. 檢查是否重號
+                $originalData = SubPlotEnv2025::where(['plot_full_id' => $subPlotEnvForm['plot_full_id']])->get()->toArray();
+                if (!empty($originalData)) {
+                    $this->addError('小樣方流水號', '小樣方流水號重複');
+                    return;
+                }
+
+                //2. 更改小樣方編號
+                SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)
+                    ->update([
+                        'plot_full_id' => $subPlotEnvForm['plot_full_id'],
+                        'habitat_code' => $subPlotEnvForm['habitat_code'],
+                        'subplot_id' => $subPlotEnvForm['subplot_id'],
+                        'updated_by' => $this->creatorCode,
+                    ]);
+                $updatedCount = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)->update(['plot_full_id' => $subPlotEnvForm['plot_full_id'], 'updated_by' => $this->creatorCode,]);
+
+                $diff['plot_full_id'] = [
+                    'old' => $this->thisSubPlot,
+                    'new' => $subPlotEnvForm['plot_full_id'],
+                ];
+                $diff['habitat_code'] = [
+                    'old' => $o_habitat_code,
+                    'new' => $subPlotEnvForm['habitat_code'],
+                ];
+                $diff['subplot_id'] = [
+                    'old' => $o_subplot_id,
+                    'new' => $subPlotEnvForm['subplot_id'],
+                ];
+                
+                FixLog::create([
+                    'table_name' => 'im_splotdata_2025',
+                    'record_id' => $subPlotEnvForm['id'],
+                    'changes' => $diff,
+                    'modified_by' => $this->creatorCode,
+                    'modified_at' => now(),
+                ]);
+                if ($updatedCount >1){
+                    FixLog::create([
+                        'table_name' => 'im_spvptdata_2025',
+                        'record_id' => '',
+                        'changes' => $diff['plot_full_id'],
+                        'modified_by' => $this->creatorCode,
+                        'modified_at' => now(),
+                    ]);
+                }
+                //3. 如果新生育地類型是08或09
+                //3.1  如果已有原本相對應的88和89，一起更改編號
+                $msg = '已更新『' . $this->thisSubPlot . '』樣區編號為『' . $subPlotEnvForm['plot_full_id'] . '』。';
+
+                if (in_array($subPlotEnvForm['habitat_code'], ['08', '09'])) {
+                        // 08 對應 88，09 對應 99
+                    $extraHabitat_o = match ($o_habitat_code) {
+                        '08' => '88',
+                        '09' => '99',
+                        default => '00',
+                    };
+                    $extraHabitat_n = $subPlotEnvForm['habitat_code'] === '08' ? '88' : '99';
+
+                    $related_full_id_o = $plot . $extraHabitat_o . $o_subplot_id;
+                    $related_full_id_n = $plot . $extraHabitat_n . $subPlotEnvForm['subplot_id'];
+
+                    $exists = SubPlotEnv2025::where('plot_full_id', $related_full_id_o)->first();
+
+                    if ($exists) {
+                        // 若已存在，更新
+                        SubPlotEnv2025::where('plot_full_id', $related_full_id_o)
+                            ->update([
+                                'habitat_code' => $extraHabitat_n,
+                                'subplot_id' => $subPlotEnvForm['subplot_id'],
+                                'plot_full_id' => $related_full_id_n,
+                                'updated_by' => $this->creatorCode,
+                            ]);
+
+                        $updatedCount2 = SubPlotPlant2025::where('plot_full_id', $related_full_id_o)
+                            ->update(['plot_full_id' => $related_full_id_n, 'updated_by' => $this->creatorCode]);
+
+                        session()->flash('saveMsg2', '同時更新 『' . $related_full_id_o . '』樣區編號為 『' . $related_full_id_n . '』。');
+
+                        $diff['plot_full_id'] = [
+                            'old' => $related_full_id_o,
+                            'new' => $related_full_id_n,
+                        ];
+                        $diff['habitat_code'] = [
+                            'old' => $extraHabitat_o,
+                            'new' => $extraHabitat_n,
+                        ];
+                        $diff['subplot_id'] = [
+                            'old' => $o_subplot_id,
+                            'new' => $subPlotEnvForm['subplot_id'],
+                        ];
+
+                        FixLog::create([
+                            'table_name' => 'im_splotdata_2025',
+                            'record_id' => $exists->id,
+                            'changes' => $diff,
+                            'modified_by' => $this->creatorCode,
+                            'modified_at' => now(),
+                        ]);
+                        if ($updatedCount2>1){
+                            FixLog::create([
+                                'table_name' => 'im_spvptdata_2025',
+                                'record_id' => '',
+                                'changes' => $diff['plot_full_id'],
+                                'modified_by' => $this->creatorCode,
+                                'modified_at' => now(),
+                            ]);
+                        }
+
+                    } 
+                    // $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
+                    $plotFullIds[] = $related_full_id_n;
+                    
+                }
+                if (in_array($o_habitat_code, ['08', '09']) && !in_array($subPlotEnvForm['habitat_code'], ['08', '09']) && $o_habitat_code != $subPlotEnvForm['habitat_code']){
+                    $extraHabitat = $o_habitat_code === '08' ? '88' : '99';
+                    $related_full_id_o = $plot . $extraHabitat . $o_subplot_id;
+                    session()->flash('saveMsg2', '保留原有 『' . $related_full_id_o . '』環境、植物資料，如需刪除請洽管理員。');
+                    
+                }
+                
+            } else {
+                
+            }
+            $newdata = $this->addUnderstoryPlot($subPlotEnvForm);            
+        }
+    
+    $originalData = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)->get()->toArray();
+
+//   dd($originalData);    
+
 // dd($where);
         if (!empty($originalData) && empty($subPlotEnvForm['id'])) {
             $this->addError('小樣方流水號', '小樣方流水號重複');
             return;
         } 
 
-        // ✅ 根據 habitat_code 判斷是否要額外新增對應筆
-        $autoCopyMap = [
-            '08' => '88',
-            '09' => '99',
-        ];
 
-        if (array_key_exists($subPlotEnvForm['habitat_code'], $autoCopyMap)) {
-            $newdata[0]['subplot_area'] = 3;   // 強制設定為 5x5
-
-            $copyCode = $autoCopyMap[$subPlotEnvForm['habitat_code']];
-            $copiedPlotFullId = $subPlotEnvForm['plot'] . $copyCode . $subPlotEnvForm['subplot_id'];
-
-            $alreadyExists = SubPlotEnv2025::where('plot_full_id', $copiedPlotFullId)->exists();
-
-            if (!$alreadyExists) {
-                $copied = $subPlotEnvForm;
-                $copied['habitat_code'] = $copyCode;
-                $copied['subplot_area'] = 2; // 強制設定為 2x5
-                $copied['plot_full_id'] = $copiedPlotFullId;
-                $newdata[] = $copied;
-
-                session()->flash('saveMsg2', ', 同時新增 『' . $copiedPlotFullId . '』環境資料');
-            }
-        }
 // dd($newdata);
         $changed = DataSyncService::syncById(
             modelClass: SubPlotEnv2025::class,
@@ -502,13 +610,16 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             userCode: $this->creatorCode
         );
 
-//如果有改plot_full_id'
-        if ($subPlotEnvForm['plot_full_id']!=$this->thisSubPlot){
-            SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)->update(['plot_full_id' => $subPlotEnvForm['plot_full_id']]);
+        if ($changed) {
+            $msg .= '已更新/新增『' . $subPlotEnvForm['plot_full_id'] . '』環境資料。';
+            if ($this->hasUnderData != ''){
+                $msg .='同時更新/新增『' . $this->hasUnderData . '』環境資料。';
+            }
+        } else {
+            $msg .= '環境資料無任何變更。';
         }
 
-        // 可選：狀態提示
-        session()->flash('saveMsg', $changed ? '已更新『' . $subPlotEnvForm['plot_full_id'] . '』環境資料' : '無任何變更');
+        session()->flash('saveMsg', $msg);
 
   
         $this->loadPlotInfo($this->thisPlot);
@@ -517,6 +628,43 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         // $this->loadSubPlotEnv($subPlotEnvForm['plot_full_id']);
     }
 
+
+    public function addUnderstoryPlot($subPlotEnvForm){
+                // ✅ 根據 habitat_code 判斷是否要額外新增對應筆
+        $autoCopyMap = [
+            '08' => '88',
+            '09' => '99',
+        ];
+
+        $newdata = [];
+
+        // 加入原始小樣方資料
+        $subPlotEnvForm['subplot_area'] = 3; // 強制設定為 5x5
+        $newdata[] = $subPlotEnvForm;
+
+        if (array_key_exists($subPlotEnvForm['habitat_code'], $autoCopyMap)) {
+            $copyCode = $autoCopyMap[$subPlotEnvForm['habitat_code']];
+            $copiedPlotFullId = $subPlotEnvForm['plot'] . $copyCode . $subPlotEnvForm['subplot_id'];
+
+            $existingRecord = SubPlotEnv2025::where('plot_full_id', $copiedPlotFullId)->first();
+
+            $copied = $subPlotEnvForm;
+            $copied['habitat_code'] = $copyCode;
+            $copied['subplot_area'] = 2; // 強制設定為 2x5
+            $copied['plot_full_id'] = $copiedPlotFullId;
+            $copied['id'] = $existingRecord ? $existingRecord->id : '';
+
+            $newdata[] = $copied;
+
+            $this->hasUnderData = $copiedPlotFullId;
+
+            // session()->flash(
+            //     'saveMsg2',
+            //     '同時' . ($existingRecord ? '更新' : '新增') . ' 『' . $copiedPlotFullId . '』環境資料'
+            // );
+        }
+        return $newdata;
+    }
 
     public function plantDataSave()
     {

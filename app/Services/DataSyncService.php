@@ -18,7 +18,7 @@ class DataSyncService
         $changed = false; // ✅ 用來追蹤有無變動
         $newIds = collect($newData)->pluck('id')->filter()->all();
 
-        // 刪除：原本有但新資料沒有的
+        // 刪除：原本有但新資料沒有的  //SpcodeIndex, subPlotPlant2025
         foreach ($originalData as $old) {
             if (!in_array($old['id'], $newIds)) {
                 $model = $modelClass::find($old['id']);
@@ -81,8 +81,14 @@ class DataSyncService
                 // 先取得原資料
                 $existing = collect($originalData)->firstWhere('id', $item['id']);
                 $diff = [];
+                // if (!$existing){
+                //     $existing = $model::where('id', $item['id'])->get()->toArray();
+                // }
 
                 foreach ($data as $key => $value) {
+                    if ($key === 'updated_at' || $key === 'created_at' || $key === 'created_by' || $key === 'updated_by') {
+                        continue; // ✅ 排除 updated_at
+                    }
                     if (($existing[$key] ?? null) != $value) {
                         $diff[$key] = [
                             'old' => $existing[$key] ?? null,
@@ -96,7 +102,6 @@ class DataSyncService
                     if ($model) {
                         $model->update($data + $updateExtra);
                         $changed = true;
-
                         // ✅ 記錄異動欄位
                         if ($userCode) {
                             FixLog::create([

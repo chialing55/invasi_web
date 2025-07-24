@@ -125,11 +125,7 @@ class DataExport extends Component
         foreach ($plotList as $plot) {
 
             $county = PlotList2025::where('plot', $plot)->value('county');
-            $relativePath = "invasi_files/plotData/{$county}/{$plot}.pdf";
-            $fullPath = public_path($relativePath);
-
             $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-
 
             $summary[] = [
                 'county' => $county,

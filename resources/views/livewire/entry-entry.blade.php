@@ -60,7 +60,8 @@
                     </div>
                 @endif
 
-                <div class="md:flex flex-wrap gap-2 items-center" wire:key="habitat-checkboxes-{{ $this->thisPlot }}-{{ implode('-', $selectedHabitatCodes) }}">
+                <div class="md:flex flex-wrap gap-2 items-center"
+                    wire:key="habitat-checkboxes-{{ $this->thisPlot }}-{{ implode('-', $selectedHabitatCodes) }}">
 
                     @foreach ($habTypeOptions as $code => $label)
                         <label for="hab_{{ $code }}"
@@ -83,8 +84,10 @@
                 <h3>{{ $thisPlot }} 樣區調查資料上傳</h3>
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
                     <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
-                        <li>請在資料輸入完成、物種鑑定完成、小樣區照片上傳，並確認紙本資料無誤後，再上傳樣區調查資料。</li>
-                        <li>系統將以樣區調查資料是否已上傳，作為判定該樣區是否完成調查的依據。</li>
+                        <li>調查資料輸入並確認無誤後，請將該樣區的所有紙本資料掃描為電子檔，合併成單一檔案（pdf 檔），並透過此處上傳至主機。</li>
+                        <li>系統將自動以 <b>樣區編號</b> 作為檔案名稱。</li>
+                        <li>若需更新檔案，請直接重新上傳，新檔案將自動覆蓋舊檔。</li>
+                        <li>如之後有再更動紙本資料，務必重新掃描(或修圖更改)，並上傳最新版本。</li>
                     </ul>
                 </div>
 
@@ -696,6 +699,4 @@
             return input;
         };
     }
-
-
 </script>

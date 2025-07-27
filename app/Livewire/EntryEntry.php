@@ -255,7 +255,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         if ($data) {
             $subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
         } 
-        $subPlotAreaMap = config('item_list.sub_plot_area');
+        // dd($data);
+        // $subPlotAreaMap = config('item_list.sub_plot_area');
         // $islandCategoryMap = config('item_list.island_category');
         // $plotEnvMap = config('item_list.plot_env');
         
@@ -597,7 +598,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             return;
         } 
 
-
+// dd($subPlotEnvForm);
 // dd($newdata);
         $changed = DataSyncService::syncById(
             modelClass: SubPlotEnv2025::class,
@@ -639,10 +640,11 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $newdata = [];
 
         // 加入原始小樣方資料
-        $subPlotEnvForm['subplot_area'] = 3; // 強制設定為 5x5
+        
         $newdata[] = $subPlotEnvForm;
 
         if (array_key_exists($subPlotEnvForm['habitat_code'], $autoCopyMap)) {
+            $subPlotEnvForm['subplot_area'] = 3; // 強制設定為 5x5
             $copyCode = $autoCopyMap[$subPlotEnvForm['habitat_code']];
             $copiedPlotFullId = $subPlotEnvForm['plot'] . $copyCode . $subPlotEnvForm['subplot_id'];
 

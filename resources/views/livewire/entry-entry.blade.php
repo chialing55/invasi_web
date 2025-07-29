@@ -214,6 +214,13 @@
         @if (substr($thisSubPlot, 6, 2) !== '99' && substr($thisSubPlot, 6, 2) !== '88')
             <div class="mt-8 gray-card md:flex md:flex-col mb-4">
                 <h3>{{ $thisSubPlot }} 小樣方照片上傳</h3>
+                <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
+                    <p class="font-bold">⚠️ 重要提醒</p>
+                    <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
+                        <li>系統會自動將檔名更名為小樣方編號，並以 .jpg 儲存，檔案大小不得超過 12MB。</li>
+                        <li>每個小樣方僅可上傳一張照片。若需更換照片，請直接重新上傳，系統會自動覆蓋原有檔案。</li>
+                    </ul>
+                </div>
                 @if (session()->has('photoUploadSuccess'))
                     <p class="font-semibold">{{ session('photoUploadSuccess') }}</p>
                 @endif

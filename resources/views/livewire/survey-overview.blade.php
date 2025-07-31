@@ -63,7 +63,7 @@
                                 🎉 完成目標！
                             @elseif ($plotDone >= 15)
                                 🌟 就快完成了！
-                            @elseif ($plotDone >= 10)
+                            @elseif ($plotDone >= 8)
                                 🌟 期中進度達標！
                             @else
                                 💪 加油加油

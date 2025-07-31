@@ -25,7 +25,7 @@
                 <select id="team" wire:model="thisTeam" class="border rounded p-2 w-[130px]"
                     wire:change="loadCountyList($event.target.value)">
                     <option value="">-- 請選擇 --</option>
-                    <option value="all">All</option>
+                    <option value="All">All</option>
                     @foreach ($teamList as $team)
                         <option value="{{ $team }}">{{ $team }}</option>
                     @endforeach
@@ -37,7 +37,7 @@
                 <select id="county" wire:model="thisCounty" class="border rounded p-2 w-40"
                     wire:change="surveryedPlotInfo($event.target.value)">
                     <option value="">-- 請選擇 --</option>
-                    <option value="all">All</option>
+                    <option value="All">All</option>
                     @foreach ($countyList as $county)
                         <option value="{{ $county }}">{{ $county }}</option>
                     @endforeach
@@ -56,7 +56,8 @@
                             <li>樣區是否完成調查，以是否上傳紙本資料為依據。</li>
                             <li>預設勾選所有樣區，可自行取消不需下載者。</li>
                             <li>選擇下載資料內容與格式：預設為 Excel（.xlsx），包含環境資料與植物資料。亦可選擇文字檔（.txt，Tab 分隔），兩種資料內容需分別下載。</li>
-                            <li><a href='https://hospitable-nickel-b27.notion.site/234ed0b14d7e802b84b0c61fbe3a3e2a' target='_blank'>資料欄位說明</a></li>
+                            <li><a href='https://hospitable-nickel-b27.notion.site/234ed0b14d7e802b84b0c61fbe3a3e2a'
+                                    target='_blank'>資料欄位說明</a></li>
                         </ul>
                     </div>
                     <table class="text-sm border border-gray-300">
@@ -93,14 +94,15 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <p class="font-semibold mt-8">選擇下載資料內容與格式：</p>
-                    <div class="flex items-center mb-4 mt-4">
-                        
+                    <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
+                    <div class="mt-4">
                         <label class="inline-flex items-center mr-4 cursor-pointer">
                             <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx"
                                 class="form-radio text-forest focus:ring-forest">
                             <span class="ml-1">所有資料.xlsx</span>
                         </label>
+                    </div>
+                    <div class="flex items-center mt-2">
                         <label class="inline-flex items-center mr-4 cursor-pointer">
                             <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="txt.1"
                                 class="form-radio text-forest focus:ring-forest">
@@ -111,9 +113,20 @@
                                 class="form-radio text-forest focus:ring-forest">
                             <span class="ml-1">植物資料.txt</span>
                         </label>
+                        <label class="inline-flex items-center mr-4 cursor-pointer">
+                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="txt.3"
+                                class="form-radio text-forest focus:ring-forest">
+                            <span class="ml-1">植物名錄.txt</span>
+                        </label>
 
                     </div>
-
+                    <div class='mb-4 mt-2'>
+                        <label class="inline-flex items-center mr-4 cursor-pointer">
+                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.1"
+                                class="form-radio text-forest focus:ring-forest">
+                            <span class="ml-1">全部植物名錄.xlsx</span>
+                        </label>
+                    </div>
 
 
                     <div class="mt-4 text-right">

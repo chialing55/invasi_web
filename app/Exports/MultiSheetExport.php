@@ -9,12 +9,14 @@ class MultiSheetExport implements WithMultipleSheets
 {
     protected $envdata;
     protected $plantdata;
+    protected $plantlist;
     protected $format;
 
-    public function __construct(array $envdata, array $plantdata, string $format)
+    public function __construct(array $envdata, array $plantdata, array $plantlist, string $format)
     {
         $this->envdata = $envdata;
         $this->plantdata = $plantdata;
+        $this->plantlist = $plantlist;
         $this->format = $format;
     }
 
@@ -24,6 +26,7 @@ class MultiSheetExport implements WithMultipleSheets
         return [
             new PlotExport($this->envdata, $this->format, '環境資料'),
             new PlotExport($this->plantdata, $this->format, '植物資料'),
+            new PlotExport($this->plantlist, $this->format, '植物名錄'),
         ];
     }
 }

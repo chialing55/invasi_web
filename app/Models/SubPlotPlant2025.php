@@ -15,7 +15,6 @@ class SubPlotPlant2025 extends Model
         'plot_full_id',
         'spcode',
         'chname_index',
-        'life_type',
         'coverage',
         'flowering',
         'fruiting',

@@ -187,7 +187,12 @@ class DataExport extends Component
                 'spinfo.endemic',
                 'spinfo.naturalized',
                 'spinfo.cultivated',
-                'twredlist2017.IUCN',
+                DB::raw("
+                    CASE 
+                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
+                        ELSE twredlist2017.IUCN
+                    END AS IUCN
+                "),
                 // 'twredlist2017.origin_type as origin_type_redlist',
                 'plot_list.county',
                 'im_splotdata_2025.plot',

@@ -85,10 +85,10 @@
 
         <div class="flex justify-start gap-8 items-start flex-wrap {{ $showTeamProgress ? '' : 'hidden' }}">
             <div class="gray-card mb-6 space-y-3">
-                <canvas id="teamBarChart2" class="w-[400px] h-full"></canvas>
+                <canvas id="teamBarChart2" class="w-[400px] h-[300px]"></canvas>
             </div>
             <div class="gray-card mb-6 space-y-3">
-                <canvas id="teamBarChart1" class="w-[400px] h-full"></canvas>
+                <canvas id="teamBarChart1" class="w-[400px] h-[300px]"></canvas>
             </div>
         </div>
 
@@ -425,7 +425,8 @@
                     data: Plantdata,
                     backgroundColor: 'rgba(104, 151, 115, 0.6)',
                     borderColor: 'rgba(104, 151, 115, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 6,
                 }]
             },
             options: {
@@ -438,7 +439,7 @@
                     },
                     title: {
                         display: true,
-                        text: '各團隊植物筆數統計',
+                        text: '各團隊植物調查資料筆數',
                         font: {
                             size: 16
                         }
@@ -462,7 +463,8 @@
                     data: SubPlotdata,
                     backgroundColor: 'rgba(255, 159, 64, 0.6)', // 不同顏色
                     borderColor: 'rgba(255, 159, 64, 1)',
-                    borderWidth: 1
+                    borderWidth: 1,
+                    borderRadius: 6,
                 }]
             },
             options: {
@@ -475,7 +477,7 @@
                     },
                     title: {
                         display: true,
-                        text: '各團隊樣區筆數統計',
+                        text: '各團隊調查小樣方數量',
                         font: {
                             size: 16
                         }

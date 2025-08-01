@@ -90,6 +90,19 @@ class SurveyOverview extends Component
             ->toArray();
 
         // group by team
+        $this->teamProgress($plotWithStatus);
+
+        // 存到元件的 public 屬性
+        $this->allContyInfo = $grouped_county;
+        $this->showContyInfo = $grouped_county;
+
+    }
+
+    public $subPlotTeam=[];
+    public $subPlantTeam=[];
+
+    public function teamProgress($plotWithStatus){
+// 先轉為 Collection 並統計每個 plot 是否完成
         $grouped_team = $plotWithStatus
             ->groupBy('team')
             ->map(function ($rows, $team) {
@@ -104,13 +117,52 @@ class SurveyOverview extends Component
             ->sortByDesc('completed_plots')
             ->toArray();
 
-        // 存到元件的 public 屬性
-        $this->allContyInfo = $grouped_county;
-        $this->showContyInfo = $grouped_county;
         $this->allTeamInfo = $grouped_team;
         $this->showTeamInfo = $grouped_team;
+        $this->teamProgressDetail();
     }
 
+
+    public function teamProgressDetail(){
+//小樣區數量
+        $subPlot_team = SubPlotEnv2025::select('im_splotdata_2025.plot_full_id', 'plot_list.team')
+            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->get()
+            ->groupBy('team')
+            ->map(function ($rows, $team) {
+                return [
+                    'team' => $team,
+                    'total_plots' => $rows->pluck('plot_full_id')->unique()->count(),
+                ];
+            })
+            ->values()
+            ->sortByDesc('total_plots')
+            ->toArray();
+
+        $subPlant_team = SubPlotPlant2025::select('im_spvptdata_2025.id', 'plot_list.team')
+            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
+            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->get()
+            ->groupBy('team')
+            ->map(function ($rows, $team) {
+                return [
+                    'team' => $team,
+                    'total_plants' => $rows->pluck('id')->count(),
+                ];
+            })
+            ->values()
+            ->sortByDesc('total_plnats')
+            ->toArray();
+
+
+        $this->subPlotTeam = $subPlot_team;
+        $this->subPlantTeam = $subPlant_team;
+// dd($subPlant_team);
+        $this->dispatch('thisTeamProgress', data:[
+            'totalPlantsByTeam' => $subPlant_team,
+            'totalSubPlotsByTeam' => $subPlot_team,
+        ]);
+    }
 //選擇縣市之後
     public function surveryedPlotInfo($thisCounty)
     {
@@ -120,6 +172,7 @@ class SurveyOverview extends Component
             $this->plotList = [];
             $this->allPlotInfo=[];
             $this->filteredSubPlotSummary =[];
+            $this->thisCounty = '';
         } else {
             $this->showContyInfo = collect($this->allContyInfo)
                 ->filter(function ($row) use ($thisCounty) {

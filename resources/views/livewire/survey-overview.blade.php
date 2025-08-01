@@ -23,10 +23,9 @@
         </ul>
     </div>
     @if ($thisCounty == '')
-
+        <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標：完成 20-25 個 1 ×1 km<sup>2</sup>樣區</span><span
+                class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
         <div class="gray-card mb-6 space-y-3">
-            <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標：完成 20-25 個 1 ×1 km<sup>2</sup>樣區</span><span
-                    class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
             @foreach ($showTeamInfo as $row)
                 @php
                     $target = 20;
@@ -79,7 +78,30 @@
                 </div>
             @endforeach
         </div>
+        {{-- <div>
+            <button wire:click="teamProgressDetail()"
+                class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300 mb-4">團隊詳細調查進度</button>
+        </div> --}}
+
+        <div class="flex justify-start gap-8 items-start flex-wrap ">
+            <div class="gray-card mb-6 space-y-3">
+                <canvas id="teamBarChart2" class="w-[400px] h-full"></canvas>
+            </div>
+            <div class="gray-card mb-6 space-y-3">
+                <canvas id="teamBarChart1" class="w-[400px] h-full"></canvas>
+            </div>
+        </div>
+
     @endif
+
+
+    <h3>各縣市調查進度</h3>
+    @if ($thisCounty != '')
+        <button wire:click="surveryedPlotInfo('')" class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300 mb-4">
+            顯示全部縣市
+        </button>
+    @endif
+
     <div class="flex justify-start gap-8 items-start">
 
         <div>
@@ -141,7 +163,7 @@
                         </select>
                     </div>
                     @if (!empty($subPlotSummary))
-                        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+                        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0 ">
                             <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
                             <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
                                 wire:change="reloadPlotInfo($event.target.value)">
@@ -151,6 +173,12 @@
                                     </option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0 ml-0 md:ml-4">
+                            <button wire:click="loadPlotInfo('')"
+                                class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300">
+                                顯示全部樣區
+                            </button>
                         </div>
                     @endif
                 </div>
@@ -349,7 +377,8 @@
 
     });
 
-    window.listenAndResetSelect = function('thisPlotUpdated2', 'plot') {
+
+    window.listenAndResetSelect = function(eventName, selectId) {
         window.addEventListener(eventName, () => {
             const select = document.getElementById(selectId);
             if (!select) return;
@@ -361,4 +390,103 @@
             select.selectedIndex = 0;
         });
     };
+
+    window.listenAndResetSelect('thisPlotUpdated2', 'plot');
+
+    window.addEventListener('thisTeamProgress', (event) => {
+        const totalPlantsByTeam = event.detail.data.totalPlantsByTeam;
+        const totalSubPlotsByTeam = event.detail.data.totalSubPlotsByTeam;
+
+        const Plantlabels = totalPlantsByTeam.map(item => item.team);
+        const Plantdata = totalPlantsByTeam.map(item => item.total_plants);
+
+        const SubPlotlabels = totalSubPlotsByTeam.map(item => item.team);
+        const SubPlotdata = totalSubPlotsByTeam.map(item => item.total_plots);
+
+        const ctx1 = document.getElementById('teamBarChart1')?.getContext('2d');
+        const ctx2 = document.getElementById('teamBarChart2')?.getContext('2d');
+
+        if (!ctx1 || !ctx2) {
+            console.warn('❌ 找不到 canvas 元素，請確認 teamBarChart1 / 2 是否已存在於 DOM 中');
+            return;
+        }
+
+        // 如果圖已存在，先銷毀
+        if (window.teamChart1) window.teamChart1.destroy();
+        if (window.teamChart2) window.teamChart2.destroy();
+
+        // 植物筆數圖表
+        window.teamChart1 = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: Plantlabels,
+                datasets: [{
+                    label: '植物筆數',
+                    data: Plantdata,
+                    backgroundColor: 'rgba(104, 151, 115, 0.6)',
+                    borderColor: 'rgba(104, 151, 115, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: '各團隊植物筆數統計',
+                        font: {
+                            size: 16
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 樣區筆數圖表
+        window.teamChart2 = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: SubPlotlabels,
+                datasets: [{
+                    label: '樣區筆數',
+                    data: SubPlotdata,
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)', // 不同顏色
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: '各團隊樣區筆數統計',
+                        font: {
+                            size: 16
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
 </script>

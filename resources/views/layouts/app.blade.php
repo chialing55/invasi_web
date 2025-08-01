@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
@@ -10,53 +11,57 @@
     @livewireStyles
 
     <style>
+        .tabulator-edit-list-item.focused {
+            background-color: #cce5ff !important;
+            /* 淺藍底 */
+            color: #003366 !important;
+            /* 深藍字 */
+        }
 
+        .tabulator-edit-list-item:hover {
+            background-color: #cce5ff !important;
+            /* 淺藍底 */
+            color: #003366 !important;
+            /* 深藍字 */
+            outline: 1px solid #1d68cd;
+        }
 
-.tabulator-edit-list-item.focused{
-    background-color: #cce5ff !important; /* 淺藍底 */
-    color: #003366 !important;            /* 深藍字 */
-}
+        .tabulator {
+            font-size: 16px !important;
+            max-width: 100%;
 
-.tabulator-edit-list-item:hover{
-    background-color: #cce5ff !important; /* 淺藍底 */
-    color: #003366 !important;  /* 深藍字 */
-    outline:1px solid #1d68cd;            
-}
+        }
 
-.tabulator{
-    font-size: 16px !important;
-    max-width: 100%;
+        .tabulator-table-plant {
+            max-width: 100%;
 
-}
+        }
 
-.tabulator-table-plant {
-    max-width: 100%;
+        button.sort::after {
+            content: '';
+            margin-left: 0.5em;
+        }
 
-}
+        button.sort[data-order="asc"]::after {
+            content: "▲";
+        }
 
-button.sort::after {
-    content: '';
-    margin-left: 0.5em;
-}
-button.sort[data-order="asc"]::after {
-    content: "▲";
-}
-button.sort[data-order="desc"]::after {
-    content: "▼";
-}
+        button.sort[data-order="desc"]::after {
+            content: "▼";
+        }
 
-.autocomplete-dropdown {
-    border-radius: 4px;
-    overflow: hidden;
-}
-.autocomplete-option:hover,
-.autocomplete-option.selected {
-    background: #97c498;
-}
-  
+        .autocomplete-dropdown {
+            border-radius: 4px;
+            overflow: hidden;
+        }
 
+        .autocomplete-option:hover,
+        .autocomplete-option.selected {
+            background: #97c498;
+        }
     </style>
 </head>
+
 <body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
 
     {{-- Header --}}
@@ -101,7 +106,7 @@ button.sort[data-order="desc"]::after {
     <main class="p-6 flex-1">
         <div class='m-auto max-w-7xl w-full'>
             @yield('content')
-        </div>    
+        </div>
     </main>
 
     {{-- Footer --}}
@@ -110,10 +115,12 @@ button.sort[data-order="desc"]::after {
     </footer>
     @livewireScripts
 </body>
+
 </html>
-    <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-    <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
-    <!-- 載入 Tom Select（CDN） -->
+<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+<link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
+<!-- 載入 Tom Select（CDN） -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -10,6 +10,7 @@ use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
 use App\Models\SpInfo;
 use App\Models\HabitatInfo;
+use App\Models\PlotHab;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\HabHelper;
 use App\Helpers\PlotHelper;
@@ -62,55 +63,59 @@ class SurveyOverview extends Component
         // 先取得所有 plot 的基本資料
         $plotList = DB::connection('invasiflora')->table('plot_list')->get();
 
-        // 先轉為 Collection 並統計每個 plot 是否完成
-        $plotWithStatus = collect($plotList)->map(function ($row) {
+        $envDataByPlot = SubPlotEnv2025::all()->groupBy('plot');
+        $plantDataByPrefix = SubPlotPlant2025::all()->groupBy(function ($row) {
+            return substr($row->plot_full_id, 0, 6);
+        });
+        $plotListByPlot = PlotList2025::all()->keyBy('plot');
+        $habDataByPlot = PlotHab::all()->groupBy('plot');
+
+        $plotWithStatus = collect($plotList)->map(function ($row) use (
+            $envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot
+        ) {
             $row = (array) $row;
             $plot = $row['plot'];
 
-            // 呼叫 helper 判斷是否完成
-            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-            $row = array_merge($row, $status);
+            $status = PlotCompletedCheckHelper::getPlotCompletedInfo_v2(
+                $plot, $envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot
+            );
 
-            return $row;
+            return array_merge($row, $status);
         });
+// dd($plotWithStatus->toArray());
         $this->thisPlotWithStatus = $plotWithStatus;
         // group by county
         $grouped_county = $plotWithStatus
             ->groupBy('county')
             ->map(function ($rows, $county) {
+                $uniquePlots = $rows->pluck('plot')->unique();
+                $completedPlots = $rows->filter(fn ($row) => $row['plotCompleted'] === '1')->pluck('plot')->unique();
+
                 return [
                     'county' => $county,
                     'teams' => $rows->pluck('team')->unique()->implode(', '),
-                    'total_plots' => $rows->pluck('plot')->unique()->count(),
-                    'completed_plots' => $rows->where('plotCompleted', '1')->pluck('plot')->unique()->count(),
+                    'total_plots' => $uniquePlots->count(),
+                    'completed_plots' => $completedPlots->count(),
                 ];
             })
             ->values()
             ->sortByDesc('completed_plots')
             ->toArray();
 
+// dd($grouped_county);
+
         // group by team
-        $this->teamProgress($plotWithStatus);
-
-        // 存到元件的 public 屬性
-        $this->allContyInfo = $grouped_county;
-        $this->showContyInfo = $grouped_county;
-
-    }
-
-    public $subPlotTeam=[];
-    public $subPlantTeam=[];
-
-    public function teamProgress($plotWithStatus){
-// 先轉為 Collection 並統計每個 plot 是否完成
         $grouped_team = $plotWithStatus
             ->groupBy('team')
             ->map(function ($rows, $team) {
+                $uniquePlots = $rows->pluck('plot')->unique();
+                $completedPlots = $rows->filter(fn ($row) => $row['plotCompleted'] === '1')->pluck('plot')->unique();
+
                 return [
                     'county' => $rows->pluck('county')->unique()->implode(', '),
                     'team' => $team,
-                    'total_plots' => $rows->pluck('plot')->unique()->count(),
-                    'completed_plots' => $rows->where('plotCompleted', '1')->pluck('plot')->unique()->count(),
+                    'total_plots' => $uniquePlots->count(),
+                    'completed_plots' => $completedPlots->count(),
                 ];
             })
             ->values()
@@ -119,9 +124,15 @@ class SurveyOverview extends Component
 
         $this->allTeamInfo = $grouped_team;
         $this->showTeamInfo = $grouped_team;
-        // $this->teamProgressDetail();
+// dd($this->showTeamInfo);
+        // 存到元件的 public 屬性
+        $this->allContyInfo = $grouped_county;
+        $this->showContyInfo = $grouped_county;
+
     }
 
+    public $subPlotTeam=[];
+    public $subPlantTeam=[];
 
     public $showTeamProgress = false;
 

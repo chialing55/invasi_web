@@ -73,4 +73,59 @@ class PlotCompletedCheckHelper
         ];
 
     }
+
+    public static function getPlotCompletedInfo_v2(
+        string $plot,
+        $envDataByPlot,
+        $plantDataByPrefix,
+        $plotListByPlot,
+        $habDataByPlot
+    ): array
+    {
+        $dataCorrect = '0';
+        $subPlotImage = '0';
+        $subPlotData = '0';
+        $plotFile = '0';
+        $plotHabData = '0';
+        $plotCompleted = '0';
+
+        $prefix = substr($plot, 0, 6);
+
+        $thisEnvData = $envDataByPlot[$plot] ?? collect();
+        $thisPlantData = $plantDataByPrefix[$prefix] ?? collect();
+        $thisPLotData = $plotListByPlot[$plot] ?? null;
+        $thisHabData = $habDataByPlot[$plot] ?? collect();
+// dd($thisEnvData->toArray(), $thisPlantData->toArray(), $thisPLotData->toArray(), $thisHabData->toArray());
+        if ($thisEnvData->isNotEmpty()) {
+            $dataCorrect = $thisPlantData->contains('data_error', 1) ? '0' : '1';
+
+            $subPlotImage = $thisEnvData->every(fn ($row) => !empty($row->file_uploaded_at)) ? '1' : '0';
+
+            $habCodesInEnv = $thisEnvData->pluck('habitat_code')->unique()->sort()->values();
+            $habCodesInHab = $thisHabData->pluck('habitat_code')->unique()->sort()->values();
+            $plotHabData = $habCodesInEnv->diff($habCodesInHab)->isEmpty() && $habCodesInHab->diff($habCodesInEnv)->isEmpty() ? '1' : '0';
+
+            $grouped = $thisEnvData->groupBy('habitat_code');
+            $subPlotData = $habCodesInHab->every(function ($code) use ($grouped) {
+                return isset($grouped[$code]) && count($grouped[$code]) > 4;
+            }) ? '1' : '0';
+
+            $plotFile = !empty($thisPLotData?->file_uploaded_at) ? '1' : '0';
+        }
+
+        $plotCompleted = (
+            $dataCorrect === '1' &&
+            $subPlotImage === '1' &&
+            $subPlotData === '1' &&
+            $plotFile === '1' &&
+            $plotHabData === '1'
+        ) ? '1' : '0';
+
+        return compact(
+            'dataCorrect', 'subPlotImage', 'subPlotData',
+            'plotFile', 'plotHabData', 'plotCompleted'
+        );
+    }
+
+    
 }

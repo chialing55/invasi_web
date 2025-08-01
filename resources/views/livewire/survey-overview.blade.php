@@ -85,10 +85,10 @@
 
         <div class="flex justify-start gap-8 items-start flex-wrap {{ $showTeamProgress ? '' : 'hidden' }}">
             <div class="gray-card mb-6 space-y-3">
-                <canvas id="teamBarChart2" class="w-[400px] h-[300px]"></canvas>
+                <canvas id="teamBarChart2" class="w-[400px] h-[260px]"></canvas>
             </div>
             <div class="gray-card mb-6 space-y-3">
-                <canvas id="teamBarChart1" class="w-[400px] h-[300px]"></canvas>
+                <canvas id="teamBarChart1" class="w-[400px] h-[260px]"></canvas>
             </div>
         </div>
 
@@ -427,6 +427,7 @@
                     borderColor: 'rgba(104, 151, 115, 1)',
                     borderWidth: 1,
                     borderRadius: 6,
+
                 }]
             },
             options: {

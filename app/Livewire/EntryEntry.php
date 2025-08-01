@@ -877,15 +877,12 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
     public function clickUploadFile()
     {
         // dd('test');
-        // $request->validate([
-        //     'photo' => 'required|image|max:12288'
-        // ]);
+        $this->validate([
+            'plotFile' => 'required|file|mimes:pdf|max:20480' // 20MB、限定 PDF
+        ]);
 
-        if (!$this->plotFile) {
-            $this->addError('plotFile', '請先選擇檔案');
-            return;
-        }
-        $this->resetErrorBag();
+        $this->resetErrorBag(); // ✅ 成功才重設錯誤
+
 
         $filename = $this->thisPlot . '.pdf';
 

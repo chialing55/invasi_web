@@ -78,12 +78,12 @@
                 </div>
             @endforeach
         </div>
-        {{-- <div>
-            <button wire:click="teamProgressDetail()"
+        <div>
+            <button wire:click="showTeamProgressToggle()"
                 class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300 mb-4">團隊詳細調查進度</button>
-        </div> --}}
+        </div>
 
-        <div class="flex justify-start gap-8 items-start flex-wrap ">
+        <div class="flex justify-start gap-8 items-start flex-wrap {{ $showTeamProgress ? '' : 'hidden' }}">
             <div class="gray-card mb-6 space-y-3">
                 <canvas id="teamBarChart2" class="w-[400px] h-full"></canvas>
             </div>

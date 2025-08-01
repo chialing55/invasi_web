@@ -119,48 +119,50 @@ class SurveyOverview extends Component
 
         $this->allTeamInfo = $grouped_team;
         $this->showTeamInfo = $grouped_team;
-        $this->teamProgressDetail();
+        // $this->teamProgressDetail();
     }
 
 
+    public $showTeamProgress = false;
+
+    public function showTeamProgressToggle()
+    {
+        $this->showTeamProgress = !$this->showTeamProgress;
+        if ($this->showTeamProgress) {
+            $this->teamProgressDetail();
+        } else {
+            // $this->subPlotTeam = [];
+            // $this->subPlantTeam = [];
+        }
+    }
+
     public function teamProgressDetail(){
+        $this->showTeamProgress = true;
 //小樣區數量
-        $subPlot_team = SubPlotEnv2025::select('im_splotdata_2025.plot_full_id', 'plot_list.team')
-            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->get()
-            ->groupBy('team')
-            ->map(function ($rows, $team) {
-                return [
-                    'team' => $team,
-                    'total_plots' => $rows->pluck('plot_full_id')->unique()->count(),
-                ];
-            })
-            ->values()
-            ->sortByDesc('total_plots')
-            ->toArray();
+        if (empty($this->subPlotTeam) && empty($this->subPlantTeam)) {
+           
+            $subPlot_team = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+                ->select('plot_list.team', DB::raw('COUNT(DISTINCT im_splotdata_2025.plot_full_id) as total_plots'))
+                ->groupBy('plot_list.team')
+                ->orderByDesc('total_plots')
+                ->get()
+                ->toArray();
 
-        $subPlant_team = SubPlotPlant2025::select('im_spvptdata_2025.id', 'plot_list.team')
-            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
-            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->get()
-            ->groupBy('team')
-            ->map(function ($rows, $team) {
-                return [
-                    'team' => $team,
-                    'total_plants' => $rows->pluck('id')->count(),
-                ];
-            })
-            ->values()
-            ->sortByDesc('total_plnats')
-            ->toArray();
+            $subPlant_team = SubPlotPlant2025::join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
+                ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+                ->select('plot_list.team', DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'))
+                ->groupBy('plot_list.team')
+                ->orderByDesc('total_plants')
+                ->get()
+                ->toArray();
 
-
-        $this->subPlotTeam = $subPlot_team;
-        $this->subPlantTeam = $subPlant_team;
+            $this->subPlotTeam = $subPlot_team;
+            $this->subPlantTeam = $subPlant_team;
+        }
 // dd($subPlant_team);
         $this->dispatch('thisTeamProgress', data:[
-            'totalPlantsByTeam' => $subPlant_team,
-            'totalSubPlotsByTeam' => $subPlot_team,
+            'totalPlantsByTeam' => $this->subPlantTeam,
+            'totalSubPlotsByTeam' => $this->subPlotTeam,
         ]);
     }
 //選擇縣市之後

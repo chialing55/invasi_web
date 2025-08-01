@@ -180,6 +180,7 @@ class SurveyOverview extends Component
     public function surveryedPlotInfo($thisCounty)
     {
         if ($thisCounty==''){
+            $this->showTeamProgress = false;
             $this->showContyInfo = $this->allContyInfo;
             $this->showAllPlotInfo = [];  
             $this->plotList = [];

@@ -246,7 +246,7 @@ class DataExport extends Component
                 'spinfo.latinname',
                 'spinfo.chname',                
                 // 'spinfo.family',                
-                // 'spinfo.growth_form',
+                'spinfo.growth_form',
                 DB::raw("
                     CASE 
                         WHEN spinfo.naturalized != '1' 

@@ -240,9 +240,8 @@ class DataExport extends Component
                 DB::raw("CONCAT(spinfo.family, ' ', spinfo.chfamily) AS family"),
                 'spinfo.latinname',
                 'spinfo.chname',                
-                // 'spinfo.family',
-                
-                'spinfo.growth_form',
+                // 'spinfo.family',                
+                // 'spinfo.growth_form',
                 DB::raw("
                     CASE 
                         WHEN spinfo.naturalized != '1' 

@@ -874,12 +874,14 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public $plotFile;
 
+    protected $rules = [
+        'plotFile' => 'required|file|mimes:pdf|max:20480',
+    ];
+
     public function clickUploadFile()
     {
         // dd('test');
-        $this->validate([
-            'plotFile' => 'required|file|mimes:pdf|max:20480' // 20MB、限定 PDF
-        ]);
+        $this->validate(); // ✅ 使用 $rules 中定義的
 
         $this->resetErrorBag(); // ✅ 成功才重設錯誤
 

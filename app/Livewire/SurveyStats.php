@@ -56,6 +56,7 @@ class SurveyStats extends Component
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->where('im_splotdata_2025.habitat_code', $this->thisHabType)
+            ->where('spinfo.growth_form', '!=', '')
             ->select(
                 // 'spinfo.spcode',
                 'spinfo.family',

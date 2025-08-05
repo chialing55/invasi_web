@@ -43,7 +43,7 @@
             {{-- table --}}
 
             <table class="text-sm border border-gray-300">
-                <thead class=" hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10"
+                <thead class="sm:table-header-group sm:sticky sm:top-0 sm:z-10"
                     style="background-color: #F9E7AC;">
                     <tr class="border-b border-gray-300 ">
                         <x-th-sort field="family" :sort-field="$sortField" :sort-direction="$sortDirection">科名</x-th-sort>

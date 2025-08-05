@@ -162,7 +162,11 @@ class SurveyStats extends Component
         }
 
         $this->habPlantList = collect($this->habPlantList)
-            ->sortBy($this->sortField, SORT_REGULAR, $this->sortDirection === 'desc')
+            ->sort(function ($a, $b) {
+                return $this->sortDirection === 'asc'
+                    ? $a[$this->sortField] <=> $b[$this->sortField]
+                    : $b[$this->sortField] <=> $a[$this->sortField];
+            })
             ->values()
             ->toArray();
     }

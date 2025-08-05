@@ -39,17 +39,18 @@
             {{-- table --}}
 
             <table class="text-sm border border-gray-300">
-                <thead>
-                    <tr class="bg-yellow-100 text-left" style="background-color: #F9E7AC;">
-                        <th class="border px-4 py-2">科名</th>
-                        <th class="border px-4 py-2">中文科名</th>
-                        <th class="border px-4 py-2">學名</th>
-                        <th class="border px-4 py-2">中文名</th>
-                        <th class="border px-4 py-2">原生</th>
-                        <th class="border px-4 py-2">歸化</th>
-                        <th class="border px-4 py-2">特有</th>
-                        <th class="border px-4 py-2">栽培</th>
-                        <th class="border px-4 py-2">IUCN</th>
+                <thead class=" hidden sm:table-header-group sm:sticky sm:top-0 sm:z-10"
+                    style="background-color: #F9E7AC;">
+                    <tr class="border-b border-gray-300 ">
+                        <x-th-sort field="family" :sort-field="$sortField" :sort-direction="$sortDirection">科名</x-th-sort>
+                        <x-th-sort field="chfamily" :sort-field="$sortField" :sort-direction="$sortDirection">中文科名</x-th-sort>
+                        <x-th-sort field="latinname" :sort-field="$sortField" :sort-direction="$sortDirection">學名</x-th-sort>
+                        <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection">中文名</x-th-sort>
+                        <x-th-sort field="native" :sort-field="$sortField" :sort-direction="$sortDirection">原生</x-th-sort>
+                        <x-th-sort field="naturalized" :sort-field="$sortField" :sort-direction="$sortDirection">歸化</x-th-sort>
+                        <x-th-sort field="endemic" :sort-field="$sortField" :sort-direction="$sortDirection">特有</x-th-sort>
+                        <x-th-sort field="cultivated" :sort-field="$sortField" :sort-direction="$sortDirection">栽培</x-th-sort>
+                        <x-th-sort field="IUCN" :sort-field="$sortField" :sort-direction="$sortDirection">IUCN</x-th-sort>
                     </tr>
                 </thead>
                 <tbody class="list">

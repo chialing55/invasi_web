@@ -49,6 +49,7 @@ class SurveyStats extends Component
   
     }
     public string $message = '';
+    public $habPlantList = [];
     public function getPlantList()
     {
         $this->message = '';
@@ -97,6 +98,8 @@ class SurveyStats extends Component
                 return;
             }
              $this->calculateStats(collect($plantListAll));
+             $this->habPlantList = $plantListAll;
+// dd($this->habPlantList);
     }
     public array $stats = [];
 
@@ -144,6 +147,8 @@ class SurveyStats extends Component
         })->values()->toArray(); // 轉成 0, 1, 2 索引陣列     
         // dd($this->stats); // 用於除錯，查看統計結果
     }
+
+
 
 
     public function render()

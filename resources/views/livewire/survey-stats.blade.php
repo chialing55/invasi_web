@@ -65,7 +65,7 @@
                             <td class="border px-4 py-2">{{ $plant['chfamily'] ?? '--' }}</td>
                             <td class="border px-4 py-2 italic">{{ $plant['latinname'] ?? '--' }}</td>
                             <td class="border px-4 py-2">{{ $plant['chname'] ?? '--' }}</td>
-                            <td class="border px-4 py-2">{{ $plant['growth-form'] ?? '--' }}</td>
+                            <td class="border px-4 py-2">{{ $plant['growth_form'] ?? '--' }}</td>
 
                             <td class="border px-4 py-2">
                                 {!! $plant['native'] ?? 0 ? '✔' : '' !!}

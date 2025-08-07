@@ -57,7 +57,7 @@ class SurveyStats extends Component
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->where('im_splotdata_2025.habitat_code', $this->thisHabType)
-            ->where('spinfo.growth_form', '!=', '')
+            // ->where('spinfo.growth_form', '!=', '')
             ->select(
                 // 'spinfo.spcode',
                 'spinfo.family',
@@ -123,7 +123,11 @@ class SurveyStats extends Component
         $this->stats['endemic_species'] = $native->where('endemic', 1)->count();
 
         // 3. 全部植物 growth_form 統計，依自訂順序排序
-        $growthCounts = $all->groupBy('growth_form')->map->count();
+
+        $growthCounts = $all
+            ->filter(fn($item) => !empty($item['growth_form'])) // 🔸 先排除 growth_form 為空字串
+            ->groupBy('growth_form')
+            ->map->count();
         $growthSorted = collect($growthCounts)->sortDesc(); // 根據數量由多到少排序
         $this->stats['growth_form'] = $growthSorted->map(function ($count, $form) {
             return [
@@ -136,7 +140,10 @@ class SurveyStats extends Component
         $this->stats['naturalized_families'] = $naturalized->pluck('family')->unique()->count();
         $this->stats['naturalized_genera'] = $naturalized->pluck('latinname')->map(fn($n) => explode(' ', $n)[0])->unique()->count();
 
-        $naturalizedGrowthCounts = $naturalized->groupBy('growth_form')->map->count();
+       $naturalizedGrowthCounts = $naturalized
+            ->filter(fn($item) => !empty($item['growth_form'])) // 🔸 先排除 growth_form 為空字串
+            ->groupBy('growth_form')
+            ->map->count();
         $naturalizedGrowthSorted = collect($naturalizedGrowthCounts)->sortDesc(); // 根據數量由多到少排序
         // $this->stats['naturalized_growth_form'] = $naturalizedGrowthSorted->toArray();
         $this->stats['naturalized_growth_form'] = $naturalizedGrowthSorted->map(function ($count, $form) {

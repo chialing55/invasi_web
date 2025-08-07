@@ -43,13 +43,13 @@
             {{-- table --}}
 
             <table class="text-sm border border-gray-300">
-                <thead class="sm:table-header-group sm:sticky sm:top-0 sm:z-10"
-                    style="background-color: #F9E7AC;">
+                <thead class="sm:table-header-group sm:sticky sm:top-0 sm:z-10" style="background-color: #F9E7AC;">
                     <tr class="border-b border-gray-300 ">
                         <x-th-sort field="family" :sort-field="$sortField" :sort-direction="$sortDirection">科名</x-th-sort>
                         <x-th-sort field="chfamily" :sort-field="$sortField" :sort-direction="$sortDirection">中文科名</x-th-sort>
                         <x-th-sort field="latinname" :sort-field="$sortField" :sort-direction="$sortDirection">學名</x-th-sort>
                         <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection">中文名</x-th-sort>
+                        <x-th-sort field="growth-form" :sort-field="$sortField" :sort-direction="$sortDirection">生長型</x-th-sort>
                         <x-th-sort field="native" :sort-field="$sortField" :sort-direction="$sortDirection">原生</x-th-sort>
                         <x-th-sort field="naturalized" :sort-field="$sortField" :sort-direction="$sortDirection">歸化</x-th-sort>
                         <x-th-sort field="endemic" :sort-field="$sortField" :sort-direction="$sortDirection">特有</x-th-sort>
@@ -65,6 +65,7 @@
                             <td class="border px-4 py-2">{{ $plant['chfamily'] ?? '--' }}</td>
                             <td class="border px-4 py-2 italic">{{ $plant['latinname'] ?? '--' }}</td>
                             <td class="border px-4 py-2">{{ $plant['chname'] ?? '--' }}</td>
+                            <td class="border px-4 py-2">{{ $plant['growth-form'] ?? '--' }}</td>
 
                             <td class="border px-4 py-2">
                                 {!! $plant['native'] ?? 0 ? '✔' : '' !!}

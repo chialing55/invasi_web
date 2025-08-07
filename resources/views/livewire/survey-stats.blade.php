@@ -49,7 +49,7 @@
                         <x-th-sort field="chfamily" :sort-field="$sortField" :sort-direction="$sortDirection">中文科名</x-th-sort>
                         <x-th-sort field="latinname" :sort-field="$sortField" :sort-direction="$sortDirection">學名</x-th-sort>
                         <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection">中文名</x-th-sort>
-                        <x-th-sort field="growth-form" :sort-field="$sortField" :sort-direction="$sortDirection">生長型</x-th-sort>
+                        <x-th-sort field="growth_form" :sort-field="$sortField" :sort-direction="$sortDirection">生長型</x-th-sort>
                         <x-th-sort field="native" :sort-field="$sortField" :sort-direction="$sortDirection">原生</x-th-sort>
                         <x-th-sort field="naturalized" :sort-field="$sortField" :sort-direction="$sortDirection">歸化</x-th-sort>
                         <x-th-sort field="endemic" :sort-field="$sortField" :sort-direction="$sortDirection">特有</x-th-sort>

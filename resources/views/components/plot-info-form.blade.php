@@ -99,13 +99,13 @@
           <label for="slope" class="w-24 text-right">坡度</label>
           <input id="slope" name="slope" type="number" step="1"
               wire:model.defer="subPlotEnvForm.slope"
-              class="border border-gray-300 px-2 py-1 w-24 {{ $addclass }}" placeholder="-1(未調查), 0-90"
+              class="border border-gray-300 px-2 py-1 w-30 {{ $addclass }}" placeholder="-1(未調查), 0-90"
               {{ $readonly }}>
 
           <label for="aspect" class="w-24 text-right">坡向</label>
           <input id="aspect" name="aspect" type="number" step="1"
               wire:model.defer="subPlotEnvForm.aspect"
-              class="border border-gray-300 px-2 py-1 w-24 {{ $addclass }}" placeholder="-1(未調查), 0-359"
+              class="border border-gray-300 px-2 py-1 w-30 {{ $addclass }}" placeholder="-1(未調查), 0-359"
               {{ $readonly }}>
       </div>
 

@@ -5,7 +5,7 @@
         class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
-    <h2 class="text-xl font-bold mb-4">樣區查詢</h2>
+    <h2>樣區查詢</h2>
 
     <div class="space-y-4">
         <div class="md:flex md:flex-row gap-4 mb-4">

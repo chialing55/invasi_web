@@ -357,10 +357,10 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
         $this->plantFormColumns=$columns;
 
-            return [
-                'columns' => $columns,
-                'empty'   => $emptyRow,
-            ];
+        return [
+            'columns' => $columns,
+            'empty'   => $emptyRow,
+        ];
 
     }
 

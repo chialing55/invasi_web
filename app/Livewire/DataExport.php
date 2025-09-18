@@ -171,8 +171,8 @@ class DataExport extends Component
             ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
             ->select(                
                 'im_spvptdata_2025.*',
-                'spinfo.family',
-                'spinfo.chfamily',
+                'spinfo.apgfamily as family',
+                'spinfo.chfamily as chfamily',
                 'spinfo.latinname',
                 'spinfo.chname',             
                 DB::raw("
@@ -213,8 +213,9 @@ class DataExport extends Component
             })
             ->select(
                 // 'spinfo.spcode',
-                'spinfo.family',
-                'spinfo.chfamily',
+                'spinfo.plantgroup',
+                'spinfo.apgfamily as family',
+                'spinfo.chfamily as chfamily',
                 'spinfo.latinname',
                 'spinfo.chname',
                 'spinfo.growth_form',                
@@ -239,7 +240,7 @@ class DataExport extends Component
                 // 'twredlist2017.origin_type as origin_type_redlist'
             )
             ->distinct()
-            ->orderBy('spinfo.family')
+            ->orderBy('spinfo.apgfamily')
             ->orderBy('spinfo.latinname')
             ->get()
             ->toArray();
@@ -248,10 +249,10 @@ class DataExport extends Component
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->select(
                 // 'spinfo.spcode',
-                DB::raw("CONCAT(spinfo.family, ' ', spinfo.chfamily) AS family"),
+                DB::raw("CONCAT(spinfo.apgfamily, ' ', spinfo.chfamily) AS family"),
                 'spinfo.latinname',
                 'spinfo.chname',                
-                // 'spinfo.family',                
+                // 'spinfo.apgfamily',                
                 'spinfo.growth_form',
                 DB::raw("
                     CASE 

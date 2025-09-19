@@ -171,8 +171,8 @@ class DataExport extends Component
             ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
             ->select(                
                 'im_spvptdata_2025.*',
-                'spinfo.apgfamily as family',
-                'spinfo.chfamily as chfamily',
+                'spinfo.family',
+                'spinfo.chfamily',
                 'spinfo.latinname',
                 'spinfo.chname',             
                 DB::raw("
@@ -214,8 +214,8 @@ class DataExport extends Component
             ->select(
                 // 'spinfo.spcode',
                 'spinfo.plantgroup',
-                'spinfo.apgfamily as family',
-                'spinfo.chfamily as chfamily',
+                'spinfo.family',
+                'spinfo.chfamily',
                 'spinfo.latinname',
                 'spinfo.chname',
                 'spinfo.growth_form',                
@@ -240,7 +240,7 @@ class DataExport extends Component
                 // 'twredlist2017.origin_type as origin_type_redlist'
             )
             ->distinct()
-            ->orderBy('spinfo.apgfamily')
+            ->orderBy('spinfo.family')
             ->orderBy('spinfo.latinname')
             ->get()
             ->toArray();
@@ -249,7 +249,7 @@ class DataExport extends Component
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->select(
                 // 'spinfo.spcode',
-                DB::raw("CONCAT(spinfo.apgfamily, ' ', spinfo.chfamily) AS family"),
+                DB::raw("CONCAT(spinfo.family, ' ', spinfo.chfamily) AS family"),
                 'spinfo.latinname',
                 'spinfo.chname',                
                 // 'spinfo.apgfamily',                

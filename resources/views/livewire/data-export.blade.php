@@ -11,7 +11,7 @@
 
             <div class="md:flex md:flex-row md:items-center gap-2">
                 <label class="block font-semibold md:mr-2">選擇年分：</label>
-                <select id="year" wire:model="thisYear" class="border rounded p-2 w-[100px]">
+                <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
                     <option value="">- 請選擇 -</option>
                     @foreach ($yearList as $year)
                         <option value="{{ $year }}">{{ $year }}</option>
@@ -44,7 +44,7 @@
                 </select>
             </div>
         </div>
-        @if ($thisYear && $thisTeam && $thisCounty)
+        @if ($thisCensusYear && $thisTeam && $thisCounty)
 
             @if ($allPlotInfo)
                 <div class="gray-card w-fit mb-6">
@@ -95,11 +95,16 @@
                         </tbody>
                     </table>
                     <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                    <div class="mt-4">
+                    <div class="flex items-center mt-4">
                         <label class="inline-flex items-center mr-4 cursor-pointer">
                             <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx"
                                 class="form-radio text-forest focus:ring-forest">
                             <span class="ml-1">所有資料.xlsx</span>
+                        </label>
+                        <label class="inline-flex items-center mr-4 cursor-pointer">
+                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.2"
+                                class="form-radio text-forest focus:ring-forest">
+                            <span class="ml-1">統計表格.xlsx</span>
                         </label>
                     </div>
                     <div class="flex items-center mt-2">
@@ -130,7 +135,7 @@
 
 
                     <div class="mt-4 text-right">
-                        <button wire:click="downloadSelected" class="btn-submit">下載選取樣區</button>
+                        <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>
                     </div>
 
                 </div>

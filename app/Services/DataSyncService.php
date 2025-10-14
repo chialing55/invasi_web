@@ -86,7 +86,7 @@ class DataSyncService
                 // }
 
                 foreach ($data as $key => $value) {
-                    if ($key === 'updated_at' || $key === 'created_at' || $key === 'created_by' || $key === 'updated_by') {
+                    if ($key === 'updated_at' || $key === 'created_at' || $key === 'created_by' || $key === 'updated_by' || $key === 'census_year') {
                         continue; // ✅ 排除 updated_at
                     }
                     if (($existing[$key] ?? null) != $value) {

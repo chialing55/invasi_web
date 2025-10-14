@@ -18,9 +18,13 @@ use App\Helpers\PlotHelper;
 use App\Helpers\PlotCompletedHelper;
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
+use App\Support\AnalysisHelper;
 
 use App\Exports\PlotExport;
+use App\Exports\PlantDataExport;
+use App\Exports\PlantListExport;
 use App\Exports\MultiSheetExport;
+use App\Exports\StatsMultiSheetExport;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 use Maatwebsite\Excel\Excel;
 use Illuminate\Support\Facades\Storage;
@@ -36,17 +40,17 @@ class DataExport extends Component
     public $thisTeam;
     public $thisPlot;
     public $yearList = [];
-    public $thisYear = null;
+    public $thisCensusYear = null;
     public function mount()
     {
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
-        $this->yearList = SubPlotEnv2025::selectRaw('year')
-            ->distinct()
-            ->orderBy('year', 'desc')
-            ->pluck('year')
-            ->toArray();
-        $this->thisYear ??= date('Y'); // 如果未指定才設定
+        $this->yearList = PlotList2025::where('census_year', '>=', 2025)
+                ->distinct()
+                ->orderByDesc('census_year')
+                ->pluck('census_year')
+                ->toArray();
+        $this->thisCensusYear ??= date('Y'); // 如果未指定才設定
     }
     //選擇團隊之後
     public function loadCountyList($thisteam)
@@ -58,10 +62,17 @@ class DataExport extends Component
 
         $this->thisTeam = $thisteam;
         if ($thisteam === 'All') {
-            $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
+            $this->countyList = PlotList2025::select('county')
+                ->when(!blank($this->thisCensusYear), fn($q) =>
+                    $q->where('census_year', $this->thisCensusYear)
+                )
+                ->distinct()->pluck('county')->toArray();
 
         } else {
             $this->countyList = PlotList2025::where('team', $thisteam)
+                ->when(!blank($this->thisCensusYear), fn($q) =>
+                    $q->where('census_year', $this->thisCensusYear)
+                )
                 ->select('county')->distinct()->pluck('county')->toArray();
 
         }
@@ -97,7 +108,7 @@ class DataExport extends Component
 
         $plotListQuery = SubPlotEnv2025::select('im_splotdata_2025.plot as plot')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->where('year', $this->thisYear);
+            ->where('year', $this->thisCensusYear);
 
 // dd($thisCounty);
 
@@ -156,130 +167,6 @@ class DataExport extends Component
     public function downloadSelected()
     {
 
-        $envdata = SubPlotEnv2025::whereIn('im_splotdata_2025.plot', $this->selectedPlots)
-            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->select(
-                'im_splotdata_2025.*',
-                'plot_list.county',
-            )
-            ->orderby('im_splotdata_2025.plot_full_id', 'asc')
-            ->get()->toArray();
-        $plantdata = SubPlotPlant2025::leftjoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
-            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
-            ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
-            ->select(                
-                'im_spvptdata_2025.*',
-                'spinfo.family',
-                'spinfo.chfamily',
-                'spinfo.latinname',
-                'spinfo.chname',             
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                            AND spinfo.cultivated != '1' 
-                            AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 
-                        ELSE 0 
-                    END AS native
-                "),
-                'spinfo.endemic',
-                'spinfo.naturalized',
-                'spinfo.cultivated',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
-                        ELSE twredlist2017.IUCN
-                    END AS IUCN
-                "),
-                // 'twredlist2017.origin_type as origin_type_redlist',
-                'plot_list.county',
-                'im_splotdata_2025.plot',
-                'im_splotdata_2025.habitat_code',
-                'im_splotdata_2025.subplot_id',
-            )
-            ->orderby('im_spvptdata_2025.plot_full_id', 'asc')
-            ->orderby('im_spvptdata_2025.coverage', 'desc')
-            ->get()
-            ->toArray();
-
-        $plantList = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
-            ->whereIn('im_spvptdata_2025.plot_full_id', function ($query) {
-                $query->select('plot_full_id')
-                    ->from('im_splotdata_2025')
-                    ->whereIn('plot', $this->selectedPlots);
-            })
-            ->select(
-                // 'spinfo.spcode',
-                'spinfo.plantgroup',
-                'spinfo.family',
-                'spinfo.chfamily',
-                'spinfo.latinname',
-                'spinfo.chname',
-                'spinfo.growth_form',                
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                            AND spinfo.cultivated != '1' 
-                            AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 
-                        ELSE 0 
-                    END AS native
-                "),
-                'spinfo.endemic',
-                'spinfo.naturalized',
-                'spinfo.cultivated',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
-                        ELSE twredlist2017.IUCN
-                    END AS IUCN
-                "),
-                // 'twredlist2017.origin_type as origin_type_redlist'
-            )
-            ->distinct()
-            ->orderBy('spinfo.family')
-            ->orderBy('spinfo.latinname')
-            ->get()
-            ->toArray();
-
-        $plantListAll = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
-            ->select(
-                // 'spinfo.spcode',
-                DB::raw("CONCAT(spinfo.family, ' ', spinfo.chfamily) AS family"),
-                'spinfo.latinname',
-                'spinfo.chname',                
-                // 'spinfo.apgfamily',                
-                'spinfo.growth_form',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                            AND spinfo.cultivated != '1' 
-                            AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 
-                        ELSE 0 
-                    END AS native
-                "),
-                'spinfo.endemic',
-                'spinfo.naturalized',
-                'spinfo.cultivated',                
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
-                        ELSE twredlist2017.IUCN
-                    END AS IUCN
-                "),
-                // 'twredlist2017.origin_type as origin_type_redlist'
-            )
-            ->distinct()
-            ->orderBy('family')
-            ->orderBy('spinfo.latinname')
-            ->get()
-            ->toArray();
-
         if ($this->downloadFormat=='txt.1'){
             $this->downloadFormat='txt';
             $dataType = 'env';
@@ -292,6 +179,9 @@ class DataExport extends Component
         } else if ($this->downloadFormat=='xlsx.1'){
             $this->downloadFormat='xlsx';
             $dataType = 'allplantlist';
+        } else if ($this->downloadFormat=='xlsx.2'){
+            $this->downloadFormat='xlsx';
+            $dataType = 'statsTable';
         } else {
             $dataType = 'plotinfo';
         }
@@ -302,6 +192,8 @@ class DataExport extends Component
             'txt'  => Excel::CSV // txt 實際上用 CSV 格式 + 自訂分隔符
         ];
 
+        // $rows = AnalysisHelper::buildHabitatShannonIndex($envdata, $plantdata);
+        // dd($rows);
 
         $format = $formatConstants[$this->downloadFormat] ?? Excel::CSV;
         $ext = $this->downloadFormat;
@@ -311,28 +203,35 @@ class DataExport extends Component
         // ✅ 如果為 xlsx，使用多工作表
         if ($this->downloadFormat === 'xlsx' && $dataType=='plotinfo') {
             return ExcelFacade::download(
-                new MultiSheetExport($envdata, $plantdata, $plantList, $this->downloadFormat),
+                new MultiSheetExport($this->selectedPlots, $this->downloadFormat),
                 "$prefix.xlsx",
                 $format
             );
         } else if ($this->downloadFormat === 'xlsx' && $dataType=='allplantlist') {
             // ✅ 全部植物名錄
             return ExcelFacade::download(
-                new PlotExport($plantListAll, $this->downloadFormat, '植物名錄', true), // 👉 第四個參數為 true → 合併 family
+                new PlantListExport($this->selectedPlots, '1', $this->downloadFormat, '植物名錄', true), // 👉 第四個參數為 true → 合併 family
                 "allplantlist.xlsx",
+                $format
+            );
+        } else if ($this->downloadFormat === 'xlsx' && $dataType=='statsTable') {
+            // ✅ 統計表格
+            return ExcelFacade::download(
+                new StatsMultiSheetExport($this->selectedPlots, $this->downloadFormat),
+                "$prefix-statsTable.xlsx",
                 $format
             );
         } else if ($this->downloadFormat === 'txt' && $dataType=='env') {
             // ✅ 環境資料 txt
             return ExcelFacade::download(
-                new PlotExport($envdata, $this->downloadFormat),
+                new PlotExport($this->selectedPlots, $this->downloadFormat, '環境資料'),
                 "$prefix-env.$ext",
                 $format
             );
         } else if ($this->downloadFormat === 'txt' && $dataType=='plant') {
             // ✅ 植物資料 txt
             return ExcelFacade::download(
-                new PlotExport($plantdata, $this->downloadFormat),
+                new PlantDataExport($this->selectedPlots, $this->downloadFormat, '植物資料'),
                 "$prefix-plant.$ext",
                 $format
             );
@@ -340,7 +239,7 @@ class DataExport extends Component
         } else if ($this->downloadFormat === 'txt' && $dataType=='plantlist') {
             // ✅ 植物名錄 txt
             return ExcelFacade::download(
-                new PlotExport($plantList, $this->downloadFormat),
+                new PlantListExport($this->selectedPlots, '2', $this->downloadFormat, '植物名錄', false),
                 "$prefix-plantlist.$ext",
                 $format
             );

@@ -9,14 +9,14 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Illuminate\Support\Facades\DB;
-use App\Models\SubPlotEnv2025;
+use App\Models\SubPlotPlant2025;
 
-class PlotExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvSettings, WithTitle
+class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvSettings, WithTitle
 {
     public function __construct(
         protected array  $selectedPlots,
         protected string   $format,
-        protected string   $title  = '環境資料',
+        protected string   $title  = '植物資料',
         protected array    $excluded = [
             'island_category','plot_env','validation_message','created_by','created_at',
             'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error'
@@ -24,16 +24,48 @@ class PlotExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvS
         protected ?array   $headings = null // 若想固定表頭，可在建構子直接給
     ) {}
 
+    // === 查詢 ===
     public function query(): Builder
     {
-        return SubPlotEnv2025::whereIn('im_splotdata_2025.plot', $this->selectedPlots)
+        return SubPlotPlant2025::query()
+            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
+            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->leftJoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
+            ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
             ->select(
-                'im_splotdata_2025.*',
+                'im_spvptdata_2025.*',
+                'spinfo.family',
+                'spinfo.chfamily',
+                'spinfo.latinname',
+                'spinfo.chname',
+                DB::raw("
+                    CASE 
+                        WHEN spinfo.naturalized != '1' 
+                          AND spinfo.cultivated  != '1' 
+                          AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
+                        THEN 1 ELSE 0 
+                    END AS native
+                "),
+                'spinfo.endemic',
+                'spinfo.naturalized',
+                'spinfo.cultivated',
+                DB::raw("
+                    CASE 
+                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
+                        ELSE twredlist2017.IUCN
+                    END AS IUCN
+                "),
                 'plot_list.county',
+                'im_splotdata_2025.plot',
+                'im_splotdata_2025.habitat_code',
+                'im_splotdata_2025.subplot_id',
             )
-            ->orderby('im_splotdata_2025.plot_full_id', 'asc');
+            ->orderBy('im_spvptdata_2025.plot_full_id')
+            ->orderBy('im_spvptdata_2025.coverage', 'desc');
+            // ⚠️ 不要 ->get()，直接回傳 Builder
     }
+
 
     // === 每列映射為陣列（會自動排除不需要的欄位） ===
     public function map($row): array
@@ -66,5 +98,4 @@ class PlotExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvS
     {
         return $this->title;
     }
-
 }

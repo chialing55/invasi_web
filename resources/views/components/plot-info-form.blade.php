@@ -11,7 +11,12 @@
               $readonly = '';
               $addclass = '';
           }
+          $note = '';
+          if ($subPlotEnvForm['year'] == '') {
+              $note = '預設為 ' . date('Y') . ' 年；';
+          }
       @endphp
+
       <div class="md:flex gap-2 items-center">
           <label for="date" class="w-24 text-right">調查日期</label>
           <input id="date" name="date" type="date" wire:model.defer="subPlotEnvForm.date"
@@ -27,7 +32,7 @@
       </div>
 
       <!-- 座標與編號 -->
-      <div class="md:flex gap-2 items-center">
+      <div class="md:flex gap-2 items-center ">
           <label for="dd97_x" class="w-24 text-right">經度</label>
           <input id="dd97_x" name="dd97_x" type="number" step="any" wire:model.defer="subPlotEnvForm.dd97_x"
               class="border border-gray-300 px-2 py-1 w-32 {{ $addclass }}" placeholder="118 - 123"
@@ -125,5 +130,11 @@
           <input id="original_plot_id" name="original_plot_id" type="text"
               wire:model.defer="subPlotEnvForm.original_plot_id" class="border border-gray-300 px-2 py-1 w-64"
               placeholder="生育地類型小樣方流水號(ex: 0101)">
+      </div>
+      <div class="md:flex gap-2 items-center">
+          <label for="census_year" class="w-24 text-right text-gray-500">調查年度</label>
+          <input id="census_year" name="census_year" type="text" wire:model.defer="subPlotEnvForm.census_year"
+              class="border border-gray-300 px-2 py-1 w-32 {{ $addclass }} text-gray-500" {{ $readonly }}>
+          <span class="text-xs text-gray-500">* {{ $note }}同一樣區為同一調查年度</span>
       </div>
   </div>

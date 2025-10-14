@@ -88,6 +88,8 @@ class PlotCompletedCheckHelper
         $plotFile = '0';
         $plotHabData = '0';
         $plotCompleted = '0';
+        $plotHasData = '0';
+        $plotCensusYear = null;
 
         $prefix = substr($plot, 0, 6);
 
@@ -111,6 +113,8 @@ class PlotCompletedCheckHelper
             }) ? '1' : '0';
 
             $plotFile = !empty($thisPLotData?->file_uploaded_at) ? '1' : '0';
+            $plotHasData = '1';
+            $plotCensusYear = $thisPLotData?->census_year;
         }
 
         $plotCompleted = (
@@ -123,7 +127,7 @@ class PlotCompletedCheckHelper
 
         return compact(
             'dataCorrect', 'subPlotImage', 'subPlotData',
-            'plotFile', 'plotHabData', 'plotCompleted'
+            'plotFile', 'plotHabData', 'plotCompleted', 'plotHasData', 'plotCensusYear'
         );
     }
 

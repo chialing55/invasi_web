@@ -26,22 +26,35 @@
         <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標：完成 20-25 個 1 ×1 km<sup>2</sup>樣區</span><span
                 class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
         <div class="gray-card mb-6 space-y-3">
+            {{-- 圖說 --}}
+            <div class="flex flex-wrap gap-3 text-xs text-gray-700 mt-1 justify-end">
+                <div class="flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #2E7D32"></span>
+                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #F87171"></span>
+                    <span>已完成</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #adaeaeff"></span>
+                    <span>已調查</span>
+                </div>
+            </div>
             @foreach ($showTeamInfo as $row)
                 @php
                     $target = 20;
                     $plotDone = $row['completed_plots'];
+                    $plotEntry = $row['has_data_plots'] > 0 ? $row['has_data_plots'] - $row['completed_plots'] : 0;
                     $plotTotal = 25;
 
-                    $plotPercent = $plotTotal > 0 ? round(($plotDone / $plotTotal) * 100) : 0;
-
+                    $plotDonePercent = $plotTotal > 0 ? round(($plotDone / $plotTotal) * 100) : 0;
+                    $plotEntryPercent = $plotTotal > 0 ? round(($plotEntry / $plotTotal) * 100) : 0;
                     // 顏色根據是否達標
-                    $plotColor =
+                    $plotDoneColor =
                         $plotDone >= $plotTotal
                             ? '#2E7D32' // 深綠（滿分）
                             : ($plotDone >= $target
                                 ? '#3B7A57'
                                 : '#F87171'); // 綠 or 紅
-
+                    $plotEntryColor = $plotEntry > 0 ? '#adaeaeff' : '#CBD5E0';
                     $reached = $plotDone >= $target;
                 @endphp
 
@@ -53,7 +66,7 @@
                     <div class="w-[110px] md:w-[220px] text-sm">
                         <span
                             class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[90px] inline-block">
-                            {{ $plotDone }} / {{ $plotTotal }} ({{ $plotPercent }}%)
+                            {{ $plotDone }} / {{ $plotTotal }} ({{ $plotDonePercent }}%)
                         </span>
                         <span class="hidden md:inline">
                             @if ($plotDone >= $plotTotal)
@@ -71,10 +84,30 @@
                     </div>
 
                     {{-- 進度條（手機版寬度變小） --}}
-                    <div class="w-[180px] sm:w-[240px] md:w-[500px] h-4 bg-[#CBD5E0] rounded overflow-hidden">
-                        <div class="h-4 rounded"
-                            style="width: {{ $plotPercent }}%; background-color: {{ $plotColor }}"></div>
+                    @php
+                        if ($plotEntryPercent == 0) {
+                            $rounded = 'rounded';
+                        } else {
+                            $rounded = 'rounded-l';
+                        }
+                    @endphp
+                    <div class="relative w-[180px] sm:w-[240px] md:w-[500px] h-4 bg-[#CBD5E0] rounded overflow-hidden">
+                        @php
+                            $done = max(0, min(100, (float) $plotDonePercent));
+                            $entry = max(0, min(100 - $done, (float) $plotEntryPercent));
+                            $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
+                        @endphp
+
+                        <div class="absolute left-0 h-4 {{ $firstClass }}"
+                            style="width: {{ $done }}%; background-color: {{ $plotDoneColor }}"></div>
+
+                        @if ($entry > 0)
+                            <div class="absolute h-4 rounded-r"
+                                style="left: {{ $done }}%; width: {{ $entry }}%; background-color: {{ $plotEntryColor }}">
+                            </div>
+                        @endif
                     </div>
+
                 </div>
             @endforeach
         </div>
@@ -108,12 +141,15 @@
             <div class="flex flex-wrap justify-start gap-3">
                 @foreach ($showContyInfo as $row)
                     @php
+                        $plotEntry = $row['has_data_plots'] > 0 ? $row['has_data_plots'] - $row['completed_plots'] : 0;
 
                         $plotPercent =
                             $row['total_plots'] > 0 ? round(($row['completed_plots'] / $row['total_plots']) * 100) : 0;
+                        $plotEntryPercent =
+                            $row['total_plots'] > 0 ? round(($plotEntry / $row['total_plots']) * 100) : 0;
 
                         $plotColor = $plotPercent > 0 ? '#3B7A57' : '#CBD5E0'; // 森林綠 or 淺灰
-
+                        $plotEntryColor = $plotEntry > 0 ? '#adaeaeff' : '#CBD5E0';
                     @endphp
 
                     <div wire:click="surveryedPlotInfo('{{ $row['county'] }}')" wire:key="card-{{ $row['county'] }}"
@@ -126,10 +162,24 @@
                         <div class="mb-3">
                             <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} / {{ $row['total_plots'] }}
                             </p>
-                            <div class="w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">
-                                <div class="h-full rounded"
-                                    style="width: {{ $plotPercent }}%; background-color: {{ $plotColor }}"></div>
+
+                            <div class="relative w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">
+                                @php
+                                    $done = max(0, min(100, (float) $plotPercent));
+                                    $entry = max(0, min(100 - $done, (float) $plotEntryPercent));
+                                    $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
+                                @endphp
+
+                                <div class="absolute left-0 h-4 {{ $firstClass }}"
+                                    style="width: {{ $done }}%; background-color: {{ $plotColor }}"></div>
+
+                                @if ($entry > 0)
+                                    <div class="absolute h-4 rounded-r"
+                                        style="left: {{ $done }}%; width: {{ $entry }}%; background-color: {{ $plotEntryColor }}">
+                                    </div>
+                                @endif
                             </div>
+
                         </div>
                     </div>
                 @endforeach
@@ -150,6 +200,19 @@
         </div>
         <div>
             @if ($plotList)
+                <div class="md:flex md:flex-row gap-4 mb-4">
+                    <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0"
+                        wire:key="refresh-{{ $refreshKey }}">
+                        <label class="block font-semibold">選擇調查年度：</label>
+                        <select id="census_year" wire:model="thisCensusYear" class="border rounded p-2 w-40"
+                            wire:change="loadThisCensusYearData($event.target.value)">
+                            <option value="all">-- All --</option>
+                            @foreach ($censusYearList as $year)
+                                <option value="{{ $year }}">{{ $year }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
                 <div class="md:flex md:flex-row gap-4 mb-8">
                     <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0"
                         wire:key="refresh-{{ $refreshKey }}">
@@ -177,7 +240,7 @@
                         <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0 ml-0 md:ml-4">
                             <button wire:click="loadPlotInfo('')"
                                 class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300">
-                                顯示全部樣區
+                                回樣區列表
                             </button>
                         </div>
                     @endif
@@ -216,7 +279,8 @@
 
                         @foreach ($grouped as $plot => $rows)
                             <tbody class="group hover:bg-amber-800/10 cursor-pointer bg-white"
-                                wire:click="loadPlotInfo('{{ $plot }}')" wire:key="plot-{{ $plot }}">
+                                wire:click="loadPlotInfo('{{ $plot }}')"
+                                wire:key="plot-{{ $plot }}">
                                 @foreach ($rows as $index => $row)
                                     <tr>
                                         @if ($index === 0)

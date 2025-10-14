@@ -238,6 +238,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $this->subPlotEnvForm[$col] = '';
         }
         $this->subPlotEnvForm['plot'] = $this->thisPlot;
+        $this->subPlotEnvForm['census_year'] = date('Y');
         // dd($this->subPlotEnvForm);
         $this->showPlotEntryTable = true;
         $this->showPlantEntryTable = false;
@@ -251,9 +252,11 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $subPlotEnvForm=[];
 
         $data = SubPlotEnv2025::where('plot_full_id', $subPlot)->first();
+        $census_year = PlotList2025::where('plot', $this->thisPlot)->value('census_year');
 
         if ($data) {
             $subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
+            $subPlotEnvForm['census_year'] = $census_year;
         } 
         // dd($data);
         // $subPlotAreaMap = config('item_list.sub_plot_area');
@@ -588,7 +591,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $newdata = $this->addUnderstoryPlot($subPlotEnvForm);            
         }
     
-    $originalData = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)->get()->toArray();
+        $originalData = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)->get()->toArray();
 
 //   dd($originalData);    
 
@@ -620,9 +623,47 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $msg .= '環境資料無任何變更。';
         }
 
-        session()->flash('saveMsg', $msg);
 
-  
+        //更新調查年度
+
+        $upyear = $subPlotEnvForm['census_year'];
+        $record = PlotList2025::where('plot', $this->thisPlot)->first();
+
+        if ($record) {
+            $originalCensusYear = $record->census_year;
+            $recordId = $record->id;
+        } else {
+            $originalCensusYear = null; // 或預設值
+            $recordId = null;
+        }
+
+        if ($upyear < '2025') {
+            $msg .= " 調查年度不得小於 2025 年。";
+            return;
+        } else if ($upyear != $originalCensusYear) {
+            PlotList2025::where('plot', $this->thisPlot)
+                ->update(['census_year' => $upyear, 'updated_by' => $this->creatorCode]); 
+            if ($originalCensusYear != '0'){
+            $msg .= " 已將樣區調查年度更新為 {$upyear} 。";
+
+            $diff['census_year'] = [
+                'old' => $originalCensusYear,
+                'new' => $upyear,
+            ];
+            FixLog::create([
+                'table_name' => 'plot_list',
+                'record_id' => $recordId,
+                'changes' => $diff,
+                'modified_by' => $this->creatorCode,
+                'modified_at' => now(),
+            ]);
+
+            }
+        } 
+
+
+        session()->flash('saveMsg', $msg);
+ 
         $this->loadPlotInfo($this->thisPlot);
         $this->thisSubPlot=$subPlotEnvForm['plot_full_id'];
         $this->updatedThisSubPlot($subPlotEnvForm['plot_full_id']);

@@ -24,6 +24,7 @@ class SurveyOverview extends Component
     public $thisCounty;
     public $plotList=[];
     public $thisPlot='';
+    public $thisYear='2025';
 
     public $totalPlotCount = 0;
     public $completedSubPlotCount = 0;
@@ -47,6 +48,7 @@ class SurveyOverview extends Component
         $user = Auth::user(); // 取代 auth()->user()
         $this->userOrg = $user->organization ?? '未知單位';
         $this->userRole = $user->role;
+        $this->thisCensusYear = date('Y');
 
     }
     public $allContyInfo = [];
@@ -60,20 +62,32 @@ class SurveyOverview extends Component
     public $thisPlotWithStatus = [];
     public function allContyInfo()
     {
+        //各團隊調查進度，只取調查年度為 [今年] 的樣區
         // 先取得所有 plot 的基本資料
-        $plotList = DB::connection('invasiflora')->table('plot_list')->get();
+        $plotList = PlotList2025::all()->toArray();
+
+        $currentYear = (int)date('Y');
+
+        // $envDataByPlot = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+        //     ->where('plot_list.census_year', $currentYear)
+        //     ->get(['im_splotdata_2025.*'])
+        //     ->groupBy('plot');
+
+        // dd($envDataByPlot->toArray());
 
         $envDataByPlot = SubPlotEnv2025::all()->groupBy('plot');
+
         $plantDataByPrefix = SubPlotPlant2025::all()->groupBy(function ($row) {
             return substr($row->plot_full_id, 0, 6);
         });
         $plotListByPlot = PlotList2025::all()->keyBy('plot');
+// dd($plotListByPlot->toArray());
         $habDataByPlot = PlotHab::all()->groupBy('plot');
 
         $plotWithStatus = collect($plotList)->map(function ($row) use (
             $envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot
         ) {
-            $row = (array) $row;
+    
             $plot = $row['plot'];
 
             $status = PlotCompletedCheckHelper::getPlotCompletedInfo_v2(
@@ -96,6 +110,7 @@ class SurveyOverview extends Component
                     'teams' => $rows->pluck('team')->unique()->implode(', '),
                     'total_plots' => $uniquePlots->count(),
                     'completed_plots' => $completedPlots->count(),
+                    'has_data_plots' => $rows->filter(fn ($row) => $row['plotHasData'] === '1')->pluck('plot')->unique()->count(),
                 ];
             })
             ->values()
@@ -107,15 +122,21 @@ class SurveyOverview extends Component
         // group by team
         $grouped_team = $plotWithStatus
             ->groupBy('team')
-            ->map(function ($rows, $team) {
+            ->map(function ($rows, $team) use ($currentYear) {
                 $uniquePlots = $rows->pluck('plot')->unique();
-                $completedPlots = $rows->filter(fn ($row) => $row['plotCompleted'] === '1')->pluck('plot')->unique();
+                $rowsThisYear = $rows->filter(function ($row) use ($currentYear) {
+                    $y = (int) ($row['plotCensusYear'] ?? $row['census_year'] ?? 0);
+                    return $y === $currentYear;
+                });
+                $completedPlots = $rowsThisYear->filter(fn ($row) => $row['plotCompleted'] === '1')->pluck('plot')->unique();
+                $hasDataPlots = $rowsThisYear->filter(fn ($row) => $row['plotHasData'] === '1')->pluck('plot')->unique();
 
                 return [
                     'county' => $rows->pluck('county')->unique()->implode(', '),
                     'team' => $team,
                     'total_plots' => $uniquePlots->count(),
                     'completed_plots' => $completedPlots->count(),
+                    'has_data_plots' => $hasDataPlots->count(),
                 ];
             })
             ->values()
@@ -124,7 +145,7 @@ class SurveyOverview extends Component
 
         $this->allTeamInfo = $grouped_team;
         $this->showTeamInfo = $grouped_team;
-// dd($this->showTeamInfo);
+// dd($this->allTeamInfo);
         // 存到元件的 public 屬性
         $this->allContyInfo = $grouped_county;
         $this->showContyInfo = $grouped_county;
@@ -150,10 +171,12 @@ class SurveyOverview extends Component
     public function teamProgressDetail(){
         $this->showTeamProgress = true;
 //小樣區數量
+        $currentYear = date('Y');
         if (empty($this->subPlotTeam) && empty($this->subPlantTeam)) {
            
             $subPlot_team = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
                 ->select('plot_list.team', DB::raw('COUNT(DISTINCT im_splotdata_2025.plot_full_id) as total_plots'))
+                ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')
                 ->orderByDesc('total_plots')
                 ->get()
@@ -162,6 +185,7 @@ class SurveyOverview extends Component
             $subPlant_team = SubPlotPlant2025::join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
                 ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
                 ->select('plot_list.team', DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'))
+                ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')
                 ->orderByDesc('total_plants')
                 ->get()
@@ -177,6 +201,15 @@ class SurveyOverview extends Component
         ]);
     }
 //選擇縣市之後
+    public $thisCensusYear = '';
+    public $censusYearList = [];    
+
+    public function loadThisCensusYearData($value)
+    {
+        $this->thisCensusYear = $value;
+        $this->surveryedPlotInfo($this->thisCounty);
+    }
+
     public function surveryedPlotInfo($thisCounty)
     {
         if ($thisCounty==''){
@@ -187,6 +220,7 @@ class SurveyOverview extends Component
             $this->allPlotInfo=[];
             $this->filteredSubPlotSummary =[];
             $this->thisCounty = '';
+            $this->thisCensusYear = (int) date('Y');
         } else {
             $this->showContyInfo = collect($this->allContyInfo)
                 ->filter(function ($row) use ($thisCounty) {
@@ -195,7 +229,32 @@ class SurveyOverview extends Component
                 ->values()
                 ->toArray();
             $this->thisCounty = $thisCounty;
-            $plotList = PlotList2025::where('county', $thisCounty)->pluck('plot')->toArray();
+            if($this->thisCensusYear == 'all'){
+                $this->thisCensusYear = '';
+            }   
+
+//取得樣區清單
+
+            $plotList = PlotList2025::query()
+                ->where('county', $thisCounty)
+                ->when(!blank($this->thisCensusYear), fn($q) =>
+                    $q->where('census_year', $this->thisCensusYear)
+                )
+                ->pluck('plot')
+                ->toArray();
+            if (empty($plotList)) {
+                $this->thisCensusYear = '';
+                $plotList = PlotList2025::where('county', $thisCounty)->pluck('plot')->toArray();               
+            }
+
+
+            $this->censusYearList = PlotList2025::where('county', $thisCounty)
+                ->where('census_year', '>=', 2025)
+                ->distinct()
+                ->orderByDesc('census_year')
+                ->pluck('census_year')
+                ->toArray();
+
             $this->plotList = $plotList;
             $this->filteredSubPlotSummary =[];
             $this->subPlotSummary = [];
@@ -203,9 +262,7 @@ class SurveyOverview extends Component
             $this->dispatch('thisPlotUpdated');
             $this->thisPlotFile = null;
 
-            $this->loadAllPlotInfo($plotList);
-
-            
+            $this->loadAllPlotInfo($plotList);            
         }
 
     }

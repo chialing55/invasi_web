@@ -28,6 +28,10 @@ use App\Helpers\DateHelper;
 use App\Models\SpcodeIndex;
 use App\Models\SubPlotEnv2010;
 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Throwable;
+
 // use Illuminate\Http\Request;
 use Livewire\WithFileUploads;
 class EntryEntry extends Component
@@ -866,6 +870,97 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
     public $photo;
 
     public function clickUploadPhoto()
+    {
+        $this->resetErrorBag();
+
+        // 1) 驗證（20MB、限定常見圖片格式）
+        $this->validate([
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:20480',
+        ], [
+            'photo.required' => '請先選擇檔案',
+            'photo.image'    => '檔案必須是圖片格式',
+            'photo.mimes'    => '只接受 JPG、PNG 或 WEBP',
+            'photo.max'      => '檔案不可超過 20 MB',
+        ]);
+
+        $hab = substr($this->thisSubPlot, 6, 2);
+        // 依原始副檔名命名，避免硬轉 .jpg 導致 MIME 不一致
+        $ext = strtolower($this->photo->getClientOriginalExtension() ?: $this->photo->extension() ?: 'jpg');
+        $filename = $this->thisSubPlot . '.' . $ext;
+
+        $relativeDir = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+        $targetPath  = "{$relativeDir}/{$filename}";
+
+        $disk = Storage::disk('public'); // 對應 storage/app/public（需有 storage:link）
+
+        try {
+            DB::beginTransaction();
+
+            // 2) 確保目錄存在（用 Storage，避免 public_path()）
+            $disk->makeDirectory($relativeDir);
+
+            // 3) 刪舊檔（確保刪的是同一個 disk 的檔案）
+            if ($disk->exists($targetPath)) {
+                $disk->delete($targetPath);
+            }
+
+            // 4) 原子寫入：先丟到暫存檔，再 rename 成正式檔名
+            $tmpName = $filename . '.tmp_' . Str::random(8);
+            $disk->putFileAs($relativeDir, $this->photo, $tmpName); // 寫入暫存檔
+            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);  // 同 disk rename 幾乎是原子操作
+
+            // 5) 更新本小樣區 DB（成功寫檔後才更新）
+            SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)->update([
+                'file_uploaded_at' => now(),
+                'file_uploaded_by' => $this->creatorCode,
+                // 若資料表有路徑欄位可同步寫入（沒有就移除）
+                'file_path'        => $targetPath,
+            ]);
+
+            // 6) 若 08/09，鏡像到 88/99（也複製檔案，避免前端找不到）
+            if ($hab === '08' || $hab === '09') {
+                $copyHab     = $hab === '08' ? '88' : '99';
+                $copySubPlot = substr($this->thisSubPlot, 0, 6) . $copyHab . substr($this->thisSubPlot, 8);
+
+                $copyDir  = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$copyHab}";
+                $copyPath = "{$copyDir}/{$filename}";
+
+                $disk->makeDirectory($copyDir);
+                // 同 disk 直接 copy，效能/一致性較好
+                $disk->copy($targetPath, $copyPath);
+
+                SubPlotEnv2025::where('plot_full_id', $copySubPlot)->update([
+                    'file_uploaded_at' => now(),
+                    'file_uploaded_by' => $this->creatorCode,
+                    'file_path'        => $copyPath,
+                ]);
+            }
+
+            DB::commit();
+
+            $this->loadPhotoInfo();
+            session()->flash('photoUploadSuccess', '上傳成功！');
+            $this->photo = null;
+
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            FixLog::create([
+                'table_name' => 'upload_photo_error',
+                'record_id' => $this->thisCounty."_".$this->thisPlot."_".$this->thisSubPlot,
+                'changes' => 'Error: ' . $e->getMessage(),
+                'modified_by' => $this->creatorCode,
+                'modified_at' => now(),
+            ]);
+
+            // 明確的使用者訊息（不暴露細節）
+            $this->addError('photo', '上傳失敗，請稍後再試或聯絡管理者。');
+        }
+    }
+
+
+
+    public function clickUploadPhoto_o()
     {
         // dd('test');
         // $request->validate([

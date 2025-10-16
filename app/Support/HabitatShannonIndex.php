@@ -61,7 +61,30 @@ class HabitatShannonIndex
             ->get();
 
         if ($rows->isEmpty()) return [];
+        /* === 新增：依⑤公式計「各生育地的歸化物種平均覆蓋度(%)」 === */
+        /* 先算每個小樣方的「總覆蓋度」與「歸化覆蓋度」，再把(歸化/總*100)做平均 */
+        $alienCovExpr = "
+        CASE
+        WHEN s.naturalized = '1' OR s.cultivated = '1' OR IFNULL(s.uncertain,'0') = '1'
+        THEN p.coverage ELSE 0
+        END";
 
+        $sub = DB::connection('invasiflora')->table('im_splotdata_2025 as e')
+            ->leftJoin('im_spvptdata_2025 as p', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->leftJoin('spinfo as s', 's.spcode', '=', 'p.spcode')
+            ->whereIn('e.plot', $selectedPlots)
+            ->selectRaw("{$habExpr} as hab, e.plot_full_id as plot_full_id,
+                        SUM(p.coverage)                 as total_cov,
+                        SUM({$alienCovExpr})            as alien_cov")
+            ->groupBy('hab','e.plot_full_id');
+
+        $avgPctByHab = DB::connection('invasiflora')->query()->fromSub($sub, 't')
+            ->selectRaw("hab,
+                AVG(CASE WHEN total_cov > 0 THEN 100 * alien_cov / total_cov ELSE 0 END) AS avg_pct")
+            ->groupBy('hab')
+            ->pluck('avg_pct','hab')       // -> ['08'=>xx.x, '09'=>yy.y, ...]
+            ->map(fn($v) => round((float)$v, 2))
+            ->all(); 
         // 對數底
         $logFn = match ($logBase) {
             '2'  => fn($x) => log($x, 2),
@@ -99,12 +122,9 @@ class HabitatShannonIndex
                 }
                 return round($h, 4);
             };
+           
 
-            // 歸化物種平均覆蓋度(%)：用「每筆記錄」平均（與你原本相近）
-            // 注意：若 weightByArea=true，這欄仍是未加權的「記錄平均覆蓋率」
-            $sumCovAlienRows = (float) $gAlien->sum('sum_cov_rows');
-            $nAlienRows      = (int)   $gAlien->sum('n_rows');
-            $avgAlienCover   = $nAlienRows > 0 ? round($sumCovAlienRows / $nAlienRows, 2) : 0.0;
+            $avgAlienCover = isset($avgPctByHab[$hab]) ? (float)$avgPctByHab[$hab] : 0.0;
 
             $out[] = [
                 '生育地代碼'           => $hab,
@@ -121,6 +141,11 @@ class HabitatShannonIndex
 
         // 照生育地名稱自然排序
         usort($out, fn($a,$b) => strnatcmp($a['生育地代碼'], $b['生育地代碼']));
+
+        array_walk($out, function (&$r) {
+            unset($r['生育地代碼']);
+        });
+
         return $out;
     }
 }

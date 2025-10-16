@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Alignment; // ← 先在檔頭加這行
+use App\Exports\StatsSheetLayouts;
 
 class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumnFormatting, WithEvents
 {
@@ -25,13 +26,16 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
         string $title = '統計表',
         ?array $headings = null,
         array $numberCols = [],  // 例：['歸化種數比例(%)','歸化物種平均覆蓋度(%)','Shannon_歸化','Shannon_原生','Shannon_全部']
-        bool $fillEmptyWithZero = false   // ⬅️ 新參數：是否把空值補 0
+        bool $fillEmptyWithZero = false,   // ⬅️ 新參數：是否把空值補 0
+        public string|array $layouts = 'none',   // ← 新增：'none' | 'base' | 'row-groups' | ...
+        public array         $headerGroups = []      // ← 新增：給群組表頭用
     ) {
         $this->rows = $rows;
         $this->title = $title;
         $this->headings = $headings ?? (array_keys($rows[0] ?? []) ?: ['資料為空']);
         $this->numberCols = $numberCols;
         $this->fillEmptyWithZero = $fillEmptyWithZero;
+        
     }
 
     public function title(): string
@@ -41,6 +45,11 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
 
     public function headings(): array
     {
+        if ($this->headings === null) {
+            $first = reset($this->rows) ?: [];
+            $this->headings = array_keys($first);
+        }
+
         return $this->headings;
     }
 
@@ -62,17 +71,54 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
             }
             return $out;
         }, $this->rows);
+
+        dd($this->rows);
+    }
+
+    private function buildNumberFormat(int $decimals): string
+    {
+        if ($decimals <= 0) {
+            return '#,##0;-#,##0;0;@';
+        }
+        $zs = str_repeat('0', $decimals);
+        return "#,##0.{$zs};-#,##0.{$zs};0.{$zs};@";
+    }
+
+    /** 將 numberCols 正規化為 [[欄名, 格式碼], ...] */
+    private function normalizedNumberCols(): array
+    {
+        $out = [];
+        $defaultDecimals = 2;
+
+        foreach ($this->numberCols as $k => $v) {
+            if (is_int($k)) {
+                // 舊寫法：純欄名，給預設兩位
+                $name = (string)$v;
+                $fmt  = $this->buildNumberFormat($defaultDecimals);
+            } else {
+                $name = (string)$k;
+                if (is_int($v) || (is_string($v) && ctype_digit($v))) {
+                    $fmt = $this->buildNumberFormat((int)$v);
+                } elseif (is_string($v) && $v !== '') {
+                    // 直接當成自訂格式碼
+                    $fmt = $v;
+                } else {
+                    $fmt = $this->buildNumberFormat($defaultDecimals);
+                }
+            }
+            $out[] = [$name, $fmt];
+        }
+        return $out;
     }
 
     public function columnFormats(): array
     {
-        // 依欄名找出欄號 → 欄字母，套數字格式（兩位小數）
         $map = [];
-        foreach ($this->numberCols as $name) {
+        foreach ($this->normalizedNumberCols() as [$name, $fmt]) {
             $idx = array_search($name, $this->headings, true);
             if ($idx !== false) {
                 $col = Coordinate::stringFromColumnIndex($idx + 1);
-                $map[$col] = NumberFormat::FORMAT_NUMBER_00;
+                $map[$col] = $fmt; // 依欄別套用不同小數位（四段格式，0 也會顯示）
             }
         }
         return $map;
@@ -82,28 +128,11 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
     {
         return [
             AfterSheet::class => function (AfterSheet $e) {
-                $sheet   = $e->sheet->getDelegate();
-                $lastCol = $sheet->getHighestColumn();
-                $lastRow = $sheet->getHighestRow();
-
-                // 表頭樣式
-                $sheet->freezePane('A2');
-                $sheet->getStyle("A1:{$lastCol}1")->getFont()->setBold(true);
-                $sheet->getStyle("A1:{$lastCol}1")
-                    ->getAlignment()->setHorizontal('center')->setVertical(Alignment::VERTICAL_CENTER);
-
-                // ✅ 讓資料區的 \n 變成換行，並垂直置中
-                if ($lastRow >= 2) {
-                    $sheet->getStyle("A2:{$lastCol}{$lastRow}")
-                        ->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_CENTER);
-
-                    // 列高自動（或給固定高度）
-                    for ($r = 2; $r <= $lastRow; $r++) {
-                        $sheet->getRowDimension($r)->setRowHeight(-1); // -1 = auto
-                        // 或：$sheet->getRowDimension($r)->setRowHeight(36);
-                    }
-                }
+                StatsSheetLayouts::apply($this->layouts, $e, $this);
             },
         ];
     }
+
+
+
 }

@@ -113,14 +113,35 @@ class FloraGroupStats
         foreach ($rows as [$label, $vals]) {
             $row = ['隸屬特性' => $label];
             $sum = 0;
+
             foreach ($groups as $g) {
-                $v = isset($vals[$g]) && $vals[$g] !== null ? (int)$vals[$g] : '0';
+                $v = (array_key_exists($g, $vals) && $vals[$g] !== null) ? (int)$vals[$g] : 0;
                 $row[$g] = $v;
                 $sum += $v;
             }
+
             $row['合計'] = $sum;
+
+            // 用 null 先鋪滿，再用 $row 覆蓋，避免欄位遺漏
+            $row = array_replace(array_fill_keys($headings, null), $row);
+
             $tableRows[] = $row;
+
+            $groupOf = function (string $label) use ($lifeforms) {
+                if (in_array($label, ['科數','屬數','種數'], true)) return '類別';
+                if (in_array($label, ['特有種','原生種','歸化種','栽培種'], true)) return '屬性';
+                return '生活型'; // 其餘當生活型
+            };
+
+            $tableRows = array_map(function ($r) use ($groupOf) {
+                $r = ['分組' => $groupOf($r['隸屬特性'] ?? '')] + $r; // 分組放到最左
+                return $r;
+            }, $tableRows);
+            
         }
+
+        // headings 最左邊插入「分組」
+        $headings = array_merge(['分組'], $headings);  
 
         return ['headings' => $headings, 'rows' => $tableRows];
     }

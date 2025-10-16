@@ -58,8 +58,8 @@ class HabitatIVIndex
                 p.spcode          as sp,
                 s.chname          as chname,
                 s.latinname       as latinname,
-                SUM(p.coverage)   as cov_sum,
-                COUNT(DISTINCT e.subplot_id) as freq_cnt
+                SUM(p.coverage)   as cov_sum,   
+                COUNT(DISTINCT e.plot_full_id) as freq_cnt
             ')
             ->groupBy('hab','sp','chname','latinname')
             ->get();
@@ -74,7 +74,7 @@ class HabitatIVIndex
 
         $nSubplotByHab = DB::connection('invasiflora')->table('im_splotdata_2025 as e')
             ->whereIn('plot', $selectedPlots)
-            ->selectRaw("{$habExpr} as hab, COUNT(DISTINCT e.subplot_id) as n_subplots")
+            ->selectRaw("{$habExpr} as hab, COUNT(DISTINCT e.plot_full_id) as n_subplots")
             ->groupBy('hab')
             ->pluck('n_subplots', 'hab');
 

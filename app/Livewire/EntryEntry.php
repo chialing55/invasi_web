@@ -327,6 +327,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 'spinfo.chfamily',
                 DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hint")
             )
+            ->orderBy('id')
             ->get();  
 // dd($data);
         $existingPlantForm = $data->map(function ($item) use ($columns) {
@@ -1016,30 +1017,85 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function clickUploadFile()
     {
+        $rules = [
+            'plotFile' => 'required|file|mimes:pdf|max:20480', // 20MB (= 20*1024 KB)
+        ];
+        $messages = [
+            'plotFile.required' => '請先選擇檔案',
+            'plotFile.file'     => '檔案格式不正確',
+            'plotFile.mimes'    => '只接受 PDF 檔',
+            'plotFile.max'      => '檔案不可超過 20 MB',
+        ];
         // dd('test');
-        $this->validate(); // ✅ 使用 $rules 中定義的
+        // 1) 先做表單驗證（這一步的錯誤會自動進到 $errors）
+        $this->validate();
 
-        $this->resetErrorBag(); // ✅ 成功才重設錯誤
+        // 2) 準備路徑與檔名
+        $filename     = $this->thisPlot . '.pdf';
+        $relativeDir  = "invasi_files/plotData/{$this->thisCounty}";
+        $targetPath   = "{$relativeDir}/{$filename}";
+        $disk         = Storage::disk('public'); // 對應 storage/app/public
 
+        try {
+            DB::beginTransaction();
 
-        $filename = $this->thisPlot . '.pdf';
+            // 3) 確保目錄存在（用 Storage，不要混 public_path）
+            $disk->makeDirectory($relativeDir);
 
-        $relativePath = "invasi_files/plotData/{$this->thisCounty}";
-// dd($relativePath);
+            // 4) 原子寫入：先存暫存檔，再 rename 成正式檔（避免半成品）
+            $tmpName = $this->thisPlot . '.tmp_' . Str::random(8) . '.pdf';
+            $disk->putFileAs($relativeDir, $this->plotFile, $tmpName);
 
-        // 確保資料夾存在
-        $destination = public_path($relativePath);
-        if (!file_exists($destination)) {
-            mkdir($destination, 0755, true);
+            // 若已有舊檔可先刪除（或保留歷史就改成 rename 加時間戳）
+            if ($disk->exists($targetPath)) {
+                $disk->delete($targetPath);
+            }
+            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);
+
+            // 5) 寫入資料庫（成功寫檔後才更新）
+            PlotList2025::where('plot', $this->thisPlot)->update([
+                'file_uploaded_at' => now(),
+                'file_uploaded_by' => $this->creatorCode,
+                // 若資料表有路徑欄，建議一起更新
+                // 'file_path' => $targetPath,
+            ]);
+
+            DB::commit();
+
+            // 6) UI 狀態
+            $this->loadFileInfo();
+            session()->flash('fileUploadSuccess', '上傳成功！');
+            // 可視需要清掉選擇的檔案欄位
+            // $this->plotFile = null;
+
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            // 後台 log（方便追查）
+            FixLog::create([
+                'table_name' => 'upload_photo_error',
+                'record_id' => $this->thisCounty."_".$this->thisPlot."_".$this->thisSubPlot,
+                'changes' => 'Error: ' . $e->getMessage(),
+                'modified_by' => $this->creatorCode,
+                'modified_at' => now(),
+            ]);
+
+            // 友善前端錯誤（依常見訊息翻譯）
+            $msg = $e->getMessage();
+            $friendly = '上傳失敗，請稍後再試或聯絡管理者。';
+
+            if (str_contains($msg, 'No space left on device')) {
+                $friendly = '伺服器磁碟空間不足，請通知管理者釋放空間。';
+            } elseif (str_contains($msg, 'Permission denied')) {
+                $friendly = '伺服器寫入權限不足，請通知管理者檢查目錄權限。';
+            } elseif (str_contains($msg, 'exceeds the upload_max_filesize')
+                || str_contains($msg, 'POST Content-Length exceeds post_max_size')) {
+                $friendly = '檔案超過伺服器限制，請確認上限已設定為 20MB 並已重啟服務。';
+            }
+
+            // 綁在欄位錯誤或一般錯誤都可，這裡綁欄位比較直覺
+            $this->addError('plotFile', $friendly);
         }
-
-        PlotList2025::where('plot', $this->thisPlot)->update(
-            ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
-        );
-
-        $this->plotFile->storeAs($relativePath, $filename, 'public');
-        $this->loadFileInfo();
-        session()->flash('fileUploadSuccess', '上傳成功！');
 
     }    
 

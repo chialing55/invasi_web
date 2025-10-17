@@ -59,7 +59,7 @@ class HabitatIVIndex
                 s.chname          as chname,
                 s.latinname       as latinname,
                 SUM(p.coverage)   as cov_sum,   
-                COUNT(DISTINCT e.plot_full_id) as freq_cnt
+                COUNT(DISTINCT p.plot_full_id) as freq_cnt
             ')
             ->groupBy('hab','sp','chname','latinname')
             ->get();
@@ -72,13 +72,24 @@ class HabitatIVIndex
             ->groupBy('hab')
             ->pluck('cov_sum_hab', 'hab');
 
-        $nSubplotByHab = DB::connection('invasiflora')->table('im_splotdata_2025 as e')
-            ->whereIn('plot', $selectedPlots)
-            ->selectRaw("{$habExpr} as hab, COUNT(DISTINCT e.plot_full_id) as n_subplots")
+        $nSubplotByHab = (clone $base)
+            ->selectRaw("{$habExpr} as hab, COUNT(DISTINCT p.plot_full_id) as n_subplots")
             ->groupBy('hab')
             ->pluck('n_subplots', 'hab');
 
         // 計 IV（RC + RF）
+/*
+1. 相對頻度（ Relative frequency)=（某一物種的頻度 /所有物種之頻度） × 100 %
+若計算範圍為「行政區」，其計算方式如下：
+相對頻度=（某物種於該行政區出現的小樣方數 /該行政區所有物種出現的小樣方數總和） × 100%
+2. 相對覆蓋度 Relative coverage = （某一物種的覆蓋度 /所有物種之覆蓋度） × 100 %
+若計算範圍為「行政區」，其計算方式如下：
+相對覆蓋度=（某物種於該行政區之總覆蓋度 /該行政區所有物種的總覆蓋度） × 100%
+4. 重要值指數 Importance value index, IVI
+相對頻度（%））+ 相對覆蓋度
+
+*/
+
         $byHab = $spAgg->groupBy('hab');
         $habLists = [];
         foreach ($byHab as $hab => $rows) {

@@ -47,9 +47,9 @@ class FloraGroupStats
         // genus（屬名）：從二名法第一個詞切出
         $species = (clone $base)
             ->selectRaw("
-                s.plantgroup                         as grp,
-                s.family                              as family,
-                SUBSTRING_INDEX(s.latinname, ' ', 1)  as genus,
+                s.plantgroup                           as grp,
+                s.family                               as family,
+                s.genus                                as genus,
                 s.spcode                               as sp,
                 {$isNativeExpr}                        as native,
                 s.endemic                              as endemic,

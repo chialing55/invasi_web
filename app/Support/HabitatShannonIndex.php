@@ -29,31 +29,32 @@ class HabitatShannonIndex
         $habMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
 
         // 主要彙總：算到 (habitat, status, spcode) 的 x_i
-        // x_i = Σ coverage（或 Σ area*coverage/100）
-        $areaExpr = $areaField ? "COALESCE(e.`{$areaField}`,1)" : "1";
-        $xiExpr   = $weightByArea
-            ? "SUM({$areaExpr} * (p.coverage/100.0))"   // 面積加權
-            : "SUM(p.coverage)";                        // 覆蓋率加總（百分比尺度）
+
 
         $habExpr = "CASE
             WHEN e.habitat_code IN ('88', 88) THEN '08'
             WHEN e.habitat_code IN ('99', 99) THEN '09'
             ELSE LPAD(CAST(e.habitat_code AS CHAR), 2, '0')
-        END";    
+            END";    
 
-        $rows = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
+        $statusExpr = "CASE
+            WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
+            WHEN COALESCE(s.cultivated , 0) = 1 THEN 'cultivated'
+            WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
+            ELSE 'native'
+            END";
+
+        // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
+        $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
             ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
-            ->whereIn('e.plot', $selectedPlots)
+            ->whereIn('e.plot', $selectedPlots);
+
+        $rows = (clone $base)
             ->selectRaw('
-                '.$habExpr.'                    as hab,
-                CASE 
-                  WHEN s.naturalized != "1" AND s.cultivated != "1" 
-                       AND (s.uncertain IS NULL OR s.uncertain != "1")
-                  THEN "native" ELSE "naturalized"
-                END                           as status,
+                '.$habExpr.'                  as hab,
+                '.$statusExpr.'               as status,
                 p.spcode                      as sp,
-                '.$xiExpr.'                   as xi,
                 COUNT(*)                      as n_rows,
                 SUM(p.coverage)               as sum_cov_rows
             ')
@@ -61,22 +62,24 @@ class HabitatShannonIndex
             ->get();
 
         if ($rows->isEmpty()) return [];
+
+/*
+歸化物種平均覆蓋度 Naturalized plant average coverage
+Σ(該小樣方之歸化植物總覆蓋度/該小樣方之總覆蓋度× 100 %)/總小樣方數
+*/
         /* === 新增：依⑤公式計「各生育地的歸化物種平均覆蓋度(%)」 === */
         /* 先算每個小樣方的「總覆蓋度」與「歸化覆蓋度」，再把(歸化/總*100)做平均 */
         $alienCovExpr = "
         CASE
-        WHEN s.naturalized = '1' OR s.cultivated = '1' OR IFNULL(s.uncertain,'0') = '1'
+        WHEN s.naturalized = '1'
         THEN p.coverage ELSE 0
         END";
 
-        $sub = DB::connection('invasiflora')->table('im_splotdata_2025 as e')
-            ->leftJoin('im_spvptdata_2025 as p', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 's.spcode', '=', 'p.spcode')
-            ->whereIn('e.plot', $selectedPlots)
-            ->selectRaw("{$habExpr} as hab, e.plot_full_id as plot_full_id,
+        $sub = (clone $base)
+            ->selectRaw("{$habExpr} as hab, p.plot_full_id as plot_full_id,
                         SUM(p.coverage)                 as total_cov,
                         SUM({$alienCovExpr})            as alien_cov")
-            ->groupBy('hab','e.plot_full_id');
+            ->groupBy('hab','p.plot_full_id');
 
         $avgPctByHab = DB::connection('invasiflora')->query()->fromSub($sub, 't')
             ->selectRaw("hab,
@@ -100,16 +103,29 @@ class HabitatShannonIndex
             // 依 status 拆
             $gNative = $gHab->where('status', 'native');
             $gAlien  = $gHab->where('status', 'naturalized');
+            $gCultiv  = $gHab->where('status', 'cultivated');
 
             // 物種數
             $nNative = $gNative->pluck('sp')->unique()->count();
             $nAlien  = $gAlien->pluck('sp')->unique()->count();
-            $nAll    = $nNative + $nAlien;
+            $nCultiv  = $gCultiv->pluck('sp')->unique()->count();
+            $nAll    = $gHab->pluck('sp')->unique()->count();
 
             // 供 Shannon 用的 xi（以 species 聚合後的 abundance）
-            $xiAll    = $gHab   ->groupBy('sp')->map(fn($gg) => (float)$gg->sum('xi'));
-            $xiNative = $gNative->groupBy('sp')->map(fn($gg) => (float)$gg->sum('xi'));
-            $xiAlien  = $gAlien ->groupBy('sp')->map(fn($gg) => (float)$gg->sum('xi'));
+            $xiAll    = $gHab   ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
+            $xiNative = $gNative->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
+            $xiAlien  = $gAlien ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
+
+/*
+𝑝𝒾=𝑥𝑖Σ𝑥𝑖𝑠𝑖=1 𝐻′=−Σ𝑝𝑖×log𝑝𝑖𝑆𝑖 𝑥=物種覆蓋度。
+𝑠=物種數。
+𝑝𝑖=物種覆蓋度所佔比例。
+
+Shannon 指數 H' = - Σ (p_i * log_b(p_i))
+其中 p_i = x_i / Σx_i
+x_i 為第 i 物種的 abundance（本例中為覆蓋度加總或面積加權覆蓋度加總）
+b 為對數底（常用 e、2、10）
+*/
 
             $H = function (Collection $xi) use ($logFn): float {
                 $sumX = (float)$xi->sum();
@@ -131,6 +147,7 @@ class HabitatShannonIndex
                 '生育地類型'           => $habMap[$hab] ?? $hab,
                 '原生種數'             => $nNative,
                 '歸化種數'             => $nAlien,
+                '栽培種數'             => $nCultiv,
                 '歸化種數比例(%)'       => $nAll ? round($nAlien / $nAll * 100, 2) : 0.0,
                 '歸化物種平均覆蓋度(%)' => $avgAlienCover,
                 'Shannon_歸化'         => $H($xiAlien),

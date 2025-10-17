@@ -45,9 +45,12 @@ final class FloraIVISupport
             ->whereIn('e.plot', $selectedPlots);
 
         // 外來條件
-        $includeCultivated
-            ? $base->where(fn($q) => $q->where('s.naturalized','1')->orWhere('s.cultivated','1'))
-            : $base->where('s.naturalized','1');
+        $base->where(function ($q) use ($includeCultivated) {
+            $q->where('s.naturalized', '1');
+            if ($includeCultivated) {
+                $q->orWhere('s.cultivated', '1');
+            }
+        });
 
         // 草本/木本
         match ($habMode) {
@@ -57,9 +60,6 @@ final class FloraIVISupport
             'wood-09' => $base->where('e.habitat_code','09'),
             default   => null,
         };
-
-        // 小樣方總數（做平均覆蓋度分母）
-        $nSubplots = (clone $base)->distinct('e.plot_full_id')->count('e.plot_full_id');
 
         // 物種彙總 + 學名組件（不含作者）
         $spAgg = (clone $base)
@@ -74,13 +74,30 @@ final class FloraIVISupport
                 s.f                              as f,
                 s.cv                             as cv,
                 SUM(p.coverage)                  as cov_sum,
-                COUNT(DISTINCT e.plot_full_id)     as freq_cnt
+                COUNT(DISTINCT p.plot_full_id)     as freq_cnt
             ')
-            ->groupBy('sp','chname','genus','species','ssp','var','subvar','f','cv')
+            ->groupBy(
+                'p.spcode','s.chname','s.genus','s.species','s.ssp','s.var','s.subvar','s.f','s.cv')
             ->get();
 
+        // 小樣方總數（做平均覆蓋度分母）
+        $nSubplots = (clone $base)->distinct('p.plot_full_id')->count('p.plot_full_id');
         $totalCov  = (float) $spAgg->sum('cov_sum');
         $totalFreq = (int)   $spAgg->sum('freq_cnt');
+
+/*
+1. 相對頻度（ Relative frequency)=（某一物種的頻度 /所有物種之頻度） × 100 %
+若計算範圍為「行政區」，其計算方式如下：
+相對頻度=（某物種於該行政區出現的小樣方數 /該行政區所有物種出現的小樣方數總和） × 100%
+2. 相對覆蓋度 Relative coverage = （某一物種的覆蓋度 /所有物種之覆蓋度） × 100 %
+若計算範圍為「行政區」，其計算方式如下：
+相對覆蓋度=（某物種於該行政區之總覆蓋度 /該行政區所有物種的總覆蓋度） × 100%
+3. 平均覆蓋度（ Average coverage
+某物種於該行政區之總覆蓋度/該行政區之總小樣方數
+4. 重要值指數 Importance value index, IVI
+相對頻度（%））+ 相對覆蓋度
+
+*/
 
         $rows = $spAgg->map(function ($r) use ($nSubplots, $totalCov, $totalFreq) {
                 // 用你的 helper 組「簡化學名」（不含作者）

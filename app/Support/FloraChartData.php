@@ -13,10 +13,10 @@ class FloraChartData
     {
         $statusExpr = "
         CASE
-          WHEN IFNULL(s.naturalized,'0') != '1'
-           AND IFNULL(s.cultivated,'0') != '1'
-           AND IFNULL(s.uncertain,'0')  != '1'
-          THEN 'native' ELSE 'naturalized'
+        WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
+        WHEN COALESCE(s.cultivated , 0) = 1 THEN 'cultivated'
+        WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
+        ELSE 'native'
         END";
 
         $sub = DB::connection('invasiflora')

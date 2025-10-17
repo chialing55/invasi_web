@@ -82,31 +82,38 @@ class PlantStatHelper
             $data2025 = $group2025[$county][$habType] ?? collect();
 
             $stat = function ($items) {
-                if ($items->isEmpty()) return [0, 0, 0, 0];
-                $plotCount = collect($items)->pluck('plot')->unique()->count();
-                $subCount = collect($items)->map(fn($i) => $i['plot'].'.'.$i['hab'].'.'.$i['sub'])->unique()->count();
-                $mean = collect($items)->avg('cov');
-                $meanSq = collect($items)->avg(fn($i) => $i['cov'] ** 2);
-                $sd = sqrt($meanSq - ($mean ** 2));
-                return [$plotCount, $subCount, round($mean, 1), round($sd, 1)];
+                if ($items->isEmpty()) {
+                    return [0, 0, 0, 0, []]; // [plotCount, subCount, mean, sd, plots[]]
+                }
+                $col = collect($items);
+                $plots = $col->pluck('plot')->unique()->sort()->values()->all(); // 唯一 plot 陣列
+                $plotCount = count($plots);
+                $subCount  = $col->map(fn($i) => $i['plot'].'.'.$i['hab'].'.'.$i['sub'])->unique()->count();
+                $mean      = $col->avg('cov');
+                $meanSq    = $col->avg(fn($i) => $i['cov'] ** 2);
+                $sd        = sqrt(max(0, $meanSq - ($mean ** 2))); // 避免極小負數誤差
+                return [$plotCount, $subCount, round($mean, 1), round($sd, 1), $plots];
             };
 
-            [$p10, $s10, $m10, $sd10] = $stat($data2010);
-            [$p25, $s25, $m25, $sd25] = $stat($data2025);
+            [$p10, $s10, $m10, $sd10, $plots10] = $stat($data2010);
+            [$p25, $s25, $m25, $sd25, $plots25] = $stat($data2025);
 
             return [
                 'county' => $county,
                 'habitat' => $habTypeMap[$habType] ?? $habType,
+                'hab_code' => $habType,
                 'plot_2010' => $p10,
                 'sub_2010' => $s10,
                 'cov_sd_2010' => $s10 > 1 ? "{$m10}±{$sd10}" : "{$m10}",
                 'cov_2010' => number_format($m10, 2),
                 'sd_2010' => $s10 > 1 ? "±{$sd10}" : "",
+                'plots_2010'   => $plots10, 
                 'plot_2025' => $p25,
                 'sub_2025' => $s25,
                 'cov_sd_2025' => $s25 > 1 ? "{$m25}±{$sd25}" : "{$m25}",
                 'cov_2025' => number_format($m25, 2),
                 'sd_2025' => $s25 > 1 ? "±{$sd25}" : "",
+                'plots_2025'   => $plots25,
             ];
         })->sortBy(['county', 'habitat'])->values()->toArray();
 

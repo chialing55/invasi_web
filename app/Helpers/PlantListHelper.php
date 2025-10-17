@@ -71,6 +71,7 @@ class PlantListHelper
 
             // 合併後加入陣列
             $merged[] = [
+                'spcode'         => $item2010['spcode'] ?? $item2025['spcode'] ?? '',
                 'chfamily'       => $chfamily,
                 'chname'         => $chname,
                 'nat_type'       => $nat_type,
@@ -146,6 +147,7 @@ public static function getMergedPlotPlantList(string $plot, array $filter = []):
     $spinfo2010 = Spinfo::whereIn('spcode', array_keys($plotPlant2010))->get()->keyBy('spcode');
     foreach ($plotPlant2010 as $spcode => &$item) {
         $info = $spinfo2010[$spcode] ?? null;
+        $item['spcode'] = $spcode; // 保留原始 spcode
         $item['chname'] = $info['chname'] ?? null;
         $item['chfamily'] = $info['chfamily'] ?? null;
         $item['naturalized'] = $info['naturalized'] ?? null;

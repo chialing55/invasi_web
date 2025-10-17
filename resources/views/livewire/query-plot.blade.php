@@ -156,6 +156,11 @@
                                         $inatLink =
                                             'https://taiwan.inaturalist.org/search?q=' .
                                             urlencode($item['chname'] ?? '');
+                                        if ( $item['spcode'] == $thisSpcode) {
+                                            $fontred = 'text-red-600 font-bold';
+                                        } else {
+                                            $fontred = '';
+                                        }   
                                     @endphp
 
                                     <tr class="group hover:bg-amber-800/10 {{ $item['chfamily'] === '--' ? 'bg-red-100 text-red-800' : ($loop->even ? 'bg-gray-50' : 'bg-white') }}"
@@ -163,7 +168,7 @@
                                         onclick="window.open('{{ $inatLink }}', '_blank')">
                                         <td class="group-hover:bg-amber-800/10 chfamily px-4 py-2 border-b ">
                                             {{ $item['chfamily'] }}</td>
-                                        <td class="group-hover:bg-amber-800/10 chname px-4 py-2 border-b ">
+                                        <td class="group-hover:bg-amber-800/10 chname px-4 py-2 border-b {{ $fontred }}">
                                             {{ $item['chname'] }}</td>
                                         <td
                                             class="group-hover:bg-amber-800/10 nat border-b px-4 py-2 text-center hidden sm:table-cell">

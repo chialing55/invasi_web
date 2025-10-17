@@ -140,6 +140,9 @@ Route::get('/redirect-to-query-plot', function () {
         'query.county' => request('county'),
         'query.plot' => request('plot'),
         'query.subPlot' => request('subPlot'),
+        'query.habitat' => request('habitat'),
+        'query.spcode' => request('spcode'),
+
     ]);
     return redirect('/query/plot');
 })->name('overview.to.query.plot');
@@ -149,6 +152,7 @@ Route::get('/redirect-to-entry-entry', function () {
         'query.county' => request('county'),
         'query.plot' => request('plot'),
         'query.subPlot' => request('subPlot'),
+        'query.habitat' => request('habitat'),
     ]);
     return redirect('/entry/entry');
 })->name('overview.to.entry.entry');

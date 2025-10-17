@@ -29,6 +29,7 @@ class QueryPlot extends Component
     public $allPlotInfo = [];
     public $showAllPlot = true;
     public $thisListType = '';
+    public $thisSpcode = '';
 
     public function mount()
     {
@@ -38,9 +39,11 @@ class QueryPlot extends Component
             $county  = session()->pull('query.county');
             $plot    = session()->pull('query.plot');
             $subPlot = session()->pull('query.subPlot');
-
-            $this->fromOverview($county, $plot, $subPlot);
+            $habitat = session()->pull('query.habitat');
+            $this->thisSpcode = session()->pull('query.spcode', '');
+            $this->fromOverview($county, $plot, $subPlot, $habitat);
         }
+
     }
 
     public function loadPlots($county)
@@ -125,6 +128,7 @@ class QueryPlot extends Component
 
         // $this->plotplantListAll =  $this->plotplantList;
         // $this->dispatch('SubPlotIDUpdated', subPlotID: $subPlot);
+        // dd($habType);
         $this->thisListType = $this->thisPlot . " " . $this->habTypeOptions[$habType];
         $this->subPlotEnvForm = [];
 
@@ -181,13 +185,19 @@ class QueryPlot extends Component
         $this->dispatch('plantListLoaded');
     }
 
-    public function fromOverview($county, $plot, $subPlot)
+    public function fromOverview($county, $plot, $subPlot, $habitat)
     {
         $this->thisCounty = $county;
         $this->loadPlots($county);
         $this->loadPlotInfo($plot);
+        if (filled($subPlot)) {
+            $this->loadSubPlot($subPlot);
+        }
 
-        $this->loadSubPlot($subPlot);
+        if (filled($habitat)) {
+            $this->loadPlotHab($habitat);
+        }
+
     }
 
     public $sortField = 'cov_2025';

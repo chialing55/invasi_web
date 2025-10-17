@@ -109,6 +109,7 @@
                             <ul class="list-disc list-inside space-y-1">
                                 <li>預設依「縣市」排序，可點選各欄位標題重新排序。</li>
                                 <li>覆蓋度欄位的格式為：<span class="font-semibold">平均值 ± 標準差</span>。</li>
+                               </li>點選樣區數旁的向下箭頭，可展開查看樣區清單。</li>
                             </ul>
                         </div>
                         <div class="md:flex md:flex-row gap-4 mb-8">
@@ -150,14 +151,15 @@
                                         <x-th-sort field="habitat" :sort-field="$sortField" :sort-direction="$sortDirection" rowspan="2">
                                             生育地類型
                                         </x-th-sort>
-                                        <th colspan="4" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
-                                        <th colspan="4" class="px-4 py-2 text-center bg-orange-200">2025</th>
+                                        <th colspan="5" class="px-4 py-2 text-center bg-lime-200/50">2010</th>
+                                        <th colspan="5" class="px-4 py-2 text-center bg-orange-200">2025</th>
                                     </tr>
                                     <tr class="border-b border-gray-300">
-                                        <x-th-sort field="plot_2010" :sort-field="$sortField" :sort-direction="$sortDirection"
+                                        <x-th-sort colspan="2" field="plot_2010" :sort-field="$sortField" :sort-direction="$sortDirection"
                                             class='bg-lime-200/50'>
                                             樣區數
                                         </x-th-sort>
+
                                         <x-th-sort field="sub_2010" :sort-field="$sortField" :sort-direction="$sortDirection"
                                             class='bg-lime-200/50'>
                                             小樣方數
@@ -167,8 +169,8 @@
                                             覆蓋度
                                         </x-th-sort>
 
-                                        <x-th-sort field="plot_2025" :sort-field="$sortField" :sort-direction="$sortDirection"
-                                            class='bg-orange-200'>
+                                        <x-th-sort colspan="2" field="plot_2025" :sort-field="$sortField"
+                                            :sort-direction="$sortDirection" class='bg-orange-200'>
                                             樣區數
                                         </x-th-sort>
                                         <x-th-sort field="sub_2025" :sort-field="$sortField" :sort-direction="$sortDirection"
@@ -217,9 +219,19 @@
                                             </td>
                                             <td class="px-4 py-2 group-hover:bg-amber-800/10">{{ $row['habitat'] }}
                                             </td>
-                                            <td
-                                                class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">
-                                                {{ $row['plot_2010'] }}</td>
+
+                                            @include('components.query-table-plots-cell', [
+                                                'tdClass' => 'bg-lime-100/50 group-hover:bg-amber-800/10',
+                                                'title' => '2010 樣區清單',
+                                                'width' => 'w-36',
+                                                'count' => $row['plot_2010'],
+                                                'plots' => $row['plots_2010'] ?? [],
+                                                'county' => $row['county'],
+                                                'habitat' => $row['hab_code'] ?? '',
+                                                'spcode' => $spnameInfo['spcode'] ?? '',
+                                                'openInNew' => true,
+                                            ])
+
                                             <td
                                                 class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-lime-100/50 hidden sm:table-cell">
                                                 {{ $row['sub_2010'] }}</td>
@@ -228,9 +240,20 @@
                                                 {{ $row['cov_2010'] }}</td>
                                             <td class="pr-4 py-2 text-left group-hover:bg-amber-800/10 bg-lime-100/50">
                                                 {{ $row['sd_2010'] }}</td>
-                                            <td
-                                                class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">
-                                                {{ $row['plot_2025'] }}</td>
+
+                                            @include('components.query-table-plots-cell', [
+                                                'tdClass' =>
+                                                    'leading-none group-hover:bg-amber-800/10 bg-orange-100',
+                                                'title' => '2025 樣區清單',
+                                                'width' => 'w-36',
+                                                'count' => $row['plot_2025'],
+                                                'plots' => $row['plots_2025'] ?? [],
+                                                'county' => $row['county'],
+                                                'habitat' => $row['hab_code'] ?? '',
+                                                'spcode' => $spnameInfo['spcode'] ?? '',
+                                                'openInNew' => true,
+                                            ])
+
                                             <td
                                                 class="px-4 py-2 text-center group-hover:bg-amber-800/10 bg-orange-100 hidden sm:table-cell">
                                                 {{ $row['sub_2025'] }}</td>

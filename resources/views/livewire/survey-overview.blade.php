@@ -177,7 +177,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} / {{ $row['total_plots'] }}
+                            <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} + {{ $entryCnt }} / {{ $row['total_plots'] }}
                             </p>
 
                             <div class="relative w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">

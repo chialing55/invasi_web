@@ -63,10 +63,11 @@
                     <div class="w-[60px] font-semibold text-sm">{{ $row['team'] }}</div>
 
                     {{-- 完成數 + 達標狀態（手機隱藏 emoji） --}}
-                    <div class="w-[110px] md:w-[220px] text-sm">
+                    <div class="w-[110px] md:w-[250px] text-sm">
                         <span
                             class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[110px] inline-block">
-                            {{ $plotDone }}<span class='text-gray-500'>+{{$plotEntry}}</span> / {{ $plotTotal }} ({{ $plotDonePercent }}%)
+                            {{ $plotDone }}<span class='text-gray-500'>+{{ $plotEntry }}</span> /
+                            {{ $plotTotal }} ({{ $plotDonePercent }}%)
                         </span>
                         <span class="hidden md:inline">
                             @if ($plotDone >= $plotTotal)

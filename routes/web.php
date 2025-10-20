@@ -115,6 +115,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('/query/plot', 'page.query-plot')->name('query.plot');
     Route::view('/entry/notes', 'page.entry-notes')->name('entry.notes');
     Route::view('/entry/entry', 'page.entry-entry')->name('entry.entry');
+    Route::view('/entry/missingnote', 'page.entry-missingnote')->name('entry.missingnote');
     Route::view('/survey/overview', 'page.survey-overview')->name('survey.overview');
     Route::view('/survey/stats', 'page.survey-stats')->name('survey.stats');
     Route::view('/data/export', 'page.data-export')->name('data.export');

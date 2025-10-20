@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SubPlotMissing extends Model
 {
-    use SoftDeletes;
 
     protected $table = 'sub_plot_missing';
     protected $connection = 'invasiflora';

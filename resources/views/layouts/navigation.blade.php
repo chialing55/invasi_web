@@ -31,7 +31,8 @@
                     active="entry.*"
                     :routes="[
                         ['label' => '資料輸入注意事項', 'route' => 'entry.notes'],
-                        ['label' => '資料輸入', 'route' => 'entry.entry']
+                        ['label' => '資料輸入', 'route' => 'entry.entry'],
+                        ['label' => '小樣方未調查原因', 'route' => 'entry.missingnote']
                     ]"
                 />
                 <x-nav.dropdown

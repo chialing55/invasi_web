@@ -142,15 +142,31 @@
             <div class="flex flex-wrap justify-start gap-3">
                 @foreach ($showContyInfo as $row)
                     @php
-                        $plotEntry = $row['has_data_plots'] > 0 ? $row['has_data_plots'] - $row['completed_plots'] : 0;
+                        $completed = (int) ($row['completed_plots'] ?? 0); // 已完成數
+                        $hasData = (int) ($row['has_data_plots'] ?? 0); // 有資料數
+                        $total = max(0, (int) ($row['total_plots'] ?? 0)); // 總樣區數（分母）
 
-                        $plotPercent =
-                            $row['total_plots'] > 0 ? round(($row['completed_plots'] / $row['total_plots']) * 100) : 0;
-                        $plotEntryPercent =
-                            $row['total_plots'] > 0 ? round(($plotEntry / $row['total_plots']) * 100) : 0;
+                        $entryCnt = max(0, $hasData - $completed); // 尚未完成但已有資料的數
 
-                        $plotColor = $plotPercent > 0 ? '#3B7A57' : '#CBD5E0'; // 森林綠 or 淺灰
-                        $plotEntryColor = $plotEntry > 0 ? '#adaeaeff' : '#CBD5E0';
+                        // 先用「比例」避免各自 round 的誤差
+                        $doneRatio = $total > 0 ? $completed / $total : 0; // 0~1
+                        $entryRatio = $total > 0 ? $entryCnt / $total : 0; // 0~1
+
+                        // 第二段（entry）限制在剩餘空間（避免超過 100%）
+                        $entryRatio = min(max(0, $entryRatio), max(0, 1 - $doneRatio));
+
+                        // 最後才轉百分比並四捨五入
+                        $donePct = (int) round($doneRatio * 100);
+                        $entryPct = (int) round($entryRatio * 100);
+
+                        // 供進度條用的實際寬度
+                        $done = $donePct;
+                        $entry = $entryPct;
+
+                        $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
+
+                        $plotColor = $completed > 0 ? '#3B7A57' : '#CBD5E0'; // 森林綠 or 淺灰
+                        $plotEntryColor = $entryCnt > 0 ? '#adaeaeff' : '#CBD5E0';
                     @endphp
 
                     <div wire:click="surveryedPlotInfo('{{ $row['county'] }}')" wire:key="card-{{ $row['county'] }}"
@@ -165,11 +181,6 @@
                             </p>
 
                             <div class="relative w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">
-                                @php
-                                    $done = max(0, min(100, (float) $plotPercent));
-                                    $entry = max(0, min(100 - $done, (float) $plotEntryPercent));
-                                    $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
-                                @endphp
 
                                 <div class="absolute left-0 h-4 {{ $firstClass }}"
                                     style="width: {{ $done }}%; background-color: {{ $plotColor }}"></div>

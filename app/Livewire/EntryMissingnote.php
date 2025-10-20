@@ -318,7 +318,7 @@ class EntryMissingnote extends Component
             requiredFields: [],
             userCode: $this->creatorCode
         );        
-        session()->flash('plotSaveMessage', $changed ? '小樣方未調查原因已更新' : '無任何變更'); 
+        session()->flash('plotSaveMessage', $changed ? '資料已更新' : '無任何變更'); 
 
         $this->plotInfo = SubPlotMissing::where('plot', $this->thisPlot)->orderBy('plot_full_id_2010')->get()->toArray();
 

@@ -41,7 +41,16 @@
             <p class="font-bold">⚠️ 重要提醒</p>
             <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
                 <li>
-                    請在該樣區皆已輸入完成後，再至此填寫前次小樣方未調查之原因。
+                    在該樣區皆已輸入完成後，請至此填寫前次小樣方未調查之原因。
+                </li>
+                <li>
+                    未調查原因填寫說明：
+                    <ul class="list-disc pl-6 mt-1 space-y-1">
+                        <li>未調查原因請從下拉表單中選擇。</li>
+                        <li>如需補充，請於「其他說明」欄填寫。</li>
+                        <li>若選擇「其他」，請於「其他說明」欄說明原因。</li>                        
+                        <li>若更改小樣方編號，請在「其他說明」欄填寫新的小樣方編號。</li>
+                    </ul>
                 </li>
                 <li>新增或刪除資料後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
             </ul>
@@ -65,13 +74,13 @@
                 </div>
             @endif
             <div class="flex justify-end">
-                <button id="submit-btn-subPlot" class="btn-submit" type="button">儲存小樣區未調查原因</button>
+                <button id="submit-btn-subPlot" class="btn-submit" type="button">儲存</button>
             </div>
 
             <div id="tabulator-table-missingSubPlot" wire:ignore class='mt-4'></div>
 
             <div class="mt-4 flex justify-end">
-                <button id="submit-btn-subPlot" class="btn-submit" type="button">儲存小樣區未調查原因</button>
+                <button id="submit-btn-subPlot" class="btn-submit" type="button">儲存</button>
             </div>
         </div>
     @endif

@@ -420,15 +420,21 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function loadPhotoInfo(){
         $hab = substr($this->thisSubPlot, 6, 2);
+        $baseDir = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+        $basename = $this->thisSubPlot; // 不含副檔名
+        $exts = ['jpg','jpeg','png','webp'];
 
-        $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/$hab/{$this->thisSubPlot}.jpg";
-        $fullPath = public_path($relativePath);
+        $foundUrl = null;
+        foreach ($exts as $ext) {
+            $path = "{$baseDir}/{$basename}.{$ext}";
+            if (Storage::disk('public')->exists($path)) {
+                // public disk 的網址須加上 'storage/'
+                $foundUrl = asset("storage/{$path}") . '?t=' . time(); // cache-busting
+                break;
+            }
+        }
 
-        if (file_exists($fullPath)) {
-            $this->thisPhoto = asset($relativePath);
-        } else {
-            $this->thisPhoto = null;
-        }        
+        $this->thisPhoto = $foundUrl; // 找不到則為 null      
 
     }
     public $hasUnderData = '';
@@ -884,53 +890,66 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             'photo.max'      => '檔案不可超過 20 MB',
         ]);
 
-        $hab = substr($this->thisSubPlot, 6, 2);
-        // 依原始副檔名命名，避免硬轉 .jpg 導致 MIME 不一致
-        $ext = strtolower($this->photo->getClientOriginalExtension() ?: $this->photo->extension() ?: 'jpg');
-        $filename = $this->thisSubPlot . '.' . $ext;
+        $hab      = substr($this->thisSubPlot, 6, 2);
+        $basename = $this->thisSubPlot; // 不含副檔名
+        $ext      = strtolower($this->photo->getClientOriginalExtension() ?: $this->photo->extension() ?: 'jpg');
 
         $relativeDir = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+        $filename    = "{$basename}.{$ext}";
         $targetPath  = "{$relativeDir}/{$filename}";
 
-        $disk = Storage::disk('public'); // 對應 storage/app/public（需有 storage:link）
+        $disk        = Storage::disk('public'); // storage/app/public（需 php artisan storage:link）
+        $allExts     = ['jpg','jpeg','png','webp'];
 
         try {
             DB::beginTransaction();
 
-            // 2) 確保目錄存在（用 Storage，避免 public_path()）
+            // 2) 確保目錄存在（同一個 disk）
             $disk->makeDirectory($relativeDir);
 
-            // 3) 刪舊檔（確保刪的是同一個 disk 的檔案）
-            if ($disk->exists($targetPath)) {
-                $disk->delete($targetPath);
+            // 3) 先刪掉「同名不同副檔名」舊檔，避免殘留多份
+            foreach ($allExts as $oldExt) {
+                $old = "{$relativeDir}/{$basename}.{$oldExt}";
+                if ($disk->exists($old)) {
+                    $disk->delete($old);
+                }
             }
 
-            // 4) 原子寫入：先丟到暫存檔，再 rename 成正式檔名
+            // 4) 原子寫入：先寫暫存，再 rename 成正式檔名
             $tmpName = $filename . '.tmp_' . Str::random(8);
             $disk->putFileAs($relativeDir, $this->photo, $tmpName); // 寫入暫存檔
-            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);  // 同 disk rename 幾乎是原子操作
+            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);  // 同 disk rename 幾乎原子
 
-            // 5) 更新本小樣區 DB（成功寫檔後才更新）
-            SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)->update([
+            // 5) 更新 DB（成功寫檔後再更新）
+            SubPlotEnv2025::where('plot_full_id', $basename)->update([
                 'file_uploaded_at' => now(),
                 'file_uploaded_by' => $this->creatorCode,
-                // 若資料表有路徑欄位可同步寫入（沒有就移除）
-                
             ]);
 
-            // 6) 若 08/09，鏡像到 88/99（也複製檔案，避免前端找不到）
+            // 6) 若 08/09，鏡像到 88/99（檔名也要改成對應小樣區 ID）
             if ($hab === '08' || $hab === '09') {
-                $copyHab     = $hab === '08' ? '88' : '99';
-                $copySubPlot = substr($this->thisSubPlot, 0, 6) . $copyHab . substr($this->thisSubPlot, 8);
+                $mirrorHab      = $hab === '08' ? '88' : '99';
+                $mirrorSubPlot  = substr($basename, 0, 6) . $mirrorHab . substr($basename, 8);
+                $mirrorDir      = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$mirrorHab}";
+                $mirrorFilename = "{$mirrorSubPlot}.{$ext}";
+                $mirrorPath     = "{$mirrorDir}/{$mirrorFilename}";
 
-                $copyDir  = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$copyHab}";
-                $copyPath = "{$copyDir}/{$filename}";
+                // 建目錄
+                $disk->makeDirectory($mirrorDir);
 
-                $disk->makeDirectory($copyDir);
-                // 同 disk 直接 copy，效能/一致性較好
-                $disk->copy($targetPath, $copyPath);
+                // 清掉鏡像目標的舊副檔名
+                foreach ($allExts as $oldExt) {
+                    $old = "{$mirrorDir}/{$mirrorSubPlot}.{$oldExt}";
+                    if ($disk->exists($old)) {
+                        $disk->delete($old);
+                    }
+                }
 
-                SubPlotEnv2025::where('plot_full_id', $copySubPlot)->update([
+                // 複製並改檔名（同 disk copy）
+                $disk->copy($targetPath, $mirrorPath);
+
+                // 更新鏡像小樣區 DB
+                SubPlotEnv2025::where('plot_full_id', $mirrorSubPlot)->update([
                     'file_uploaded_at' => now(),
                     'file_uploaded_by' => $this->creatorCode,
                 ]);
@@ -938,6 +957,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
             DB::commit();
 
+            // 7) 重新載入預覽（內部已做多副檔名偵測的話可直接用）
             $this->loadPhotoInfo();
             session()->flash('photoUploadSuccess', '上傳成功！');
             $this->photo = null;
@@ -946,17 +966,17 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             DB::rollBack();
 
             FixLog::create([
-                'table_name' => 'upload_photo_error',
-                'record_id' => 0,
-                'changes' => $this->thisCounty."_".$this->thisPlot."_".$this->thisSubPlot.' Error: ' . $e->getMessage(),
+                'table_name'  => 'upload_photo_error',
+                'record_id'   => 0,
+                'changes'     => $this->thisCounty . "_" . $this->thisPlot . "_" . $this->thisSubPlot . ' Error: ' . $e->getMessage(),
                 'modified_by' => $this->creatorCode,
                 'modified_at' => now(),
             ]);
 
-            // 明確的使用者訊息（不暴露細節）
             $this->addError('photo', '上傳失敗，請稍後再試或聯絡管理者。');
         }
     }
+
 
 
 

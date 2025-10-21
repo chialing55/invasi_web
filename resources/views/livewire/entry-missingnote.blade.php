@@ -84,7 +84,11 @@
             </div>
         </div>
     @endif
-
+    @if ($noMissingSubplotData)
+        <div class="p-4 mb-6" role="alert">
+            <p class="font-bold">❌ 無小樣方未調查資料</p>
+        </div>
+    @endif
 
 </div>
 <script>
@@ -196,6 +200,7 @@
             presetKey: 'plot_full_id',
             presetValue: thisPlot,
             globalName: 'missingSubPlotTable',
+            enableRowContextMenu: false,
         });
     }
 

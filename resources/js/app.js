@@ -21,6 +21,7 @@ window.initTabulator = function ({
     presetKey = null,
     presetValue = '',
     globalName = null, // ✅ 新增參數
+    enableRowContextMenu = true,
 }) {
     setTimeout(() => {
         const tabulatorDiv = document.getElementById(elementId);
@@ -35,7 +36,7 @@ window.initTabulator = function ({
                 reactiveData: true,
                 data: tableData,
                 footerElement: false,
-                rowContextMenu: [
+                rowContextMenu: enableRowContextMenu ? [
                     {
                         label: "➕ 新增一列",
                         action: function (e, row) {
@@ -53,7 +54,7 @@ window.initTabulator = function ({
                             row.delete();
                         }
                     }
-                ],
+                ]: [],
                 columns: columns,
                 rowFormatter: function (row) {
                     const data = row.getData();

@@ -72,6 +72,7 @@ class EntryMissingnote extends Component
         $this->thisPlot = '';
         $this->thisCensusYear = date('Y');
         $this->reasonOptions = $this->reasonOptions();
+        $this->noMissingSubplotData = false;
     }
 
     public function loadPlots($county)
@@ -82,6 +83,8 @@ class EntryMissingnote extends Component
         $this->thisPlot = '';
         $this->dispatch('reset_missingSubPlot_table');
         $this->dispatch('thisPlotUpdated');
+        $this->noMissingSubplotData = false;
+
        
     }
     public function loadPlotInfo($plot)
@@ -89,6 +92,7 @@ class EntryMissingnote extends Component
         // $this->dispatch('reset_habitat');
         $this->thisPlot = $plot;
         $this->dispatch('reset_missingSubPlot_table');
+        $this->noMissingSubplotData = false;
 
         // 取得樣區資料
         $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
@@ -144,6 +148,8 @@ class EntryMissingnote extends Component
         return $map;
     }
 
+    public $noMissingSubplotData = false;
+
     public function addPlotInfo($plot)
     {
         $payload = $this->comparePlotInfo($plot);
@@ -154,12 +160,21 @@ class EntryMissingnote extends Component
             });
         }
 
-        $this->plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
+        $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
 
-        $this->dispatch('missingSubPlot_table', data: [
-            'data' => $this->plotInfo,
-            'thisPlot' =>$this->thisPlot,
-        ]);               
+        if($plotInfo->isEmpty()){
+            
+            $this->noMissingSubplotData = true;
+        } else {
+            $this->plotInfo = $plotInfo->toArray();
+            $this->noMissingSubplotData = false;
+            $this->dispatch('missingSubPlot_table', data: [
+                'data' => $this->plotInfo,
+                'thisPlot' =>$this->thisPlot,
+            ]);
+        }
+
+             
 
     }
 
@@ -204,14 +219,20 @@ class EntryMissingnote extends Component
             : "更新完成：新增 {$added} 筆、刪除 {$removed} 筆。";
 
         // 重新載入 & 回傳前端
-        $this->plotInfo = SubPlotMissing::where('plot', $plot)
-            ->orderBy('plot_full_id_2010')
-            ->get();
 
-        $this->dispatch('missingSubPlot_table', data: [
-            'data'     => $this->plotInfo,
-            'thisPlot' => $this->thisPlot
-        ]);
+        $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
+
+        if($plotInfo->isEmpty()){
+            
+            $this->noMissingSubplotData = true;
+        } else {
+            $this->plotInfo = $plotInfo->toArray();
+            $this->noMissingSubplotData = false;
+            $this->dispatch('missingSubPlot_table', data: [
+                'data' => $this->plotInfo,
+                'thisPlot' =>$this->thisPlot,
+            ]);
+        }
 
         session()->flash('missingnote_sync', $msg);  
     }

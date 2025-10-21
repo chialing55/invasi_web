@@ -915,7 +915,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 'file_uploaded_at' => now(),
                 'file_uploaded_by' => $this->creatorCode,
                 // 若資料表有路徑欄位可同步寫入（沒有就移除）
-                'file_path'        => $targetPath,
+                
             ]);
 
             // 6) 若 08/09，鏡像到 88/99（也複製檔案，避免前端找不到）
@@ -933,7 +933,6 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 SubPlotEnv2025::where('plot_full_id', $copySubPlot)->update([
                     'file_uploaded_at' => now(),
                     'file_uploaded_by' => $this->creatorCode,
-                    'file_path'        => $copyPath,
                 ]);
             }
 
@@ -948,8 +947,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
             FixLog::create([
                 'table_name' => 'upload_photo_error',
-                'record_id' => $this->thisCounty."_".$this->thisPlot."_".$this->thisSubPlot,
-                'changes' => 'Error: ' . $e->getMessage(),
+                'record_id' => 0,
+                'changes' => $this->thisCounty."_".$this->thisPlot."_".$this->thisSubPlot.' Error: ' . $e->getMessage(),
                 'modified_by' => $this->creatorCode,
                 'modified_at' => now(),
             ]);

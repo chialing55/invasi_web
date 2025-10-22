@@ -80,7 +80,7 @@ class PlantListExport
                 ) AS `原生種`,
                 MAX(CASE WHEN s.endemic='1' THEN '◎' ELSE '' END)     AS `特有種`,
                 MAX(CASE WHEN s.naturalized='1' THEN '◎' ELSE '' END) AS `歸化種`,
-                MAX(CASE WHEN s.cultivated='1'  THEN '◎' ELSE '' END) AS `栽培種`,
+                MAX(CASE WHEN s.cultivated='1' AND s.naturalized !='1'  THEN '◎' ELSE '' END) AS `栽培種`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
             ->selectRaw(implode(",\n", $snSelects))
@@ -173,7 +173,7 @@ class PlantListExport
                 ) AS `原生種`,
                 MAX(CASE WHEN s.endemic='1' THEN '1' ELSE '' END)     AS `特有種`,
                 MAX(CASE WHEN s.naturalized='1' THEN '1' ELSE '' END) AS `歸化種`,
-                MAX(CASE WHEN s.cultivated='1'  THEN '1' ELSE '' END) AS `栽培種`,
+                MAX(CASE WHEN s.cultivated='1' AND s.naturalized != '1' THEN '1' ELSE '' END) AS `栽培種`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
             ->selectRaw(implode(",\n", $snSelects))
@@ -258,7 +258,7 @@ class PlantListExport
                 MAX(s.chname)     AS `中文名`,
                 MAX(CASE WHEN s.endemic='1' THEN '原生 特有'
                          WHEN s.naturalized='1' THEN '歸化'
-                         WHEN s.cultivated='1'  THEN '栽培'
+                         WHEN s.cultivated='1' and s.cultivated != '1'  THEN '栽培'
                          ELSE '原生' END) AS `狀態`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
@@ -344,7 +344,7 @@ class PlantListExport
                 MAX(s.chname)     AS `中文名`,
                 MAX(CASE WHEN s.endemic='1'     THEN '原生  特有'
                         WHEN s.naturalized='1' THEN '歸化'
-                        WHEN s.cultivated='1'  THEN '栽培'
+                        WHEN s.cultivated='1' and s.cultivated != '1' THEN '栽培'
                         ELSE '原生' END) AS `類別`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`,
 

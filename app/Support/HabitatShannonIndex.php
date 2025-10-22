@@ -41,6 +41,15 @@ class HabitatShannonIndex
             WHEN COALESCE(s.uncertain, 0) = 1 THEN 'uncertain'
             ELSE 'native'
         END";
+        // 針對 unknown 建一個「物種鍵」避免被併群：可用 chname_index + plot_full_id 區分
+        $spKeyExpr = "
+        CASE
+        WHEN s.spcode IS NULL THEN CONCAT('UNK:', p.plot_full_id, ':', COALESCE(p.chname_index,'')) 
+        ELSE p.spcode
+        END";
+
+        // 顯示用中文名：優先 spinfo.chname，再用 p.chname_index，最後給個 placeholder
+        $chLabelExpr = "COALESCE(s.chname, p.chname_index, CONCAT('未知物種(', COALESCE(p.spcode,''), ')'))";
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
@@ -48,15 +57,17 @@ class HabitatShannonIndex
             ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
+        // 查詢：用 selectRaw + groupByRaw，把**表達式本身**放進群組
         $rows = (clone $base)
-            ->selectRaw('
-                '.$habExpr.'                  as hab,
-                '.$statusExpr.'               as status,
-                p.spcode                      as sp,
-                COUNT(*)                      as n_rows,
-                SUM(p.coverage)               as sum_cov_rows
-            ')
-            ->groupBy('hab','status','sp')
+            ->selectRaw("
+                {$habExpr}        as hab,
+                {$statusExpr}     as status,
+                {$spKeyExpr}      as sp,
+                {$chLabelExpr}    as chname,
+                COUNT(*)          as n_rows,
+                SUM(p.coverage)   as sum_cov_rows
+            ")
+            ->groupByRaw("{$habExpr}, {$statusExpr}, {$spKeyExpr}, {$chLabelExpr}")
             ->get();
 // dd($rows->toArray());
         if ($rows->isEmpty()) return [];
@@ -121,7 +132,7 @@ class HabitatShannonIndex
 
 Shannon 指數 H' = - Σ (p_i * log_b(p_i))
 其中 p_i = x_i / Σx_i
-x_i 為第 i 物種的 abundance（本例中為覆蓋度加總或面積加權覆蓋度加總）
+x_i 為第 i 物種的 abundance（本例中為覆蓋度加總）
 b 為對數底（常用 e、2、10）
 */
 

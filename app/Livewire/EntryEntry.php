@@ -429,7 +429,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             $path = "{$baseDir}/{$basename}.{$ext}";
             if (Storage::disk('public')->exists($path)) {
                 // public disk 的網址須加上 'storage/'
-                $foundUrl = asset("storage/{$path}") . '?t=' . time(); // cache-busting
+                $foundUrl = asset("{$path}") . '?t=' . time(); // cache-busting
                 break;
             }
         }

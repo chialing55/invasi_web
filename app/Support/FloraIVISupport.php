@@ -45,12 +45,12 @@ final class FloraIVISupport
             ->whereIn('e.plot', $selectedPlots);
 
         // 外來條件
-        $base->where(function ($q) use ($includeCultivated) {
-            $q->where('s.naturalized', '1');
-            if ($includeCultivated) {
-                $q->orWhere('s.cultivated', '1');
-            }
-        });
+        // $base->where(function ($q) use ($includeCultivated) {
+        //     $q->where('s.naturalized', '1');
+        //     if ($includeCultivated) {
+        //         $q->orWhere('s.cultivated', '1');
+        //     }
+        // });
 
         // 草本/木本
         match ($habMode) {
@@ -60,9 +60,16 @@ final class FloraIVISupport
             'wood-09' => $base->where('e.habitat_code','09'),
             default   => null,
         };
+        // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
+        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated) {
+            $q->where('s.naturalized', '1');
+            if ($includeCultivated) {
+                $q->orWhere('s.cultivated', '1');
+            }
+        });
 
-        // 物種彙總 + 學名組件（不含作者）
-        $spAgg = (clone $base)
+        // 物種彙總 + 學名組件（不含作者）（分子）
+        $spAgg = (clone $baseForeign)
             ->selectRaw('
                 p.spcode                         as sp,
                 s.chname                         as chname,
@@ -80,11 +87,25 @@ final class FloraIVISupport
                 'p.spcode','s.chname','s.genus','s.species','s.ssp','s.var','s.subvar','s.f','s.cv')
             ->get();
 
-        // 小樣方總數（做平均覆蓋度分母）
+        // 4) 分母：用「全部物種」計算
+        // 4a) 小樣方總數（平均覆蓋度分母）：是樣區選擇下的所有小樣方數
         $nSubplots = (clone $base)->distinct('p.plot_full_id')->count('p.plot_full_id');
-        $totalCov  = (float) $spAgg->sum('cov_sum');
-        $totalFreq = (int)   $spAgg->sum('freq_cnt');
 
+        // 4b) 所有物種之「總覆蓋度」分母
+        $totalCov = (float) (clone $base)->sum('p.coverage');
+
+        // 4c) 所有物種之「頻度總和」分母（= 各物種在不同小樣方出現數的加總）
+        //     不能用單純 DISTINCT 小樣方數，要「先依物種算 distinct，再把各物種相加」
+        $totalFreq = (int) (clone $base)
+            ->select('p.spcode')
+            ->selectRaw('COUNT(DISTINCT p.plot_full_id) as n')
+            ->groupBy('p.spcode')
+            ->get()
+            ->sum('n');
+
+        // 5) 分子總和（如果你需要）
+        $totalCovForeign  = (float) $spAgg->sum('cov_sum');
+        $totalFreqForeign = (int)   $spAgg->sum('freq_cnt');            
 /*
 1. 相對頻度（ Relative frequency)=（某一物種的頻度 /所有物種之頻度） × 100 %
 若計算範圍為「行政區」，其計算方式如下：
@@ -118,10 +139,10 @@ final class FloraIVISupport
                     '中文名'        => $r->chname,
                     // 這格給 RichText（Excel 只會把 <em> 部分斜體）
                     '學名'          => self::emHtmlToRichText($sim),
-                    '平均覆蓋度(%)'  => round($avg, 3),
-                    '相對覆蓋度(%)'  => round($rc,  3),
-                    '相對頻度(%)'    => round($rf,  3),
-                    'IVI 重要值(%)'  => round($ivi, 3),
+                    '平均覆蓋度(%)'  => $avg,
+                    '相對覆蓋度(%)'  => $avg,
+                    '相對頻度(%)'    => $avg,
+                    'IVI 重要值(%)'  => $avg,
                 ];
             })
             ->sortByDesc('IVI 重要值(%)')

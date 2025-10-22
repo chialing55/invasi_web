@@ -22,7 +22,7 @@ class FloraChartData
         $sub = DB::connection('invasiflora')
             ->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots)
             ->whereNotNull('p.spcode')
             ->whereRaw("($statusExpr) = 'naturalized'")

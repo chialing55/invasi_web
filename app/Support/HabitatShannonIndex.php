@@ -47,7 +47,7 @@ class HabitatShannonIndex
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
         $rows = (clone $base)
@@ -55,12 +55,13 @@ class HabitatShannonIndex
                 '.$habExpr.'                  as hab,
                 '.$statusExpr.'               as status,
                 p.spcode                      as sp,
+                p.chname                      as sp_name,
                 COUNT(*)                      as n_rows,
                 SUM(p.coverage)               as sum_cov_rows
             ')
             ->groupBy('hab','status','sp')
             ->get();
-
+// dd($rows->toArray());
         if ($rows->isEmpty()) return [];
 
 /*

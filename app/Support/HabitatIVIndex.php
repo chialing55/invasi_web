@@ -37,13 +37,13 @@ class HabitatIVIndex
             ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
-        if ($includeCultivated) {
-            $base->where(function ($q) {
-                $q->where('s.naturalized', '1')->orWhere('s.cultivated', '1');
-            });
-        } else {
-            $base->where('s.naturalized', '1');
-        }
+        // if ($includeCultivated) {
+        //     $base->where(function ($q) {
+        //         $q->where('s.naturalized', '1')->orWhere('s.cultivated', '1');
+        //     });
+        // } else {
+        //     $base->where('s.naturalized', '1');
+        // }
         // 統一生育地代碼：88=>08、99=>09，其餘補成兩位
         $habExpr = "CASE
             WHEN e.habitat_code IN ('88', 88) THEN '08'
@@ -51,8 +51,16 @@ class HabitatIVIndex
             ELSE LPAD(CAST(e.habitat_code AS CHAR), 2, '0')
         END";
 
+        // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
+        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated) {
+            $q->where('s.naturalized', '1');
+            if ($includeCultivated) {
+                $q->orWhere('s.cultivated', '1');
+            }
+        });
+
         // 物種層級：每個 (habitat, sp) 的覆蓋度總和 + 出現的子樣區數
-        $spAgg = (clone $base)
+        $spAgg = (clone $baseForeign)
             ->selectRaw('
                 '.$habExpr.'    as hab,
                 p.spcode          as sp,
@@ -66,7 +74,7 @@ class HabitatIVIndex
 
         if ($spAgg->isEmpty()) return ['headings'=>[], 'rows'=>[]];
 
-        // 各生育地：全部歸化種覆蓋度總和、該生育地的子樣區總數
+        // 各生育地：全部種覆蓋度總和、該生育地的子樣區總數
         $sumCovByHab = (clone $base)
             ->selectRaw("{$habExpr} as hab, SUM(p.coverage) as cov_sum_hab")
             ->groupBy('hab')

@@ -39,7 +39,8 @@ class HabitatShannonIndex
 
         $statusExpr = "CASE
             WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
-            WHEN COALESCE(s.cultivated , 0) = 1 THEN 'cultivated'
+            WHEN COALESCE(s.cultivated, 0) = 1 
+                AND COALESCE(s.naturalized, 0) != 1 THEN 'cultivated'
             WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
             ELSE 'native'
             END";
@@ -70,10 +71,10 @@ class HabitatShannonIndex
         /* === 新增：依⑤公式計「各生育地的歸化物種平均覆蓋度(%)」 === */
         /* 先算每個小樣方的「總覆蓋度」與「歸化覆蓋度」，再把(歸化/總*100)做平均 */
         $alienCovExpr = "
-        CASE
-        WHEN s.naturalized = '1'
-        THEN p.coverage ELSE 0
-        END";
+            CASE
+            WHEN s.naturalized = '1'
+            THEN p.coverage ELSE 0
+            END";
 
         $sub = (clone $base)
             ->selectRaw("{$habExpr} as hab, p.plot_full_id as plot_full_id,

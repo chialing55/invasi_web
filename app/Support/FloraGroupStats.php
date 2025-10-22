@@ -8,6 +8,7 @@ class FloraGroupStats
 {
     /**
      * 類群(蕨/石松/裸子/雙子/單子) × 屬性(特有/原生/歸化/栽培) × 生活型 的彙整表
+     * 不含unknown
      *
      * @param array  $selectedPlots      要統計的 plot 清單
      * @param string $mode               'all' | 'alien-only'

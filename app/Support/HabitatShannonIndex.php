@@ -10,7 +10,7 @@ class HabitatShannonIndex
 {
     /**
      * 以 selectedPlots 為篩選，直接在 DB 做彙總，再計算每個 habitat 的 Shannon 指數。
-     *
+     * 不含unknown
      * @param array       $selectedPlots  例：['A01','A02',...]
      * @param bool        $weightByArea   true=用「面積×覆蓋率」作 abundance；false=用覆蓋率加總
      * @param string      $logBase        'e' | '2' | '10'
@@ -19,9 +19,7 @@ class HabitatShannonIndex
      */
     public static function buildHabitatShannonIndexByQuery(
         array $selectedPlots,
-        bool $weightByArea = false,
         string $logBase = 'e',
-        ?string $areaField = null
     ): array {
         if (empty($selectedPlots)) return [];
 
@@ -30,7 +28,6 @@ class HabitatShannonIndex
 
         // 主要彙總：算到 (habitat, status, spcode) 的 x_i
 
-
         $habExpr = "CASE
             WHEN e.habitat_code IN ('88', 88) THEN '08'
             WHEN e.habitat_code IN ('99', 99) THEN '09'
@@ -38,17 +35,17 @@ class HabitatShannonIndex
             END";    
 
         $statusExpr = "CASE
+            WHEN s.spcode IS NULL THEN 'uncertain'                                  -- ← 查無 spinfo 視為不明
             WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
-            WHEN COALESCE(s.cultivated, 0) = 1 
-                AND COALESCE(s.naturalized, 0) != 1 THEN 'cultivated'
-            WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
+            WHEN COALESCE(s.cultivated, 0) = 1 AND COALESCE(s.naturalized, 0) != 1 THEN 'cultivated'
+            WHEN COALESCE(s.uncertain, 0) = 1 THEN 'uncertain'
             ELSE 'native'
-            END";
+        END";
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
         $rows = (clone $base)
@@ -74,7 +71,7 @@ class HabitatShannonIndex
             CASE
             WHEN s.naturalized = '1'
             THEN p.coverage ELSE 0
-            END";
+            END ";
 
         $sub = (clone $base)
             ->selectRaw("{$habExpr} as hab, p.plot_full_id as plot_full_id,

@@ -8,6 +8,7 @@ class FloraChartData
 {
     /**
      * 歸化物種優勢科 Top-N（以 distinct spcode 計數）
+     * 不含unknown
      */
     public static function topNaturalizedFamilies(array $selectedPlots, int $limit = 10): array
     {
@@ -19,7 +20,7 @@ class FloraChartData
         WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
         ELSE 'native'
         END";
-
+//不含unknown
         $sub = DB::connection('invasiflora')
             ->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')

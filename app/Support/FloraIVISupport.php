@@ -30,6 +30,7 @@ final class FloraIVISupport
 
     /**
      * 依條件產生「歸化物種 IVI 表」：學名為簡化版（無作者），僅拉丁詞斜體
+     * 含unknown
      */
     public static function iviTable(
         array $selectedPlots,
@@ -41,7 +42,7 @@ final class FloraIVISupport
         // 基礎
         $base = $db->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
         // 外來條件

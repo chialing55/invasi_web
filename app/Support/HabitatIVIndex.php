@@ -11,6 +11,7 @@ class HabitatIVIndex
 {
     /**
      * 各生育地「歸化物種重要值」Top N（IV = RC + RF）
+     * 含unknown
      * - RC: 100 * cov_i / sum_cov_hab
      * - RF: 100 * freq_i / n_subplots_hab
      *
@@ -34,7 +35,7 @@ class HabitatIVIndex
         // 共同基礎（全部物種；只過濾樣區）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
         // 統一生育地代碼：88=>08、99=>09，其餘補成兩位

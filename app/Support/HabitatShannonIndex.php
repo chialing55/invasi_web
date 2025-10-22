@@ -44,7 +44,7 @@ class HabitatShannonIndex
         // 針對 unknown 建一個「物種鍵」避免被併群：可用 chname_index + plot_full_id 區分
         $spKeyExpr = "
         CASE
-        WHEN s.spcode IS NULL THEN CONCAT('UNK:', p.plot_full_id, ':', COALESCE(p.chname_index,'')) 
+        WHEN s.spcode IS NULL THEN CONCAT('UNK:', COALESCE(p.chname_index,'')) 
         ELSE p.spcode
         END";
 
@@ -54,7 +54,7 @@ class HabitatShannonIndex
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
         // 查詢：用 selectRaw + groupByRaw，把**表達式本身**放進群組
@@ -64,12 +64,17 @@ class HabitatShannonIndex
                 {$statusExpr}     as status,
                 {$spKeyExpr}      as sp,
                 {$chLabelExpr}    as chname,
+                MAX(COALESCE(p.spcode, '')) as spcode_raw,  -- 帶出原始 spcode（聚合避免 group by 衝突）
                 COUNT(*)          as n_rows,
                 SUM(p.coverage)   as sum_cov_rows
             ")
             ->groupByRaw("{$habExpr}, {$statusExpr}, {$spKeyExpr}, {$chLabelExpr}")
             ->get();
-// dd($rows->toArray());
+// dd(
+//     $rows->filter(fn($r) => ($r->spcode_raw ?? '') === '')
+//          ->values()
+//          ->toArray()
+// );
         if ($rows->isEmpty()) return [];
 
 /*

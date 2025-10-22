@@ -165,7 +165,7 @@
             },
             {
                 title: "未調查原因",
-                field: "not_done_reason", // 存 code
+                field: "not_done_reason_code", // 存 code
                 width: 260,
                 editor: "list",
                 editorParams: {

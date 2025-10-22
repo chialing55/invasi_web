@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Support\AnalysisHelper;
 use App\Exports\PlantListTableExport;
 use App\Exports\PlotExport;
+use App\Exports\MissingPlotExport;
 use App\Exports\PlantDataExport;
 use App\Exports\PlantListExport;
 use App\Exports\MultiSheetExport;
@@ -168,24 +169,47 @@ class DataExport extends Component
     public function downloadSelected()
     {
 
-        if ($this->downloadFormat=='txt.1'){
-            $this->downloadFormat='txt';
-            $dataType = 'env';
-        } else if ($this->downloadFormat=='txt.2'){
-            $this->downloadFormat='txt';
-            $dataType = 'plant';
-        } else if ($this->downloadFormat=='txt.3'){
-            $this->downloadFormat='txt';
-            $dataType = 'plantlist';
-        } else if ($this->downloadFormat=='xlsx.1'){
-            $this->downloadFormat='xlsx';
-            $dataType = 'allplantlist';
-        } else if ($this->downloadFormat=='xlsx.2'){
-            $this->downloadFormat='xlsx';
-            $dataType = 'statsTable';
-        } else {
-            $dataType = 'plotinfo';
+        switch ($this->downloadFormat) {
+            case 'txt.1':
+                $this->downloadFormat = 'txt';
+                $dataType = 'env';
+                break;
+
+            case 'txt.2':
+                $this->downloadFormat = 'txt';
+                $dataType = 'plant';
+                break;
+
+            case 'txt.3':
+                $this->downloadFormat = 'txt';
+                $dataType = 'plantlist';
+                break;
+
+            case 'xlsx':
+                $this->downloadFormat = 'xlsx';
+                $dataType = 'plotinfo';
+                break;
+
+            case 'xlsx.1':
+                $this->downloadFormat = 'xlsx';
+                $dataType = 'allplantlist';
+                break;
+
+            case 'xlsx.2':
+                $this->downloadFormat = 'xlsx';
+                $dataType = 'statsTable';
+                break;
+
+            case 'xlsx.3':
+                $this->downloadFormat = 'xlsx';
+                $dataType = 'reasonsTable';
+                break;
+
+            default:
+                $dataType = 'plotinfo';
+                break;
         }
+
 
         $formatConstants = [
             'xlsx' => Excel::XLSX,
@@ -200,70 +224,70 @@ class DataExport extends Component
         $ext = $this->downloadFormat;
 
         $prefix = $this->thisTeam . '_' . $this->thisCounty . '_' . date('Ymd');
+        // 這一行會同時拿到對應的 Export 物件與檔名
+        [$export, $filename] = $this->buildExportAndFilename($dataType, $prefix, $ext, $format);
 
-        // ✅ 如果為 xlsx，使用多工作表
-        if ($this->downloadFormat === 'xlsx' && $dataType=='plotinfo') {
-            return ExcelFacade::download(
-                new MultiSheetExport($this->selectedPlots, $this->downloadFormat),
-                "$prefix.xlsx",
-                $format
-            );
-        } else if ($this->downloadFormat === 'xlsx' && $dataType=='allplantlist') {
-            // ✅ 全部植物名錄
-            return ExcelFacade::download(
-                new PlantListMultiSheetExport($this->selectedPlots, $this->downloadFormat),
-                "allPlantList.xlsx",
-                $format
-            );
-        } else if ($this->downloadFormat === 'xlsx' && $dataType=='statsTable') {
-            // ✅ 統計表格
-            return ExcelFacade::download(
-                new StatsMultiSheetExport($this->selectedPlots, $this->downloadFormat),
-                "$prefix-statsTable.xlsx",
-                $format
-            );
-        } else if ($this->downloadFormat === 'txt' && $dataType=='env') {
-            // ✅ 環境資料 txt
-            return ExcelFacade::download(
-                new PlotExport($this->selectedPlots, $this->downloadFormat, '環境資料'),
-                "$prefix-env.$ext",
-                $format
-            );
-        } else if ($this->downloadFormat === 'txt' && $dataType=='plant') {
-            // ✅ 植物資料 txt
-            return ExcelFacade::download(
-                new PlantDataExport($this->selectedPlots, $this->downloadFormat, '植物資料'),
-                "$prefix-plant.$ext",
-                $format
-            );
-
-        } else if ($this->downloadFormat === 'txt' && $dataType=='plantlist') {
-            // ✅ 植物名錄 txt
-            // return ExcelFacade::download(
-            //     new PlantListExport($this->selectedPlots, '2', $this->downloadFormat, '植物名錄', false),
-            //     "$prefix-plantlist.$ext",
-            //     $format
-            // );
-            $sel = PlantListExport::PlantListDistinctForPlots(
-                selectedPlots: $this->selectedPlots,
-                format: 'txt'
-            );
-
-            // 匯出為「CSV writer + tab 分隔」，副檔名給 .txt
-            return ExcelFacade::download(
-                new PlantListTableExport(
-                    rows: $sel['rows'],
-                    title: '植物名錄',
-                    headings: $sel['headings'],
-                    layouts: '',
-                    csvDelimiter: "\t" // ★ 關鍵：改成 tab
-                ),
-                "{$prefix}-plantlist.$ext",
-                $format
-            );
-        } 
+        // 然後就回傳下載（單一出口）
+        return ExcelFacade::download($export, $filename, $format);
 
     }
+
+// 建議：抽一個私有方法產生 [$export, $filename]
+    private function buildExportAndFilename(string $dataType, string $prefix, string $ext, $format): array
+    {
+        // 先把 format 正規化：txt 的幾個子型態前面已改過 this->downloadFormat
+        $fmt = $this->downloadFormat;
+
+        return match (true) {
+            // === xlsx 類 ===
+            $fmt === 'xlsx' && $dataType === 'plotinfo' => [
+                new MultiSheetExport($this->selectedPlots, $fmt),
+                "$prefix.xlsx",
+            ],
+            $fmt === 'xlsx' && $dataType === 'allplantlist' => [
+                new PlantListMultiSheetExport($this->selectedPlots, $fmt),
+                "allPlantList.xlsx",
+            ],
+            $fmt === 'xlsx' && $dataType === 'statsTable' => [
+                new StatsMultiSheetExport($this->selectedPlots, $fmt),
+                "$prefix-statsTable.xlsx",
+            ],
+            $fmt === 'xlsx' && $dataType === 'reasonsTable' => [
+                new MissingPlotExport($this->selectedPlots, $fmt, '小樣區未調查原因'),
+                "$prefix-unSurveyedSubplotReasons.xlsx",
+            ],
+
+            // === txt 類 ===
+            $fmt === 'txt' && $dataType === 'env' => [
+                new PlotExport($this->selectedPlots, $fmt, '環境資料'),
+                "$prefix-env.$ext",
+            ],
+            $fmt === 'txt' && $dataType === 'plant' => [
+                new PlantDataExport($this->selectedPlots, $fmt, '植物資料'),
+                "$prefix-plant.$ext",
+            ],
+            $fmt === 'txt' && $dataType === 'plantlist' => (function () use ($prefix, $ext) {
+                // 特例：plantlist txt 需要先算 rows/headings，再用 TableExport + tab 分隔
+                $sel = PlantListExport::PlantListDistinctForPlots(
+                    selectedPlots: $this->selectedPlots,
+                    format: 'txt'
+                );
+                return [
+                    new PlantListTableExport(
+                        rows: $sel['rows'],
+                        title: '植物名錄',
+                        headings: $sel['headings'],
+                        layouts: '',
+                        csvDelimiter: "\t" // 關鍵：tab 分隔
+                    ),
+                    "{$prefix}-plantlist.$ext",
+                ];
+            })(),
+
+            default => throw new \RuntimeException("Unsupported export combination: {$fmt} / {$dataType}"),
+        };
+    }
+
 
     public function render()
     {

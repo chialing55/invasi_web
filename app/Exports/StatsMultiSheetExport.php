@@ -65,9 +65,7 @@ class StatsMultiSheetExport implements WithMultipleSheets
         // 例：生育地 Shannon 指數
         $rows = HabitatShannonIndex::buildHabitatShannonIndexByQuery(
             selectedPlots: $this->selectedPlots,
-            weightByArea : false,
             logBase      : 'e',
-            areaField    : null,
 
         );
 

@@ -106,6 +106,11 @@
                                 class="form-radio text-forest focus:ring-forest">
                             <span class="ml-1">統計表格.xlsx</span>
                         </label>
+                        <label class="inline-flex items-center mr-4 cursor-pointer">
+                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.3"
+                                class="form-radio text-forest focus:ring-forest">
+                            <span class="ml-1">小樣方未調查原因.xlsx</span>
+                        </label>
                     </div>
                     <div class="flex items-center mt-2">
                         <label class="inline-flex items-center mr-4 cursor-pointer">

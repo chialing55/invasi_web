@@ -263,7 +263,7 @@ class EntryMissingnote extends Component
             'county'            => $this->thisCounty,  
             'plot'              => (int) $r->plot,
             'plot_full_id_2010' => (string) $r->k,
-            'not_done_reason'   => '',
+            'not_done_reason_code'   => '',
             'description'       => '',
         ])->values()->all();        // 可以在這裡處理屬性更新後的邏輯
 
@@ -277,7 +277,7 @@ class EntryMissingnote extends Component
 
             // 預設用原本資料
             $desc   = (string)($r['description'] ?? '');
-            $reason = (string)($r['not_done_reason'] ?? '');
+            $reason = (string)($r['not_done_reason_code'] ?? '');
 
             if ($hit) {
                 $target = (string)$alterMap[$k2010];          // 目標 plot_full_id
@@ -292,7 +292,7 @@ class EntryMissingnote extends Component
                 'county'             => (string)($r['county'] ?? ''),
                 'plot'               => (int)$plot,
                 'plot_full_id_2010'  => $k2010,
-                'not_done_reason'    => $reason,
+                'not_done_reason_code'    => $reason,
                 'description'        => $desc,
                 'created_at'         => now(),
                 'created_by'         => $this->creatorCode,

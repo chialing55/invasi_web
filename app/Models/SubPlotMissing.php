@@ -16,7 +16,7 @@ class SubPlotMissing extends Model
         'county',
         'plot',
         'plot_full_id_2010',
-        'not_done_reason',
+        'not_done_reason_code',
         'description',
         'created_by',
         'updated_by',

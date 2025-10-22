@@ -46,6 +46,21 @@ class MultiSheetExport implements WithMultipleSheets
                 layouts: 'family-merge'
             );
         }
+
+        $habG = PlantListExport::PlantListHabitatPivotWithGroups(
+            selectedPlots: $this->selectedPlots,
+            format: $this->format,
+            limitBySelectedPlots : true,
+        );
+        if (!empty($habG['rows'])) {
+            $sheets[] = new PlantListTableExport(
+                rows: $habG['rows'],
+                title: '植物名錄（含棲地代碼）',
+                headings: $habG['headings'],
+                // 這個 layout 會插入【類群】與 family 標頭列，並自動隱藏 __pg/__fam/__chfam
+                layouts: ['pg-groups']
+            );
+        }
         // 加上分析活頁（如果有資料）
         // if ($analysisSheet = $this->analysisSheet()) {
         //     $sheets[] = $analysisSheet;

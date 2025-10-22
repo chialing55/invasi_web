@@ -67,7 +67,8 @@ class PlantListMultiSheetExport implements WithMultipleSheets
         // D) 棲地代碼 + 群組列（需要 __pg/__fam/__chfam）
         $habG = PlantListExport::PlantListHabitatPivotWithGroups(
             selectedPlots: $this->selectedPlots,
-            format: $this->format
+            format: $this->format,
+            limitBySelectedPlots : false,
         );
         if (!empty($habG['rows'])) {
             $sheets[] = new PlantListTableExport(

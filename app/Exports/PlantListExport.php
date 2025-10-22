@@ -258,7 +258,7 @@ class PlantListExport
                 MAX(s.chname)     AS `中文名`,
                 MAX(CASE WHEN s.endemic='1' THEN '原生 特有'
                          WHEN s.naturalized='1' THEN '歸化'
-                         WHEN s.cultivated='1' and s.cultivated != '1'  THEN '栽培'
+                         WHEN s.cultivated='1' and s.naturalized != '1'  THEN '栽培'
                          ELSE '原生' END) AS `狀態`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
@@ -307,7 +307,7 @@ class PlantListExport
     /**
      * 棲地代碼 01~20 pivot + 群組列（需要輔助欄 __pg/__fam/__chfam）。對應原 type=4。
      */
-    public static function PlantListHabitatPivotWithGroups(array $selectedPlots, string $format = 'xlsx'): array
+    public static function PlantListHabitatPivotWithGroups(array $selectedPlots, string $format = 'xlsx', bool $limitBySelectedPlots = False ): array
     {
         // 01~20 habitat pivot 欄
         $habCodes = array_map(fn($i) => str_pad((string)$i, 2, '0', STR_PAD_LEFT), range(1, 20));
@@ -329,7 +329,10 @@ class PlantListExport
             ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->leftJoin('twredlist2017 as r', 'p.spcode', '=', 'r.spcode')
             ->whereNotNull('s.spcode');
-
+        // ★ 只有在開關為 true 且陣列不為空時才套用篩選
+        if ($limitBySelectedPlots && !empty($selectedPlots)) {
+            $base->whereIn('e.plot', $selectedPlots);
+        }
         $builder = (clone $base)
             ->groupBy('s.spcode')
             ->selectRaw("
@@ -344,7 +347,7 @@ class PlantListExport
                 MAX(s.chname)     AS `中文名`,
                 MAX(CASE WHEN s.endemic='1'     THEN '原生  特有'
                         WHEN s.naturalized='1' THEN '歸化'
-                        WHEN s.cultivated='1' and s.cultivated != '1' THEN '栽培'
+                        WHEN s.cultivated='1' and s.naturalized != '1' THEN '栽培'
                         ELSE '原生' END) AS `類別`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`,
 

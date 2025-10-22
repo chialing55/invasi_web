@@ -140,9 +140,9 @@ final class FloraIVISupport
                     // 這格給 RichText（Excel 只會把 <em> 部分斜體）
                     '學名'          => self::emHtmlToRichText($sim),
                     '平均覆蓋度(%)'  => $avg,
-                    '相對覆蓋度(%)'  => $avg,
-                    '相對頻度(%)'    => $avg,
-                    'IVI 重要值(%)'  => $avg,
+                    '相對覆蓋度(%)'  => $rc,
+                    '相對頻度(%)'    => $rf,
+                    'IVI 重要值(%)'  => $ivi,
                 ];
             })
             ->sortByDesc('IVI 重要值(%)')

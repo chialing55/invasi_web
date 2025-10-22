@@ -82,7 +82,7 @@ class FloraGroupStats
         $countNative   = fn($col) => $col->where('native', 1)->pluck('sp')->unique()->count();
         $countEndemic  = fn($col) => $col->where('endemic', '1')->pluck('sp')->unique()->count();
         $countAlien    = fn($col) => $col->where('naturalized', '1')->pluck('sp')->unique()->count();
-        $countCult     = fn($col) => $col->where('cultivated', '1')->pluck('sp')->unique()->count();
+        $countCult     = fn($col) => $col->where('cultivated', '1')->where('naturalized', '!=', '1')->pluck('sp')->unique()->count();
 
         $countLife = function ($col, $name) {
             return $col->where('growth_form', $name)->pluck('sp')->unique()->count();

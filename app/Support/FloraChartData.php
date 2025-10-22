@@ -14,7 +14,8 @@ class FloraChartData
         $statusExpr = "
         CASE
         WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
-        WHEN COALESCE(s.cultivated , 0) = 1 THEN 'cultivated'
+        WHEN COALESCE(s.cultivated, 0) = 1 
+         AND COALESCE(s.naturalized, 0) != 1 THEN 'cultivated'
         WHEN COALESCE(s.uncertain  , 0) = 1 THEN 'uncertain'
         ELSE 'native'
         END";

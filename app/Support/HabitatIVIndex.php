@@ -31,7 +31,7 @@ class HabitatIVIndex
         // 生育地代碼 → 名稱
         $habMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
 
-        // 基礎條件（外來：naturalized=1；可選擇包含 cultivated）
+        // 共同基礎（全部物種；只過濾樣區）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
             ->join('spinfo as s', 'p.spcode', '=', 's.spcode')

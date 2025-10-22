@@ -173,7 +173,13 @@ class PlantListExport
                 ) AS `原生種`,
                 MAX(CASE WHEN s.endemic='1' THEN '1' ELSE '' END)     AS `特有種`,
                 MAX(CASE WHEN s.naturalized='1' THEN '1' ELSE '' END) AS `歸化種`,
-                MAX(CASE WHEN s.cultivated='1' AND s.naturalized != '1' THEN '1' ELSE '' END) AS `栽培種`,
+                MAX(
+                    CASE 
+                        WHEN COALESCE(s.cultivated,0) = 1
+                        AND COALESCE(s.naturalized,0) <> 1
+                        THEN '1' ELSE '' 
+                    END
+                    ) AS `栽培種`,
                 MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
             ->selectRaw(implode(",\n", $snSelects))

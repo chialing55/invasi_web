@@ -37,13 +37,6 @@ class HabitatIVIndex
             ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
 
-        // if ($includeCultivated) {
-        //     $base->where(function ($q) {
-        //         $q->where('s.naturalized', '1')->orWhere('s.cultivated', '1');
-        //     });
-        // } else {
-        //     $base->where('s.naturalized', '1');
-        // }
         // 統一生育地代碼：88=>08、99=>09，其餘補成兩位
         $habExpr = "CASE
             WHEN e.habitat_code IN ('88', 88) THEN '08'
@@ -80,6 +73,14 @@ class HabitatIVIndex
             ->groupBy('hab')
             ->pluck('cov_sum_hab', 'hab');
 
+        // 2) 所有物種在各生育地的「頻度總和」分母（⚠️ 用物種別 DISTINCT 再相加）
+        $sumFreqByHab = (clone $base)
+            ->selectRaw("{$habExpr} as hab, p.spcode, COUNT(DISTINCT p.plot_full_id) as n")
+            ->groupBy('hab', 'p.spcode')
+            ->get()
+            ->groupBy('hab')
+            ->map(fn($g) => (int)$g->sum('n')); // => ['08' => 1234, '09' => 987, ...]    
+
         $nSubplotByHab = (clone $base)
             ->selectRaw("{$habExpr} as hab, COUNT(DISTINCT p.plot_full_id) as n_subplots")
             ->groupBy('hab')
@@ -102,11 +103,11 @@ class HabitatIVIndex
         $habLists = [];
         foreach ($byHab as $hab => $rows) {
             $denCov = max(0.000001, (float)($sumCovByHab[$hab] ?? 0));
-            $denN   = max(1, (int)($nSubplotByHab[$hab] ?? 1));
+            $denFreq = max(1,        (int)  ($sumFreqByHab[$hab] ?? 0));
 
-            $list = $rows->map(function ($r) use ($denCov, $denN, $labelField) {
+            $list = $rows->map(function ($r) use ($denCov, $denFreq, $labelField) {
                 $rc = 100.0 * ((float)$r->cov_sum) / $denCov;
-                $rf = 100.0 * ((int)$r->freq_cnt) / $denN;
+                $rf = 100.0 * ((int)$r->freq_cnt) / $denFreq;
                 $iv = $rc + $rf; // 若要平均：($rc + $rf)/2
                 return [
                     'label' => $labelField === 'latinname' ? $r->latinname : $r->chname,

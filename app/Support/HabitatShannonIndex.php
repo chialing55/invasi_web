@@ -55,7 +55,6 @@ class HabitatShannonIndex
                 '.$habExpr.'                  as hab,
                 '.$statusExpr.'               as status,
                 p.spcode                      as sp,
-                p.chname                      as sp_name,
                 COUNT(*)                      as n_rows,
                 SUM(p.coverage)               as sum_cov_rows
             ')

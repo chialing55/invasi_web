@@ -5,6 +5,7 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class StatsSheetLayouts
 {
@@ -20,12 +21,14 @@ class StatsSheetLayouts
                 'row-groups'  => self::rowGroups($e),     // A 欄相同值垂直合併
                 'merge-a1b1'  => self::mergeA1B1($e),
                 'two-row-group-header' => self::twoRowGroupHeader($e, $export),
+                'pg-groups' => self::insertPgAndFamilyHeaderRows($e),
                 'base'        => ( // 基本款：header + rowWrap + numbers + show-zeros
                     self::header($e)
                     ?? self::rowWrap($e)
                     ?? self::numbers($e, $export)
                     ?? self::showZeros($e)
                 ),
+                'family-merge' => self::mergeSameFamilyVertically($e),
                 default       => null,
             };
         }
@@ -222,6 +225,195 @@ class StatsSheetLayouts
         $s->freezePane('A3');
     }
 
+    public static function mergeSameFamilyVertically(AfterSheet $event): void
+    {
+        $sheet = $event->sheet->getDelegate();
+        $lastCol = $sheet->getHighestDataColumn();
+        $lastIdx = Coordinate::columnIndexFromString($lastCol);
+
+        $targets = ['科名','family'];
+        $familyIdx = null;
+        for ($i = 1; $i <= $lastIdx; $i++) {
+            $col = Coordinate::stringFromColumnIndex($i);
+            $val = trim((string)$sheet->getCell("{$col}1")->getValue());
+            if (in_array($val, $targets, true)) { $familyIdx = $i; break; }
+        }
+        if ($familyIdx === null) return;
+
+        $col     = Coordinate::stringFromColumnIndex($familyIdx);
+        $highest = $sheet->getHighestDataRow();
+        if ($highest <= 2) return;
+
+        $start = 2;
+        $prev  = trim((string)$sheet->getCell("{$col}{$start}")->getCalculatedValue());
+        for ($r = 3; $r <= $highest; $r++) {
+            $cur = trim((string)$sheet->getCell("{$col}{$r}")->getCalculatedValue());
+            if ($cur !== $prev) {
+                if ($r - 1 > $start) {
+                    $range = "{$col}{$start}:{$col}".($r - 1);
+                    $sheet->mergeCells($range);
+                    $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+                }
+                $start = $r;
+                $prev  = $cur;
+            }
+        }
+        if ($highest >= $start) {
+            $range = "{$col}{$start}:{$col}{$highest}";
+            $sheet->mergeCells($range);
+            $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        }
+    }
     
+    public static function insertPgAndFamilyHeaderRows_o(AfterSheet $event): void
+    {
+        $ws = $event->sheet->getDelegate();
+
+        $lastCol = $ws->getHighestDataColumn();
+        $lastIdx = Coordinate::columnIndexFromString($lastCol);
+        $lastRow = $ws->getHighestDataRow();
+
+        $idx = function (string $header) use ($ws, $lastIdx) {
+            for ($i = 1; $i <= $lastIdx; $i++) {
+                $col = Coordinate::stringFromColumnIndex($i);
+                $val = trim((string)$ws->getCell("{$col}1")->getValue());
+                if ($val === $header) return $i;
+            }
+            return null;
+        };
+
+        // $colEmpty = 1; // 第一欄保留空白（若需要）
+        $colFamily = $idx('科名') ?? 2;
+        $colPg     = $idx('__pg');
+        $colFam    = $idx('__fam');
+        $colChfam  = $idx('__chfam');
+        if (!$colPg || !$colFam) return; // 找不到輔助欄就不處理
+
+        $colPgL    = Coordinate::stringFromColumnIndex($colPg);
+        $colFamL   = Coordinate::stringFromColumnIndex($colFam);
+        $colChfamL = $colChfam ? Coordinate::stringFromColumnIndex($colChfam) : null;
+
+        // 先把輔助欄抓出來，避免插入列時座標混亂
+        $rows = [];
+        for ($r = 2; $r <= $lastRow; $r++) {
+            $pg    = trim((string)$ws->getCell("{$colPgL}{$r}")->getCalculatedValue());
+            $fam   = trim((string)$ws->getCell("{$colFamL}{$r}")->getCalculatedValue());
+            $chfam = $colChfamL ? trim((string)$ws->getCell("{$colChfamL}{$r}")->getCalculatedValue()) : '';
+            $rows[] = compact('pg','fam','chfam');
+        }
+
+        $inserted = 0; $prevPg = null; $prevFam = null;
+        for ($i = 0; $i < count($rows); $i++) {
+            $cur = $rows[$i];
+            $excelRow = 2 + $i + $inserted;
+
+            $needPgRow  = ($cur['pg']  !== $prevPg);
+            $needFamRow = ($cur['fam'] !== $prevFam);
+
+            if ($needPgRow) {
+                $ws->insertNewRowBefore($excelRow, 1);
+                $groupColIdx  = 1; // A 欄
+                $bCol     = Coordinate::stringFromColumnIndex($groupColIdx);
+                $lastDataCol = Coordinate::stringFromColumnIndex($lastIdx);
+                $ws->setCellValue("{$bCol}{$excelRow}", '【'.$cur['pg'].'】');
+                $ws->mergeCells("{$bCol}{$excelRow}:{$lastDataCol}{$excelRow}");
+                $ws->getStyle("{$bCol}{$excelRow}")->getFont()->setBold(true)->setSize(12);
+                $ws->getStyle("{$bCol}{$excelRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $ws->getStyle("{$bCol}{$excelRow}:{$lastDataCol}{$excelRow}")
+                   ->getFill()->setFillType(Fill::FILL_SOLID)
+                   ->getStartColor()->setARGB('FFEFEFEF');
+                $inserted++; $excelRow++;
+            }
+
+            if ($needFamRow) {
+                $ws->insertNewRowBefore($excelRow, 1);
+                $famLabel = $cur['fam'].($cur['chfam'] ? ' '.$cur['chfam'] : '');
+                $famCol = Coordinate::stringFromColumnIndex($idx('科名') ?? $colFamily);
+                $ws->setCellValue("{$famCol}{$excelRow}", $famLabel);
+                $ws->getStyle("{$famCol}{$excelRow}")->getFont()->setBold(true);
+                $inserted++; $excelRow++;
+            }
+
+            // 清空這個 family 區段內的「科名」欄位
+            if ($needFamRow) {
+                $start = $excelRow;
+                $j = $i;
+                $famCol = Coordinate::stringFromColumnIndex($colFamily);
+                while ($j < count($rows) && $rows[$j]['fam'] === $cur['fam']) {
+                    $r = $start + ($j - $i);
+                    $ws->setCellValue("{$famCol}{$r}", '');
+                    $j++;
+                }
+            }
+
+            $prevPg  = $cur['pg'];
+            $prevFam = $cur['fam'];
+        }
+
+        // 隱藏輔助欄
+        foreach (['__pg','__fam','__chfam'] as $h) {
+            $c = $idx($h);
+            if ($c) {
+                $col = Coordinate::stringFromColumnIndex($c);
+                $ws->getColumnDimension($col)->setVisible(false);
+                $ws->getColumnDimension($col)->setWidth(0.1);
+            }
+        }
+    }
+
+    public static function insertPgAndFamilyHeaderRows(AfterSheet $event): void
+    {
+        $ws = $event->sheet->getDelegate();
+
+        $lastCol = $ws->getHighestDataColumn();
+        $lastIdx = Coordinate::columnIndexFromString($lastCol);
+        $lastRow = $ws->getHighestDataRow();
+
+        $findCol = function (string $header) use ($ws, $lastIdx) {
+            for ($i = 1; $i <= $lastIdx; $i++) {
+                $col = Coordinate::stringFromColumnIndex($i);
+                $val = trim((string)$ws->getCell("{$col}1")->getValue());
+                if ($val === $header) return $i;
+            }
+            return null;
+        };
+
+        $colFamily = $findCol('科名') ?? 1;
+        $colGroup  = $findCol('__group');
+
+        if (!$colGroup) return;
+
+        $colFamilyL = Coordinate::stringFromColumnIndex($colFamily);
+        $colGroupL  = Coordinate::stringFromColumnIndex($colGroup);
+        $colLastL   = Coordinate::stringFromColumnIndex($lastIdx);
+
+        for ($r = 2; $r <= $lastRow; $r++) {
+            $type = trim((string)$ws->getCell("{$colGroupL}{$r}")->getCalculatedValue());
+            if ($type === 'pg') {
+                // 類群列：把 A..最後一欄合併並套樣式
+                $ws->mergeCells("A{$r}:{$colLastL}{$r}");
+                $ws->getStyle("A{$r}")->getFont()->setBold(true)->setSize(12);
+                $ws->getStyle("A{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $ws->getStyle("A{$r}:{$colLastL}{$r}")
+                ->getFill()->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFEFEFEF');
+            } elseif ($type === 'fam') {
+                // Family 標頭列：只讓「科名」欄粗體
+                $ws->getStyle("{$colFamilyL}{$r}")->getFont()->setBold(true);
+            } else {
+                // 一般資料列：不處理
+            }
+        }
+
+        // 隱藏輔助欄
+        foreach (['__group','__pg','__fam','__chfam'] as $h) {
+            $c = $findCol($h);
+            if ($c) {
+                $col = Coordinate::stringFromColumnIndex($c);
+                $ws->getColumnDimension($col)->setVisible(false);
+                $ws->getColumnDimension($col)->setWidth(0.1);
+            }
+        }
+    }
 
 }

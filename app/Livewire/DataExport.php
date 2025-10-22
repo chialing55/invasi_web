@@ -19,12 +19,13 @@ use App\Helpers\PlotCompletedHelper;
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Support\AnalysisHelper;
-
+use App\Exports\PlantListTableExport;
 use App\Exports\PlotExport;
 use App\Exports\PlantDataExport;
 use App\Exports\PlantListExport;
 use App\Exports\MultiSheetExport;
 use App\Exports\StatsMultiSheetExport;
+use App\Exports\PlantListMultiSheetExport;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 use Maatwebsite\Excel\Excel;
 use Illuminate\Support\Facades\Storage;
@@ -210,8 +211,8 @@ class DataExport extends Component
         } else if ($this->downloadFormat === 'xlsx' && $dataType=='allplantlist') {
             // ✅ 全部植物名錄
             return ExcelFacade::download(
-                new PlantListExport($this->selectedPlots, '1', $this->downloadFormat, '植物名錄', true), // 👉 第四個參數為 true → 合併 family
-                "allplantlist.xlsx",
+                new PlantListMultiSheetExport($this->selectedPlots, $this->downloadFormat),
+                "allPlantList.xlsx",
                 $format
             );
         } else if ($this->downloadFormat === 'xlsx' && $dataType=='statsTable') {
@@ -238,12 +239,28 @@ class DataExport extends Component
 
         } else if ($this->downloadFormat === 'txt' && $dataType=='plantlist') {
             // ✅ 植物名錄 txt
-            return ExcelFacade::download(
-                new PlantListExport($this->selectedPlots, '2', $this->downloadFormat, '植物名錄', false),
-                "$prefix-plantlist.$ext",
-                $format
+            // return ExcelFacade::download(
+            //     new PlantListExport($this->selectedPlots, '2', $this->downloadFormat, '植物名錄', false),
+            //     "$prefix-plantlist.$ext",
+            //     $format
+            // );
+            $sel = PlantListExport::PlantListDistinctForPlots(
+                selectedPlots: $this->selectedPlots,
+                format: 'txt'
             );
 
+            // 匯出為「CSV writer + tab 分隔」，副檔名給 .txt
+            return ExcelFacade::download(
+                new PlantListTableExport(
+                    rows: $sel['rows'],
+                    title: '植物名錄',
+                    headings: $sel['headings'],
+                    layouts: '',
+                    csvDelimiter: "\t" // ★ 關鍵：改成 tab
+                ),
+                "{$prefix}-plantlist.$ext",
+                $format
+            );
         } 
 
     }

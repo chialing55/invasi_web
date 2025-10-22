@@ -1,41 +1,437 @@
 <?php
+/**
+ * ──────────────────────────────────────────────────────────────────────────────
+ *  PlantList：改為「陣列輸出」與「多工作表」匯出範例
+ *  - 將原本的 PlantListExport（FromQuery/WithMapping）重構為回傳 ['headings','rows'] 的靜態函式
+ *  - 以 PlantListTableExport(FromArray) + StatsSheetLayouts(可選 layout) 處理樣式/群組
+ *  - PlantListMultiSheetExport 組裝多分頁
+ *
+ *  檔案：App\Exports\PlantListExport.php（靜態陣列產生器）
+ *       App\Exports\PlantListTableExport.php（通用陣列→工作表）
+ *       App\Exports\PlantListMultiSheetExport.php（多工作表）
+ *       App\Support\StatsSheetLayouts.php（樣式與群組的版面配置）
+ * ──────────────────────────────────────────────────────────────────────────────
+ */
+
+// =============================================================================
+// File: app/Exports/PlantListExport.php
+// 目的：提供靜態方法，依不同用途，回傳 ['headings' => [...], 'rows' => [...]]
+// =============================================================================
+
 namespace App\Exports;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Contracts\Support\Arrayable;
-use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Illuminate\Support\Facades\DB;
 use App\Models\SubPlotPlant2025;
-use App\Models\PlotList2025;
-use App\Models\SubPlotEnv2025;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use App\Support\SpNameHelper;
 
-class PlantListExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvSettings, WithTitle
+class PlantListExport
 {
-    public function __construct(
-        protected array  $selectedPlots,
-        protected string $type, // 可傳入外部準備好的 Builder；也可先給 null，之後自己實作 query()
-        protected string   $format,
-        protected string   $title  = '植物名錄',
-        protected bool     $mergeFamily, // ← 只有名錄需要
-        protected array    $excluded = [
-            'island_category','plot_env','validation_message','created_by','created_at',
-            'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error'
-        ],
-        protected ?array   $headings = null
-    ) {}
+    /**
+     * 類群×特性（全部 or 指定樣區）。對應原 type=1。
+     * $mode = 'all'（忽略樣區過濾）或 'selected'（限制在 $selectedPlots）。
+     */
+    public static function PlantListAll(array $selectedPlots, string $format = 'xlsx'): array
+    {
 
-    private ?array $computedHeadings = null;
-    private function teamMap(): array
+        // 物種大類排序順序（自訂）
+        $pgOrder = ['石松類植物','蕨類植物','裸子植物','雙子葉植物','單子葉植物'];
+        $pgPlaceholders = implode(',', array_fill(0, count($pgOrder), '?'));
+
+        // sn_* 欄位僅供產生 RichText 用，不進 headings
+        $snCols     = self::snCols();
+        $snSelects  = array_map(fn($c) => "MAX(s.$c) AS sn_$c", $snCols);
+
+        // Base Query
+        $base = SubPlotPlant2025::query()
+            ->from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('twredlist2017 as r', 'p.spcode', '=', 'r.spcode')
+            ->whereNotNull('s.spcode');
+
+        // Team pivot 欄位
+        $teamMap   = self::teamMap();
+        $teamSqls  = [];
+        $bindings  = [];
+        foreach ($teamMap as $code => $label) {
+            $colName   = str_replace('`','``', $label);
+            $teamSqls[] = "MAX(CASE WHEN e.team = ? THEN 'V' ELSE '' END) AS `{$colName}`";
+            $bindings[] = $code;
+        }
+
+        $builder = (clone $base)
+            ->groupBy('s.spcode')
+            ->selectRaw("
+                MAX(s.plantgroup) AS pg,
+                MAX(s.family)     AS family,
+                MAX(s.latinname)  AS latin,
+                MAX(s.spcode)     AS spcode,
+
+                MAX(COALESCE(NULLIF(s.chfamily,''), s.family)) AS `科名`,
+                MAX(s.latinname) AS `學名`,
+                MAX(s.chname)    AS `中文名`,
+
+                MAX(
+                    CASE WHEN s.naturalized!='1'
+                         AND s.cultivated!='1'
+                         AND (s.uncertain IS NULL OR s.uncertain!='1')
+                    THEN '◎' ELSE '' END
+                ) AS `原生種`,
+                MAX(CASE WHEN s.endemic='1' THEN '◎' ELSE '' END)     AS `特有種`,
+                MAX(CASE WHEN s.naturalized='1' THEN '◎' ELSE '' END) AS `歸化種`,
+                MAX(CASE WHEN s.cultivated='1'  THEN '◎' ELSE '' END) AS `栽培種`,
+                MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
+            ")
+            ->selectRaw(implode(",\n", $snSelects))
+            ->selectRaw(implode(",\n", $teamSqls), $bindings)
+            ->orderByRaw("FIELD(pg, {$pgPlaceholders})", $pgOrder)
+            ->orderBy('family')
+            ->orderBy('latin');
+
+        $rows = $builder
+            ->toBase()               // ← 關鍵：不要回傳 Eloquent Model
+            ->get()
+            ->map(function ($r) use ($format, $snCols, $teamMap) {
+                $arr = (array) $r;   // stdClass → 只有你選的欄位
+
+                if ($format === 'xlsx') {
+                    $sn = [];
+                    foreach ($snCols as $k) $sn[$k] = $arr["sn_$k"] ?? '';
+                    $sn['spcode'] = $arr['spcode'] ?? '';
+                    $nameHtml = SpNameHelper::combine($sn)['name'] ?? ($arr['學名'] ?? '');
+                    $arr['學名'] = self::emHtmlToRichText($nameHtml);
+                }
+
+                // 清掉中繼欄
+                foreach ($snCols as $k) unset($arr["sn_$k"]);
+                unset($arr['pg'], $arr['family'], $arr['latin'], $arr['spcode']);
+
+                // 只輸出需要的欄位，並照 headings 排序
+                $ordered = [];
+                $headings = array_merge(
+                    ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
+                    array_values($teamMap)
+                );
+                foreach ($headings as $h) $ordered[$h] = $arr[$h] ?? '';
+
+                return $ordered;
+            })
+            ->values()
+            ->all();
+
+
+        $headings = array_merge(
+            ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
+            array_values($teamMap)
+        );
+        // dd($rows);
+        return ['headings' => $headings, 'rows' => $rows];
+    }
+
+    /**
+     * 名錄（僅所選樣區去重）。對應原 type=2。
+     */
+    public static function PlantListDistinctForPlots(array $selectedPlots, string $format = 'xlsx'): array
+    {
+        if (empty($selectedPlots)) return ['headings' => [], 'rows' => []];
+        // sn_* 欄位僅供產生 RichText 用，不進 headings
+        // 物種大類排序順序（自訂）
+        $pgOrder = self::pgOrder();
+        $pgPlaceholders = implode(',', array_fill(0, count($pgOrder), '?'));
+
+        // sn_* 欄位僅供產生 RichText 用，不進 headings
+        $snCols     = self::snCols();
+        $snSelects  = array_map(fn($c) => "MAX(s.$c) AS sn_$c", $snCols);
+
+        // Base Query
+        $base = SubPlotPlant2025::query()
+            ->from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('twredlist2017 as r', 'p.spcode', '=', 'r.spcode')
+            ->whereNotNull('s.spcode')
+            ->whereIn('e.plot', $selectedPlots);
+
+        $builder = (clone $base)
+            ->groupBy('s.spcode')
+            ->selectRaw("
+                MAX(s.plantgroup) AS pg,
+                MAX(s.family)     AS family,
+                MAX(s.latinname)  AS latin,
+                MAX(s.spcode)     AS spcode,
+
+                MAX(COALESCE(NULLIF(s.chfamily,''), s.family)) AS `科名`,
+                MAX(s.latinname) AS `學名`,
+                MAX(s.chname)    AS `中文名`,
+
+                MAX(
+                    CASE WHEN s.naturalized!='1'
+                         AND s.cultivated!='1'
+                         AND (s.uncertain IS NULL OR s.uncertain!='1')
+                    THEN '1' ELSE '' END
+                ) AS `原生種`,
+                MAX(CASE WHEN s.endemic='1' THEN '1' ELSE '' END)     AS `特有種`,
+                MAX(CASE WHEN s.naturalized='1' THEN '1' ELSE '' END) AS `歸化種`,
+                MAX(CASE WHEN s.cultivated='1'  THEN '1' ELSE '' END) AS `栽培種`,
+                MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
+            ")
+            ->selectRaw(implode(",\n", $snSelects))
+            ->orderByRaw("FIELD(pg, {$pgPlaceholders})", $pgOrder)
+            ->orderBy('family')
+            ->orderBy('latin');
+
+        $rows = $builder
+            ->toBase()               // ← 關鍵：不要回傳 Eloquent Model
+            ->get()
+            ->map(function ($r) use ($format, $snCols) {
+                $arr = (array) $r;   // stdClass → 只有你選的欄位
+
+                if ($format === 'xlsx') {
+                    $sn = [];
+                    foreach ($snCols as $k) $sn[$k] = $arr["sn_$k"] ?? '';
+                    $sn['spcode'] = $arr['spcode'] ?? '';
+                    $nameHtml = SpNameHelper::combine($sn)['name'] ?? ($arr['學名'] ?? '');
+                    $arr['學名'] = self::emHtmlToRichText($nameHtml);
+                }
+
+                // 清掉中繼欄
+                foreach ($snCols as $k) unset($arr["sn_$k"]);
+                unset($arr['pg'], $arr['family'], $arr['latin'], $arr['spcode']);
+
+                // 只輸出需要的欄位，並照 headings 排序
+                $ordered = [];
+                $headings = array_merge(
+                    ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
+                );
+                foreach ($headings as $h) $ordered[$h] = $arr[$h] ?? '';
+
+                return $ordered;
+            })
+            ->values()
+            ->all();
+
+
+        $headings = array_merge(
+            ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
+        );
+        // dd($rows);
+        return ['headings' => $headings, 'rows' => $rows];
+    }
+
+    /**
+     * 棲地代碼 01~20 pivot。對應原 type=3。
+     */
+    public static function PlantListHabitatPivot(array $selectedPlots, string $format = 'xlsx'): array
+    {
+        // 01~20
+        $habCodes = array_map(fn($i) => str_pad((string)$i, 2, '0', STR_PAD_LEFT), range(1, 20));
+        $habSqls = [];
+        $habBindings = [];
+        foreach ($habCodes as $code) {
+            $alias = 'h'.$code;
+            $habSqls[] = "MAX(CASE WHEN e.habitat_code = ? THEN e.habitat_code ELSE '' END) AS `{$alias}`";
+            $habBindings[] = $code;
+        }
+
+        $pgOrder = self::pgOrder();
+        $pgPlaceholders = implode(',', array_fill(0, count($pgOrder), '?'));
+        $snCols    = self::snCols();
+        $snSelects = array_map(fn($c) => "MAX(s.$c) AS sn_$c", $snCols);
+
+        $base = SubPlotPlant2025::query()
+            ->from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('twredlist2017 as r', 'p.spcode', '=', 'r.spcode')
+            ->whereNotNull('s.spcode');
+
+        $builder = (clone $base)
+            ->groupBy('s.spcode')
+            ->selectRaw("
+                MAX(s.plantgroup) AS pg,
+                MAX(s.family)     AS family,
+                MAX(s.latinname)  AS latin,
+                MAX(s.spcode)     AS spcode,
+                MAX(COALESCE(NULLIF(s.chfamily,''), s.family)) AS `科名`,
+                MAX(s.latinname)  AS `學名`,
+                MAX(s.chname)     AS `中文名`,
+                MAX(CASE WHEN s.endemic='1' THEN '原生 特有'
+                         WHEN s.naturalized='1' THEN '歸化'
+                         WHEN s.cultivated='1'  THEN '栽培'
+                         ELSE '原生' END) AS `狀態`,
+                MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
+            ")
+            ->selectRaw(implode(",\n", $snSelects))
+            ->selectRaw(implode(",\n", $habSqls), $habBindings)
+            ->orderByRaw("FIELD(pg, {$pgPlaceholders})", $pgOrder)
+            ->orderBy('family')
+            ->orderBy('latin');
+
+        if (!empty($selectedPlots)) {
+            $builder->whereIn('e.plot', $selectedPlots);
+        }
+
+        $rows = $builder->toBase()->get()->map(function ($r) use ($format, $snCols, $habCodes) {
+            $arr = (array) $r;
+
+            if ($format === 'xlsx') {
+                $sn = [];
+                foreach ($snCols as $k) { $sn[$k] = $arr["sn_$k"] ?? ''; }
+                $sn['spcode'] = $arr['spcode'] ?? '';
+                $nameHtml = SpNameHelper::combine($sn)['name'] ?? ($arr['學名'] ?? '');
+                $arr['學名'] = self::emHtmlToRichText($nameHtml);
+            }
+
+            foreach ($snCols as $k) unset($arr["sn_$k"]);
+            unset($arr['pg'], $arr['family'], $arr['latin'], $arr['spcode']);
+
+            // 轉換 h01→'01' ... h20→'20'
+            $out = [
+                '科名'   => $arr['科名'] ?? '',
+                '學名'   => $arr['學名'] ?? '',
+                '中文名' => $arr['中文名'] ?? '',
+                '狀態'   => $arr['狀態'] ?? '',
+                'IUCN'   => $arr['IUCN'] ?? '',
+            ];
+            foreach ($habCodes as $code) {
+                $out[$code] = $arr['h'.$code] ?? '';
+            }
+            return $out;
+        })->toArray();
+
+        $headings = array_merge(['科名','學名','中文名','狀態','IUCN'], $habCodes);
+        return ['headings' => $headings, 'rows' => $rows];
+    }
+
+    /**
+     * 棲地代碼 01~20 pivot + 群組列（需要輔助欄 __pg/__fam/__chfam）。對應原 type=4。
+     */
+    public static function PlantListHabitatPivotWithGroups(array $selectedPlots, string $format = 'xlsx'): array
+    {
+        // 01~20 habitat pivot 欄
+        $habCodes = array_map(fn($i) => str_pad((string)$i, 2, '0', STR_PAD_LEFT), range(1, 20));
+        $habSqls = []; $habBindings = [];
+        foreach ($habCodes as $code) {
+            $alias = 'h'.$code;
+            $habSqls[]     = "MAX(CASE WHEN e.habitat_code = ? THEN e.habitat_code ELSE '' END) AS `{$alias}`";
+            $habBindings[] = $code;
+        }
+
+        $pgOrder         = self::pgOrder();
+        $pgPlaceholders  = implode(',', array_fill(0, count($pgOrder), '?'));
+        $snCols          = self::snCols();
+        $snSelects       = array_map(fn($c) => "MAX(s.$c) AS sn_$c", $snCols);
+
+        $base = SubPlotPlant2025::query()
+            ->from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('twredlist2017 as r', 'p.spcode', '=', 'r.spcode')
+            ->whereNotNull('s.spcode');
+
+        $builder = (clone $base)
+            ->groupBy('s.spcode')
+            ->selectRaw("
+                MAX(s.plantgroup) AS pg,
+                MAX(s.family)     AS family,
+                MAX(s.chfamily)   AS chfamily,
+                MAX(s.latinname)  AS latin,
+                MAX(s.spcode)     AS spcode,
+
+                MAX(COALESCE(NULLIF(s.chfamily,''), s.family)) AS `科名`,
+                MAX(s.latinname)  AS `學名`,
+                MAX(s.chname)     AS `中文名`,
+                MAX(CASE WHEN s.endemic='1'     THEN '原生  特有'
+                        WHEN s.naturalized='1' THEN '歸化'
+                        WHEN s.cultivated='1'  THEN '栽培'
+                        ELSE '原生' END) AS `類別`,
+                MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`,
+
+                -- 群組用輔助欄
+                MAX(s.plantgroup) AS `__pg`,
+                MAX(s.family)     AS `__fam`,
+                MAX(s.chfamily)   AS `__chfam`
+            ")
+            ->selectRaw(implode(",\n", $snSelects))
+            ->selectRaw(implode(",\n", $habSqls), $habBindings)
+            ->orderByRaw("FIELD(pg, {$pgPlaceholders})", $pgOrder)
+            ->orderBy('family')
+            ->orderBy('latin');
+
+        // 先取「一般資料列」
+        $dataRows = $builder->toBase()->get()->map(function ($r) use ($format, $snCols, $habCodes) {
+            $arr = (array) $r;
+
+            if ($format === 'xlsx') {
+                $sn = [];
+                foreach ($snCols as $k) { $sn[$k] = $arr["sn_$k"] ?? ''; }
+                $sn['spcode'] = $arr['spcode'] ?? '';
+                $nameHtml = \App\Support\SpNameHelper::combine($sn)['name'] ?? ($arr['學名'] ?? '');
+                $arr['學名'] = self::emHtmlToRichText($nameHtml);
+            }
+            foreach ($snCols as $k) unset($arr["sn_$k"]);
+
+            $row = [
+                '科名'   => '',
+                '學名'   => $arr['學名'] ?? '',
+                '中文名' => $arr['中文名'] ?? '',
+                '類別'   => $arr['類別'] ?? '',
+                'IUCN'   => $arr['IUCN'] ?? '',
+            ];
+            foreach ($habCodes as $code) {
+                $row[$code] = $arr['h'.$code] ?? '';
+            }
+            // 保留輔助欄，等下要用來決定插入群組列
+            $row['__pg']    = $arr['__pg'] ?? '';
+            $row['__fam']   = $arr['__fam'] ?? '';
+            $row['__chfam'] = $arr['__chfam'] ?? '';
+            $row['__group'] = 'row';   // 標記一般資料列
+            return $row;
+        })->values()->all();
+
+        // 接著：在陣列中插入「類群」與「科名」標頭列
+        $rows = [];
+        $prevPg = null; $prevFam = null;
+
+        // 先準備空白列模板（讓群組列能有所有欄位）
+        $headings = array_merge(['科名','學名','中文名','類別','IUCN'], $habCodes, ['__pg','__fam','__chfam','__group']);
+        $blankRow = array_fill_keys($headings, '');
+
+        foreach ($dataRows as $r) {
+            if ($r['__pg'] !== $prevPg) {
+                // 插入【類群】行：寫在「科名」欄，之後交給樣式合併 A~最後一欄
+                $g = $blankRow;
+                $g['科名']   = '【'.$r['__pg'].'】';
+                $g['__group'] = 'pg';
+                $rows[] = $g;
+
+                $prevPg  = $r['__pg'];
+                $prevFam = null; // 類群變了，強制下個 family 也插一次
+            }
+
+            if ($r['__fam'] !== $prevFam) {
+                // 插入 Family 標頭列（顯示 family + chfamily）
+                $f = $blankRow;
+                $f['科名']    = trim(($r['__fam'] ?? '').' '.($r['__chfam'] ?? ''));
+                $f['__group'] = 'fam';
+                $rows[] = $f;
+
+                $prevFam = $r['__fam'];
+            }
+
+            // 真正的物種資料列（保留 __pg/__fam/__chfam 給需要的樣式；或可清掉）
+            $rows[] = $r;
+        }
+
+        // 表頭：加入 __group（AfterSheet 會把它隱藏）
+        return ['headings' => $headings, 'rows' => $rows];
+    }
+
+
+    // ──────────────────────── Private helpers ─────────────────────────
+
+    private static function teamMap(): array
     {
         return [
             'NIU'   => '國立宜蘭大學',
@@ -47,7 +443,8 @@ class PlantListExport implements FromQuery, WithMapping, WithHeadings, WithCusto
         ];
     }
 
-    private function snCols(): array
+
+    private static function snCols(): array
     {
         return [
             'genus','species',
@@ -60,264 +457,28 @@ class PlantListExport implements FromQuery, WithMapping, WithHeadings, WithCusto
         ];
     }
 
-    public function query(): Builder
+    private static function pgOrder(): array
     {
-        if ($this->type == '1'){  //全部資料
-
-        // 1) 固定的 team 對照（順序就是輸出欄位順序）
-        $teamMap = $this->teamMap();
-
-        // 2) 動態產生各 team 欄位 SQL（顯示 V；要改成 ⭕/◎ 自行替換）
-        $teamSqls = [];
-        $bindings = [];
-        foreach ($teamMap as $code => $label) {
-            $colName = str_replace('`','``', $label); // 欄名跳脫，避免有標點
-            $teamSqls[] = "MAX(CASE WHEN e.team = ? THEN 'V' ELSE '' END) AS `{$colName}`";
-            $bindings[] = $code;
-        }
-        $groups = ['石松類植物','蕨類植物','裸子植物','雙子葉植物','單子葉植物'];
-        $placeholders = implode(',', array_fill(0, count($groups), '?')); // "?,?,?,?,?"
-
-        $snCols = $this->snCols();
-        // 動態組 selectRaw，避免手寫
-        $snSelects = array_map(fn($c) => "MAX(spinfo.$c) AS sn_$c", $snCols);        
-
-        // 3) 主查詢：僅以 spcode 分組，其餘欄位用 MAX()（相容 ONLY_FULL_GROUP_BY）
-        $builder = SubPlotPlant2025::query()
-            ->join('im_splotdata_2025 as e', 'im_spvptdata_2025.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->leftJoin('twredlist2017 as r', 'im_spvptdata_2025.spcode', '=', 'r.spcode')
-            ->whereNotNull('spinfo.spcode')
-            ->groupBy('spinfo.spcode')
-            ->selectRaw("
-                -- 這三個是排序用的 ASCII 別名
-                MAX(spinfo.plantgroup) AS pg,
-                MAX(spinfo.family)     AS fam,
-                MAX(spinfo.latinname)  AS latin,
-
-                -- 連結學名用
-                MAX(spinfo.spcode)     AS spcode,
-
-                -- 以下是實際輸出的中文欄
-                MAX(COALESCE(NULLIF(spinfo.chfamily,''), spinfo.family)) AS `科名`,
-                MAX(spinfo.latinname)                                    AS `學名`,
-                MAX(spinfo.chname)                                       AS `中文名`,
-                MAX(
-                    CASE WHEN spinfo.naturalized!='1'
-                        AND spinfo.cultivated!='1'
-                        AND (spinfo.uncertain IS NULL OR spinfo.uncertain!='1')
-                    THEN '◎' ELSE '' END
-                )                                                        AS `原生種`,
-                MAX(CASE WHEN spinfo.endemic='1' THEN '◎' ELSE '' END)     AS `特有種`,
-                MAX(CASE WHEN spinfo.naturalized='1' THEN '◎' ELSE '' END) AS `歸化種`,
-                MAX(CASE WHEN spinfo.cultivated='1'  THEN '◎' ELSE '' END) AS `栽培種`,
-                MAX(CASE 
-                        WHEN spinfo.naturalized='1' OR spinfo.cultivated='1' THEN 'NA'
-                        ELSE r.IUCN
-                    END
-                )                                                        AS `IUCN`
-            ")
-            ->selectRaw(implode(",\n", $snSelects))   // ★ 加入 sn_* 欄位
-            ->selectRaw(implode(",\n", $teamSqls), $bindings)  // 你的 team 欄位
-            // 依：plantgroup(自訂順序) → family → 學名
-            ->orderByRaw("FIELD(pg, {$placeholders})", $groups)
-            ->orderBy('fam')
-            ->orderBy('latin');
-
-            
-            // 告訴 Export 固定表頭順序（中文）
-            $this->headings = array_merge(
-                ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
-                array_values($teamMap)
-            );
-
-            return $builder;
-
-        } else {
-            return SubPlotPlant2025::query()
-                // 用 join 取代子查詢，效率與可讀性都更好
-                ->join('im_splotdata_2025 as e', 'im_spvptdata_2025.plot_full_id', '=', 'e.plot_full_id')
-                ->leftJoin('spinfo as s', 'im_spvptdata_2025.spcode', '=', 's.spcode')       // 建議 leftJoin，避免被吃光
-                ->leftJoin('twredlist2017 as r', 'im_spvptdata_2025.spcode', '=', 'r.spcode')
-                ->whereNotNull('s.spcode')   // 或 whereNotNull('s.family')
-                ->whereIn('e.plot', $this->selectedPlots)
-
-                // 只取名錄需要的欄位（避免 DISTINCT 負擔）
-                ->select([
-                    // 's.spcode',  // 若要唯一鍵可以加
-                    's.plantgroup',
-                    's.family',
-                    's.chfamily',
-                    's.latinname',
-                    's.chname',
-                    's.growth_form',
-                    DB::raw("
-                        CASE 
-                        WHEN s.naturalized != '1' 
-                        AND s.cultivated  != '1' 
-                        AND (s.uncertain IS NULL OR s.uncertain != '1')
-                        THEN 1 ELSE 0 
-                        END AS native
-                    "),
-                    's.endemic',
-                    's.naturalized',
-                    's.cultivated',
-                    DB::raw("
-                        CASE 
-                        WHEN s.naturalized = '1' OR s.cultivated = '1' THEN 'NA'
-                        ELSE r.IUCN
-                        END AS IUCN
-                    "),
-                ])
-                ->distinct()                       // 取唯一物種列
-                ->orderBy('s.family')
-                ->orderBy('s.latinname');
-        }
+        return [
+            '石松類植物','蕨類植物','裸子植物','雙子葉植物','單子葉植物'
+        ];
     }
 
-    public function map($row): array
-    {
-        // 取一份可修改的陣列
-        $arr = $row instanceof \Illuminate\Contracts\Support\Arrayable ? $row->toArray() : (array) $row;
-
-        $snCols= $this->snCols();
-        // 只在 xlsx 才做 RichText；其餘格式保留純文字
-        if ($this->format === 'xlsx') {
-            // 從 sn_* 還原成 SpNameHelper 需要的鍵名
-            $sn = [];
-            foreach ($snCols as $k) {
-                $sn[$k] = $arr["sn_$k"] ?? '';
-            }
-            $sn['spcode'] = $arr['spcode'] ?? '';
-
-            // 用你的 helper 生出含 <em> 的學名 HTML
-            $nameHtml = \App\Support\SpNameHelper::combine($sn)['name'];
-
-            // 轉成 Excel 原生 RichText（<em> → 斜體）
-            $arr['學名'] = $this->emHtmlToRichText($nameHtml);
-        }
-
-        // 依 headings 輸出數值陣列
-        $out = [];
-        foreach ($this->headings() as $h) {
-            $out[] = $arr[$h] ?? null;
-        }
-        return $out;
-    }
-
-    private function emHtmlToRichText(string $html): RichText
+    private static function emHtmlToRichText(string $html): RichText
     {
         $rt = new RichText();
-
-        // 先做最基本清理
         $html = str_replace(["\r","\n"], ' ', $html);
         $html = str_replace(['&nbsp;'], ' ', $html);
-
-        // 把 <em>…</em> 轉成簡單標記後切分（不用複雜 HTML parser）
         $html = str_replace(['<em>','</em>'], ["\x01","\x02"], $html);
-
         $parts = preg_split('/(\x01|\x02)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
         $italic = false;
-
         foreach ($parts as $p) {
-            if ($p === "\x01") { $italic = true;  continue; }
+            if ($p === "\x01") { $italic = true; continue; }
             if ($p === "\x02") { $italic = false; continue; }
-
             if ($p === '') continue;
             $run = $rt->createTextRun($p);
             $run->getFont()->setItalic($italic);
         }
-
         return $rt;
     }
-
-    public function headings(): array
-    {
-        // 若外部有明確傳入，就直接用
-        if ($this->headings !== null) return $this->headings;
-
-        // 用快取避免重算
-        if ($this->computedHeadings !== null) return $this->computedHeadings;
-
-        // type==1：我們要固定欄位（含各校）
-        if ($this->type === '1') {
-            return $this->computedHeadings = array_merge(
-                ['科名','學名','中文名','原生種','特有種','歸化種','栽培種','IUCN'],
-                array_values($this->teamMap())
-            );
-        }
-
-        // 其他型別：fallback 用第一列推表頭
-        $first = $this->query()->clone()->limit(1)->get()
-            ->map(fn($r) => $this->map($r))
-            ->first();
-
-        return $this->computedHeadings = ($first ? array_map(fn($i) => "欄位{$i}", array_keys($first)) : ['資料為空']);
-    }
-
-
-    public function getCsvSettings(): array
-    {
-        return ['delimiter' => $this->format === 'txt' ? "\t" : ','];
-    }
-
-    public function title(): string
-    {
-        return $this->title;
-    }
-
-    public function registerEvents(): array
-    {
-        if ($this->format !== 'xlsx' || !$this->mergeFamily) return [];
-
-        return [
-            AfterSheet::class => function (AfterSheet $event) {
-                $sheet = $event->sheet->getDelegate();
-
-                // ① 從工作表實際表頭找目標欄（避免與 headings() 不一致）
-                $lastCol = $sheet->getHighestDataColumn();
-                $lastIdx = Coordinate::columnIndexFromString($lastCol);
-
-                $targets = ['科名', 'family'];  // 兼容舊表頭
-                $familyIdx = null;
-
-                for ($i = 1; $i <= $lastIdx; $i++) {
-                    $col = Coordinate::stringFromColumnIndex($i);
-                    $val = trim((string)$sheet->getCell("{$col}1")->getValue());
-                    if (in_array($val, $targets, true)) { $familyIdx = $i; break; }
-                }
-                if ($familyIdx === null) return;
-
-                $col = Coordinate::stringFromColumnIndex($familyIdx);
-                $highest = $sheet->getHighestRow();
-                if ($highest <= 2) return;
-
-                // ② 合併連續相同的「科名」儲存格（值先 trim）
-                $start = 2;
-                $prev  = trim((string)$sheet->getCell("{$col}{$start}")->getCalculatedValue());
-
-                for ($r = 3; $r <= $highest; $r++) {
-                    $cur = trim((string)$sheet->getCell("{$col}{$r}")->getCalculatedValue());
-
-                    if ($cur !== $prev) {
-                        if ($r - 1 > $start) {
-                            $range = "{$col}{$start}:{$col}".($r - 1);
-                            $sheet->mergeCells($range);
-                            $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-                        }
-                        $start = $r;
-                        $prev  = $cur;
-                    }
-                }
-                // 收尾
-                if ($highest >= $start) {
-                    $range = "{$col}{$start}:{$col}{$highest}";
-                    $sheet->mergeCells($range);
-                    $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-                }
-            },
-        ];
-    }
-
-
 }

@@ -20,6 +20,7 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
     /** 需要套「數字(兩位)」格式的欄位名稱 */
     private array $numberCols;
     private bool $fillEmptyWithZero;
+    private bool $familyMerge = false;
 
     public function __construct(
         array $rows,
@@ -28,7 +29,7 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
         array $numberCols = [],  // 例：['歸化種數比例(%)','歸化物種平均覆蓋度(%)','Shannon_歸化','Shannon_原生','Shannon_全部']
         bool $fillEmptyWithZero = false,   // ⬅️ 新參數：是否把空值補 0
         public string|array $layouts = 'none',   // ← 新增：'none' | 'base' | 'row-groups' | ...
-        public array         $headerGroups = []      // ← 新增：給群組表頭用
+        public array         $headerGroups = [],      // ← 新增：給群組表頭用
     ) {
         $this->rows = $rows;
         $this->title = $title;
@@ -132,7 +133,6 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
             },
         ];
     }
-
 
 
 }

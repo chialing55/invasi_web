@@ -52,7 +52,7 @@ class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCusto
                 DB::raw("
                     CASE 
                         WHEN spinfo.naturalized != '1' 
-                          AND spinfo.cultivated  == '1' 
+                          AND spinfo.cultivated  = '1' 
                           AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
                         THEN 1 ELSE 0 
                     END AS cultivated

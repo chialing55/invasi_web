@@ -166,13 +166,13 @@ class PlantListExport
                 MAX(s.chname)    AS `中文名`,
 
                 MAX(
-                    CASE WHEN s.naturalized!='1'
-                         AND s.cultivated!='1'
-                         AND (s.uncertain IS NULL OR s.uncertain!='1')
+                    CASE WHEN COALESCE(s.naturalized,0) != 1
+                         AND COALESCE(s.cultivated,0) != 1
+                         AND (COALESCE(s.uncertain,0) !='1')
                     THEN '1' ELSE '' END
                 ) AS `原生種`,
-                MAX(CASE WHEN s.endemic='1' THEN '1' ELSE '' END)     AS `特有種`,
-                MAX(CASE WHEN s.naturalized='1' THEN '1' ELSE '' END) AS `歸化種`,
+                MAX(CASE WHEN COALESCE(s.endemic,0) = 1 THEN '1' ELSE '' END)     AS `特有種`,
+                MAX(CASE WHEN COALESCE(s.naturalized,0) = 1 THEN '1' ELSE '' END) AS `歸化種`,
                 MAX(
                     CASE 
                         WHEN COALESCE(s.cultivated,0) = 1
@@ -180,7 +180,7 @@ class PlantListExport
                         THEN '1' ELSE '' 
                     END
                     ) AS `栽培種`,
-                MAX(CASE WHEN s.naturalized='1' OR s.cultivated='1' THEN 'NA' ELSE r.IUCN END) AS `IUCN`
+                MAX(CASE WHEN COALESCE(s.naturalized,0) = 1 OR COALESCE(s.cultivated,0) = 1 THEN 'NA' ELSE r.IUCN END) AS `IUCN`
             ")
             ->selectRaw(implode(",\n", $snSelects))
             ->orderByRaw("FIELD(pg, {$pgPlaceholders})", $pgOrder)

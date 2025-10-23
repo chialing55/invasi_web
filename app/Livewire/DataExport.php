@@ -165,48 +165,47 @@ class DataExport extends Component
     }
 
     public $downloadFormat = 'xlsx'; // 預設下載格式為 xlsx
+    public $dataType = 'allData';
 
     public function downloadSelected()
     {
 
-        switch ($this->downloadFormat) {
-            case 'txt.1':
+        $dataType = $this->dataType;
+        switch ($this->dataType) {
+            case 'allData':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'statsTable':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'reasonsTable':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'env.xlsx':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'plant.xlsx':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'plantList.xlsx':
+                $this->downloadFormat = 'xlsx';
+                break;
+            case 'env.txt':
                 $this->downloadFormat = 'txt';
-                $dataType = 'env';
                 break;
 
-            case 'txt.2':
+            case 'plant.txt':
                 $this->downloadFormat = 'txt';
-                $dataType = 'plant';
                 break;
 
-            case 'txt.3':
+            case 'plantList.txt':
                 $this->downloadFormat = 'txt';
-                $dataType = 'plantlist';
                 break;
-
-            case 'xlsx':
+            case 'allPlantList':
                 $this->downloadFormat = 'xlsx';
-                $dataType = 'plotinfo';
                 break;
-
-            case 'xlsx.1':
-                $this->downloadFormat = 'xlsx';
-                $dataType = 'allplantlist';
-                break;
-
-            case 'xlsx.2':
-                $this->downloadFormat = 'xlsx';
-                $dataType = 'statsTable';
-                break;
-
-            case 'xlsx.3':
-                $this->downloadFormat = 'xlsx';
-                $dataType = 'reasonsTable';
-                break;
-
             default:
-                $dataType = 'plotinfo';
+                $this->downloadFormat = 'xlsx';
                 break;
         }
 
@@ -240,7 +239,7 @@ class DataExport extends Component
 
         return match (true) {
             // === xlsx 類 ===
-            $fmt === 'xlsx' && $dataType === 'plotinfo' => [
+            $fmt === 'xlsx' && $dataType === 'allData' => [
                 new MultiSheetExport($this->selectedPlots, $fmt),
                 "$prefix.xlsx",
             ],
@@ -256,17 +255,41 @@ class DataExport extends Component
                 new MissingPlotExport($this->selectedPlots, $fmt, '小樣區未調查原因'),
                 "$prefix-unSurveyedSubplotReasons.xlsx",
             ],
-
-            // === txt 類 ===
-            $fmt === 'txt' && $dataType === 'env' => [
+            $fmt === 'xlsx' && $dataType === 'env.xlsx' => [
                 new PlotExport($this->selectedPlots, $fmt, '環境資料'),
                 "$prefix-env.$ext",
             ],
-            $fmt === 'txt' && $dataType === 'plant' => [
+            $fmt === 'xlsx' && $dataType === 'plant.xlsx' => [
                 new PlantDataExport($this->selectedPlots, $fmt, '植物資料'),
                 "$prefix-plant.$ext",
             ],
-            $fmt === 'txt' && $dataType === 'plantlist' => (function () use ($prefix, $ext) {
+            $fmt === 'xlsx' && $dataType === 'plantlist.xlsx' => (function () use ($prefix, $ext) {
+                // 特例：plantlist xlsx 需要先算 rows/headings，再用 TableExport + tab 分隔
+                $sel = PlantListExport::PlantListDistinctForPlots(
+                    selectedPlots: $this->selectedPlots,
+                    format: 'xlsx'
+                );
+                return [
+                    new PlantListTableExport(
+                        rows: $sel['rows'],
+                        title: '植物名錄',
+                        headings: $sel['headings'],
+                        layouts: '',
+                        csvDelimiter: "\t" // 關鍵：tab 分隔
+                    ),
+                    "{$prefix}-plantlist.$ext",
+                ];
+            })(),
+            // === txt 類 ===
+            $fmt === 'txt' && $dataType === 'env.txt' => [
+                new PlotExport($this->selectedPlots, $fmt, '環境資料'),
+                "$prefix-env.$ext",
+            ],
+            $fmt === 'txt' && $dataType === 'plant.txt' => [
+                new PlantDataExport($this->selectedPlots, $fmt, '植物資料'),
+                "$prefix-plant.$ext",
+            ],
+            $fmt === 'txt' && $dataType === 'plantlist.txt' => (function () use ($prefix, $ext) {
                 // 特例：plantlist txt 需要先算 rows/headings，再用 TableExport + tab 分隔
                 $sel = PlantListExport::PlantListDistinctForPlots(
                     selectedPlots: $this->selectedPlots,

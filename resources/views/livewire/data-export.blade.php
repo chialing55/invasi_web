@@ -95,49 +95,30 @@
                         </tbody>
                     </table>
                     <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                    <div class="flex items-center mt-4">
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">所有資料.xlsx</span>
-                        </label>
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.2"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">統計表格.xlsx</span>
-                        </label>
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.3"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">小樣方未調查原因.xlsx</span>
-                        </label>
-                    </div>
-                    <div class="flex items-center mt-2">
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="txt.1"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">環境資料.txt</span>
-                        </label>
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="txt.2"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">植物資料.txt</span>
-                        </label>
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="txt.3"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">植物名錄.txt</span>
-                        </label>
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'allData', 'label' => '所有資料.xlsx'],
+                    ]"
+                        class="flex items-center mt-4" />
 
-                    </div>
-                    <div class='mb-4 mt-2'>
-                        <label class="inline-flex items-center mr-4 cursor-pointer">
-                            <input type="radio" name="downloadFormat" wire:model="downloadFormat" value="xlsx.1"
-                                class="form-radio text-forest focus:ring-forest">
-                            <span class="ml-1">全部植物名錄.xlsx</span>
-                        </label>
-                    </div>
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'env.xlsx', 'label' => '環境資料.xlsx'],
+                        ['value' => 'plant.xlsx', 'label' => '植物資料.xlsx'],
+                        ['value' => 'plantList.xlsx', 'label' => '植物名錄.xlsx'],
+                    ]"
+                        class="flex items-center mt-2" />
 
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'env.txt', 'label' => '環境資料.txt'],
+                        ['value' => 'plant.txt', 'label' => '植物資料.txt'],
+                        ['value' => 'plantList.txt', 'label' => '植物名錄.txt'],
+                    ]"
+                        class="flex items-center mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'statusTable', 'label' => '統計表格.xlsx'],
+                        ['value' => 'reasonsTable', 'label' => '小樣方未調查原因.xlsx'],
+                    ]"
+                        class="flex items-center mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allPlantList', 'label' => '全部植物名錄.xlsx']]" class="mb-4 mt-2" />
 
                     <div class="mt-4 text-right">
                         <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>

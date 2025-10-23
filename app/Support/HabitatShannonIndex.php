@@ -10,7 +10,7 @@ class HabitatShannonIndex
 {
     /**
      * 以 selectedPlots 為篩選，直接在 DB 做彙總，再計算每個 habitat 的 Shannon 指數。
-     * 不含unknown
+     * 含unknown
      * @param array       $selectedPlots  例：['A01','A02',...]
      * @param bool        $weightByArea   true=用「面積×覆蓋率」作 abundance；false=用覆蓋率加總
      * @param string      $logBase        'e' | '2' | '10'

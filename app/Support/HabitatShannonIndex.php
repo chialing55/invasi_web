@@ -128,7 +128,7 @@ class HabitatShannonIndex
             $xiAll    = $gHab   ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
             $xiNative = $gNative->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
             $xiAlien  = $gAlien ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
-if($hab=='02'){ $sumX = (float)$xiNative->sum(); dd($sumX);}
+// if($hab=='02'){ $sumX = (float)$xiNative->sum(); dd($sumX);}
 /*
 𝑝𝒾=𝑥𝑖Σ𝑥𝑖𝑠𝑖=1 𝐻′=−Σ𝑝𝑖×log𝑝𝑖𝑆𝑖 𝑥=物種覆蓋度。
 𝑠=物種數。

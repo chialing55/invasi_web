@@ -99,10 +99,12 @@ class FloraGroupStats
         $rows[] = self::buildRow('種數', $byGroup, $countSpecies);
 
         // 屬性
-        $rows[] = self::buildRow('特有種', $byGroup, $countEndemic);
-        $rows[] = self::buildRow('原生種', $byGroup, $countNative);
-        $rows[] = self::buildRow('歸化種', $byGroup, $countAlien);
-        $rows[] = self::buildRow('栽培種', $byGroup, $countCult);
+        if ($mode === 'all') {
+            $rows[] = self::buildRow('特有種', $byGroup, $countEndemic);
+            $rows[] = self::buildRow('原生種', $byGroup, $countNative);
+            $rows[] = self::buildRow('歸化種', $byGroup, $countAlien);
+            $rows[] = self::buildRow('栽培種', $byGroup, $countCult);
+        }
 
         // 生活型
         foreach ($lifeforms as $lf) {

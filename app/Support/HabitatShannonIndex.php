@@ -54,27 +54,25 @@ class HabitatShannonIndex
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
+            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
-
+                // {$chLabelExpr}      as chname,
+                //{$spKeyExpr}      as sp,
         // 查詢：用 selectRaw + groupByRaw，把**表達式本身**放進群組
         $rows = (clone $base)
             ->selectRaw("
                 {$habExpr}        as hab,
                 {$statusExpr}     as status,
                 {$spKeyExpr}      as sp,
-                {$chLabelExpr}    as chname,
                 MAX(COALESCE(p.spcode, '')) as spcode_raw,  -- 帶出原始 spcode（聚合避免 group by 衝突）
                 COUNT(*)          as n_rows,
                 SUM(p.coverage)   as sum_cov_rows
             ")
             ->groupByRaw("{$habExpr}, {$statusExpr}, {$spKeyExpr}, {$chLabelExpr}")
             ->get();
-// dd(
-//     $rows->filter(fn($r) => ($r->spcode_raw ?? '') === '')
-//          ->values()
-//          ->toArray()
-// );
+
+// dd($rows->toArray());
+
         if ($rows->isEmpty()) return [];
 
 /*
@@ -121,15 +119,16 @@ class HabitatShannonIndex
 
             // 物種數
             $nNative = $gNative->pluck('sp')->unique()->count();
+            
             $nAlien  = $gAlien->pluck('sp')->unique()->count();
             $nCultiv  = $gCultiv->pluck('sp')->unique()->count();
             $nAll    = $gHab->pluck('sp')->unique()->count();
-
+// if($hab=='02'){dd($nNative, $nAll );}
             // 供 Shannon 用的 xi（以 species 聚合後的 abundance）
             $xiAll    = $gHab   ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
             $xiNative = $gNative->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
             $xiAlien  = $gAlien ->pluck('sum_cov_rows', 'sp')->map(fn($v) => (float)$v);
-
+if($hab=='02'){ $sumX = (float)$xiNative->sum(); dd($sumX);}
 /*
 𝑝𝒾=𝑥𝑖Σ𝑥𝑖𝑠𝑖=1 𝐻′=−Σ𝑝𝑖×log𝑝𝑖𝑆𝑖 𝑥=物種覆蓋度。
 𝑠=物種數。
@@ -143,6 +142,7 @@ b 為對數底（常用 e、2、10）
 
             $H = function (Collection $xi) use ($logFn): float {
                 $sumX = (float)$xi->sum();
+                
                 if ($sumX <= 0) return 0.0;
                 $h = 0.0;
                 foreach ($xi as $x) {
@@ -150,7 +150,7 @@ b 為對數底（常用 e、2、10）
                     $p = $x / $sumX;
                     $h -= $p * $logFn($p);
                 }
-                return round($h, 4);
+                return $h;
             };
            
 

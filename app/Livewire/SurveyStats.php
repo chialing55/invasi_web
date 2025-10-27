@@ -20,23 +20,116 @@ class SurveyStats extends Component
     public $selectedPlots = [];
     public $thisHabType = '';
     public $habTypeMap = [];
+
+    public $teamList = [];
+    public $countyList = [];
+    public $yearList = [];
+    public $thisCensusYear;
+
     public function mount()
     {
-
-        $plotHab2025 = SubPlotEnv2025::select('habitat_code')
-            ->pluck('habitat_code')
-            ->unique()
-            ->values()
-            ->toArray();
-        $plotHabList = $plotHab2025;
-        if (in_array('08', $plotHabList)) $plotHabList[] = '88';
-        if (in_array('09', $plotHabList)) $plotHabList[] = '99';
-
-        $this->habTypeOptions = HabHelper::habitatOptions($plotHabList);
-
+        $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
+        $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
+        $this->yearList = PlotList2025::where('census_year', '>=', 2025)
+                ->distinct()
+                ->orderByDesc('census_year')
+                ->pluck('census_year')
+                ->toArray();
+        $this->thisCensusYear ??= date('Y'); // 如果未指定才設定                
+        $this->habTypeOptions('All');
         // dd($habTypeMap);
     }
+
+    public $thisTeam;
+    public $thisCounty;
+
+
+    public function habTypeOptions($thisCounty){
+        if ($thisCounty == '') {
+            $thisCounty = 'All';
+        }
+        if ($thisCounty == 'All' ){
+            $plotHab2025 = SubPlotEnv2025::select('habitat_code')
+                ->pluck('habitat_code')
+                ->unique()
+                ->values()
+                ->toArray();
+
+        } else {
+             $plotHab2025 = SubPlotEnv2025::select('habitat_code')
+            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->where('plot_list.county', $thisCounty)
+            ->distinct()->pluck('habitat_code')->toArray();
+        }
+
+            $plotHabList = $plotHab2025;
+            if (in_array('08', $plotHabList)) $plotHabList[] = '88';
+            if (in_array('09', $plotHabList)) $plotHabList[] = '99';
+
+            $this->habTypeOptions = HabHelper::habitatOptions($plotHabList);        
+    }
+
+    //選擇團隊之後
+    public function loadCountyList($thisteam)
+    {
+
+        if ($thisteam == '') {
+            $thisteam = 'All';
+        }
+
+        $this->thisTeam = $thisteam;
+        if ($thisteam === 'All') {
+            $this->countyList = PlotList2025::select('county')
+                ->when(!blank($this->thisCensusYear), fn($q) =>
+                    $q->where('census_year', $this->thisCensusYear)
+                )
+                ->distinct()->pluck('county')->toArray();
+
+        } else {
+            $this->countyList = PlotList2025::where('team', $thisteam)
+                ->when(!blank($this->thisCensusYear), fn($q) =>
+                    $q->where('census_year', $this->thisCensusYear)
+                )
+                ->select('county')->distinct()->pluck('county')->toArray();
+
+        }
+
+
+        $this->thisCounty = '';
+        $this->dispatch('thisCountyUpdated');
+        $this->allPlotInfo = [];
+    }
+    public $plotList = [];
+    public $allPlotInfo = [];
+    public $showAllPlotInfo = [];
+    public $allContyInfo = [];
+    public $showContyInfo = [];
+    public $allTeamInfo = [];
+    public $showTeamInfo = [];
+    public $subPlotSummary = [];
+    public $subPlotHabList = [];
+    public $thisHabitat = '';           // 使用者目前選的 habitat_code
+    public $filteredSubPlotSummary = []; // 用來顯示的表格資料
+    //選擇縣市之後
+    public function surveryedPlotInfo($thisCounty)
+    {
+        $this->allPlotInfo = [];
+        if ($this->thisTeam == '') {
+            $this->thisTeam = 'All';
+        }
+        if ($thisCounty == '') {
+            $thisCounty = 'All';
+        }
+
+        $this->habTypeOptions($thisCounty);
+
+    }
+    public $thisPlotFile = null;
+
     public $habTypeName = '';
+
+
+
     public function habPlantInfo()
     {
         if (empty($this->thisHabType)) {
@@ -44,6 +137,9 @@ class SurveyStats extends Component
             $this->stats = [];
             return;
         }
+
+
+
         $this->habTypeName = $this->habTypeOptions[$this->thisHabType] ?? '';
         $this->getPlantList(); // 你原本撈資料的函式
   
@@ -52,11 +148,15 @@ class SurveyStats extends Component
     public $habPlantList = [];
     public function getPlantList()
     {
+        $hab = trim((string) $this->thisHabType); 
+
         $this->message = '';
         $plantListAll = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
-            ->where('im_splotdata_2025.habitat_code', $this->thisHabType)
+            ->when($hab !== '' && strcasecmp($hab, 'All') !== 0, function ($q) use ($hab) {
+                $q->where('im_splotdata_2025.habitat_code', $hab); // 單一值 where
+            })
             // ->where('spinfo.growth_form', '!=', '')
             ->select(
                 // 'spinfo.spcode',

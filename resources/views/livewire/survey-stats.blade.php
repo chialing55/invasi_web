@@ -6,10 +6,47 @@
     </div>
     <h2 class="text-xl font-bold mb-4">樣區成果初步統計</h2>
     <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+
+        <div class="md:flex md:flex-row md:items-center gap-2">
+            <label class="block font-semibold md:mr-2">選擇年分：</label>
+            <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
+                <option value="">- 請選擇 -</option>
+                @foreach ($yearList as $year)
+                    <option value="{{ $year }}">{{ $year }}</option>
+                @endforeach
+            </select>
+        </div>
+        <!-- 選擇樣區 -->
+
+        <div class="md:flex md:flex-row md:items-center gap-2">
+            <label class="block font-semibold md:mr-2">選擇團隊：</label>
+            <select id="team" wire:model="thisTeam" class="border rounded p-2 w-[130px]"
+                wire:change="loadCountyList($event.target.value)">
+                <option value="">-- 請選擇 --</option>
+                <option value="All">All</option>
+                @foreach ($teamList as $team)
+                    <option value="{{ $team }}">{{ $team }}</option>
+                @endforeach
+            </select>
+        </div>
+        <!-- 選擇縣市 -->
+        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+            <label class="block font-semibold md:mr-2">選擇縣市：</label>
+            <select id="county" wire:model="thisCounty" class="border rounded p-2 w-40"
+                wire:change="surveryedPlotInfo($event.target.value)">
+                <option value="">-- 請選擇 --</option>
+                <option value="All">All</option>
+                @foreach ($countyList as $county)
+                    <option value="{{ $county }}">{{ $county }}</option>
+                @endforeach
+            </select>
+        </div>
+
         <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
         <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
             wire:change="habPlantInfo($event.target.value)">
             <option value="">-- 請選擇 --</option>
+            <option value="All">All</option>
             @foreach ($habTypeOptions as $code => $label)
                 <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
             @endforeach

@@ -13,10 +13,11 @@ use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use App\Helpers\HabHelper;
 use Illuminate\Support\Facades\DB;
+use App\Support\SpNameHelper;
 
 class SurveyStats extends Component
 {
-    public $habTypeOptions;
+    public $habTypeOptions = [];
     public $selectedPlots = [];
     public $thisHabType = '';
     public $habTypeMap = [];
@@ -36,21 +37,29 @@ class SurveyStats extends Component
                 ->pluck('census_year')
                 ->toArray();
         $this->thisCensusYear ??= date('Y'); // 如果未指定才設定                
-        $this->habTypeOptions('All');
+        $this->habTypeOptions('');
         // dd($habTypeMap);
     }
 
-    public $thisTeam;
-    public $thisCounty;
+    public $thisTeam = '';
+    public $thisCounty = '';
 
 
     public function habTypeOptions($thisCounty){
-        if ($thisCounty == '') {
-            $thisCounty = 'All';
+
+        if ($thisCounty == 'All'){
+            $thisCounty = '';
         }
-        if ($thisCounty == 'All' ){
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
+        }
+
+        if ($this->thisTeam == 'All'){
+            $this->thisTeam = '';
+        }
+        if ($thisCounty == '' &&  $this->thisTeam == ''){
             $plotHab2025 = SubPlotEnv2025::select('habitat_code')
-                ->pluck('habitat_code')
+                ->pluck('habitat_code')            
                 ->unique()
                 ->values()
                 ->toArray();
@@ -58,7 +67,15 @@ class SurveyStats extends Component
         } else {
              $plotHab2025 = SubPlotEnv2025::select('habitat_code')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->where('plot_list.county', $thisCounty)
+            ->when(!blank($thisCounty), fn($q) =>
+                $q->where('plot_list.county', $thisCounty)
+            )
+            ->when(!blank($this->thisTeam), fn($q) =>
+                $q->where('plot_list.team', $this->thisTeam)
+            )
+            ->when(!blank($this->thisCensusYear), fn($q) =>
+                $q->where('census_year', $this->thisCensusYear)
+            )
             ->distinct()->pluck('habitat_code')->toArray();
         }
 
@@ -70,15 +87,20 @@ class SurveyStats extends Component
     }
 
     //選擇團隊之後
-    public function loadCountyList($thisteam)
+    public function loadCountyList($thisTeam)
     {
-
-        if ($thisteam == '') {
-            $thisteam = 'All';
+        if ($this->thisCounty == 'All'){
+            $this->thisCounty = '';
+        }
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
+        }
+        if ($thisTeam == 'All'){
+            $thisTeam = '';
         }
 
-        $this->thisTeam = $thisteam;
-        if ($thisteam === 'All') {
+        $this->thisTeam = $thisTeam;
+        if ($thisTeam === '') {
             $this->countyList = PlotList2025::select('county')
                 ->when(!blank($this->thisCensusYear), fn($q) =>
                     $q->where('census_year', $this->thisCensusYear)
@@ -86,7 +108,7 @@ class SurveyStats extends Component
                 ->distinct()->pluck('county')->toArray();
 
         } else {
-            $this->countyList = PlotList2025::where('team', $thisteam)
+            $this->countyList = PlotList2025::where('team', $thisTeam)
                 ->when(!blank($this->thisCensusYear), fn($q) =>
                     $q->where('census_year', $this->thisCensusYear)
                 )
@@ -94,9 +116,11 @@ class SurveyStats extends Component
 
         }
 
-
+        $this->stats = [];
         $this->thisCounty = '';
+        $this->habTypeOptions('');
         $this->dispatch('thisCountyUpdated');
+        $this->dispatch('thisHabTypeUpdated');
         $this->allPlotInfo = [];
     }
     public $plotList = [];
@@ -113,16 +137,21 @@ class SurveyStats extends Component
     //選擇縣市之後
     public function surveryedPlotInfo($thisCounty)
     {
+        if ($thisCounty == 'All'){
+            $thisCounty = '';
+        }
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
+        }
+        if ($this->thisTeam == 'All'){
+            $this->thisTeam = '';
+        }
+
         $this->allPlotInfo = [];
-        if ($this->thisTeam == '') {
-            $this->thisTeam = 'All';
-        }
-        if ($thisCounty == '') {
-            $thisCounty = 'All';
-        }
 
         $this->habTypeOptions($thisCounty);
-
+        $this->stats = [];
+        $this->dispatch('thisHabTypeUpdated');
     }
     public $thisPlotFile = null;
 
@@ -148,24 +177,54 @@ class SurveyStats extends Component
     public $habPlantList = [];
     public function getPlantList()
     {
+        if ($this->thisHabType == 'All'){
+            $this->thisHabType = '';
+        }
+        if ($this->thisCounty == 'All'){
+            $this->thisCounty = '';
+        }
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
+        }
+        if ($this->thisTeam == 'All'){
+            $this->thisTeam = '';
+        }
         $hab = trim((string) $this->thisHabType); 
+        $thisCounty = $this->thisCounty;
 
         $this->message = '';
-        $plantListAll = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
+        $base = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
             ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
             ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
-            ->when($hab !== '' && strcasecmp($hab, 'All') !== 0, function ($q) use ($hab) {
+            ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->when(!blank($this->thisTeam), fn($q) => 
+                $q->where('plot_list.team',  $this->thisTeam) // 單一值 where
+            )
+            ->when(!blank($thisCounty), function ($q) use ($thisCounty) {
+                $q->where('plot_list.county', $thisCounty); // 單一值 where
+            })
+            ->when(!blank($hab), function ($q) use ($hab) {
                 $q->where('im_splotdata_2025.habitat_code', $hab); // 單一值 where
             })
+            ->when(!blank($this->thisCensusYear), fn($q) =>
+                $q->where('census_year', $this->thisCensusYear)
+        );
             // ->where('spinfo.growth_form', '!=', '')
-            ->select(
-                // 'spinfo.spcode',
+        $plantListAll=(clone $base)->select(
+                'spinfo.spcode',
                 'spinfo.family',
                 'spinfo.chfamily',
                 'spinfo.latinname',
                 'spinfo.chname',                
                 // 'spinfo.family',                
                 'spinfo.growth_form',
+                'spinfo.genus',
+                'spinfo.species',
+                'spinfo.ssp',
+                'spinfo.var',
+                'spinfo.subvar',
+                'spinfo.f',
+                'spinfo.cv',
                 DB::raw("
                     CASE 
                         WHEN spinfo.naturalized != '1' 
@@ -190,8 +249,24 @@ class SurveyStats extends Component
             ->orderBy('family')
             ->orderBy('spinfo.latinname')
             ->get()
+            ->map(function ($r) {
+                $sim = SpNameHelper::combine([
+                    'genus'   => $r->genus ?? '',
+                    'species' => $r->species ?? '',
+                    'ssp'     => $r->ssp ?? '',
+                    'var'     => $r->var ?? '',
+                    'subvar'  => $r->subvar ?? '',
+                    'f'       => $r->f ?? '',
+                    'cv'      => $r->cv ?? '',
+                ]);
+                // 產生含 <em> 的學名（簡化學名）
+                $r->latinname_html = $sim['simnametitle'];
+                // 若你也想保留完整學名可用 $sim['simnamefull']（依你的 helper 實作）
+                return $r;
+            })
             ->toArray();
 
+// dd($plantListAll);            
             if (empty($plantListAll)) {
                 $this->stats = [];
                 $this->message = '此生育地類型尚無植物資料。';

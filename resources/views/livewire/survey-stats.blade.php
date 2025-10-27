@@ -5,12 +5,13 @@
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
     <h2 class="text-xl font-bold mb-4">樣區成果初步統計</h2>
-    <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+    <div class="md:flex md:flex-row md:items-center gap-4 mb-4 md:mb-0">
 
-        <div class="md:flex md:flex-row md:items-center gap-2">
+        <div class="md:flex md:flex-row md:items-center">
             <label class="block font-semibold md:mr-2">選擇年分：</label>
             <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
                 <option value="">- 請選擇 -</option>
+                <option value="All">All</option>
                 @foreach ($yearList as $year)
                     <option value="{{ $year }}">{{ $year }}</option>
                 @endforeach
@@ -18,7 +19,7 @@
         </div>
         <!-- 選擇樣區 -->
 
-        <div class="md:flex md:flex-row md:items-center gap-2">
+        <div class="md:flex md:flex-row md:items-center">
             <label class="block font-semibold md:mr-2">選擇團隊：</label>
             <select id="team" wire:model="thisTeam" class="border rounded p-2 w-[130px]"
                 wire:change="loadCountyList($event.target.value)">
@@ -30,7 +31,7 @@
             </select>
         </div>
         <!-- 選擇縣市 -->
-        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
+        <div class="md:flex md:flex-row md:items-center mb-4 md:mb-0">
             <label class="block font-semibold md:mr-2">選擇縣市：</label>
             <select id="county" wire:model="thisCounty" class="border rounded p-2 w-40"
                 wire:change="surveryedPlotInfo($event.target.value)">
@@ -41,20 +42,21 @@
                 @endforeach
             </select>
         </div>
-
-        <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
-        <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
-            wire:change="habPlantInfo($event.target.value)">
-            <option value="">-- 請選擇 --</option>
-            <option value="All">All</option>
-            @foreach ($habTypeOptions as $code => $label)
-                <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
-            @endforeach
-        </select>
+        <div class="md:flex md:flex-row md:items-center mb-4 md:mb-0">
+            <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
+            <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
+                wire:change="habPlantInfo($event.target.value)">
+                <option value="">-- 請選擇 --</option>
+                <option value="All">All</option>
+                @foreach ($habTypeOptions as $code => $label)
+                    <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
     </div>
     @if ($stats != [])
         <div class="gray-card w-fit mt-6">
-            <h3>{{ $habTypeName }}生育地類型物種數</h3>
+            <h3>{{ $thisTeam }} {{ $thisCounty }} {{ $habTypeName }} 生育地類型物種數</h3>
             <div class="mb-6">
                 <p>{{ $habTypeName }}生育地類型，共記錄到 {{ $stats['total_species'] }} 種植物，分屬 {{ $stats['total_families'] }}
                     科、{{ $stats['total_genera'] }} 屬。</p>
@@ -100,7 +102,7 @@
                             class="text-left {{ $loop->even ? 'bg-gray-50' : 'bg-white' }} hover:bg-amber-800/10 cursor-pointer">
                             <td class="border px-4 py-2">{{ $plant['family'] ?? '--' }}</td>
                             <td class="border px-4 py-2">{{ $plant['chfamily'] ?? '--' }}</td>
-                            <td class="border px-4 py-2 italic">{{ $plant['latinname'] ?? '--' }}</td>
+                            <td class="border px-4 py-2 italic">{!! $plant['latinname_html'] ?? '--' !!}</td>
                             <td class="border px-4 py-2">{{ $plant['chname'] ?? '--' }}</td>
                             <td class="border px-4 py-2">{{ $plant['growth_form'] ?? '--' }}</td>
 
@@ -132,3 +134,11 @@
         </div>
     @endif
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        //監聽的名稱, select的id
+        listenAndResetSelect('thisCountyUpdated', 'county');
+        listenAndResetSelect('thisHabTypeUpdated', 'habType');
+        // listenAndResetSelect('thisSubPlotUpdated', 'subPlot');
+    });
+</script>

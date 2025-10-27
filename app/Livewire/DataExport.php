@@ -5,17 +5,10 @@ namespace App\Livewire;
 use Livewire\Component;
 
 use App\Models\PlotList2025;
-use App\Models\SubPlotEnv2010;
+
 use App\Models\SubPlotEnv2025;
-use App\Models\SubPlotPlant2010;
-use App\Models\SubPlotPlant2025;
-use App\Models\Twredlist2017;   
-use App\Models\SpInfo;
-use App\Models\HabitatInfo;
-use Illuminate\Support\Facades\DB;
-use App\Helpers\HabHelper;
-use App\Helpers\PlotHelper;
-use App\Helpers\PlotCompletedHelper;
+
+
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Support\AnalysisHelper;
@@ -38,13 +31,18 @@ class DataExport extends Component
     public $countyList = [];
     public $teamList = [];
     public $plotInfo = [];
-    public $thisCounty;
-    public $thisTeam;
-    public $thisPlot;
+    public $thisCounty = '';
+    public $thisTeam ='';
     public $yearList = [];
     public $thisCensusYear = null;
     public function mount()
     {
+        $user = Auth::user(); // 取代 auth()->user()
+
+        if (!$user) {
+            return redirect('/'); // ⬅️ 若未登入，退回首頁
+        }
+
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
         $this->yearList = PlotList2025::where('census_year', '>=', 2025)
@@ -58,12 +56,17 @@ class DataExport extends Component
     public function loadCountyList($thisteam)
     {
 
-        if ($thisteam == '') {
-            $thisteam = 'All';
+        $this->message = '';
+        if ($thisteam == 'All') {
+            $thisteam = '';
+        }
+
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
         }
 
         $this->thisTeam = $thisteam;
-        if ($thisteam === 'All') {
+        if ($thisteam === '') {
             $this->countyList = PlotList2025::select('county')
                 ->when(!blank($this->thisCensusYear), fn($q) =>
                     $q->where('census_year', $this->thisCensusYear)
@@ -98,23 +101,30 @@ class DataExport extends Component
     //選擇縣市之後
     public function surveryedPlotInfo($thisCounty)
     {
+        $this->message = '';
         $this->allPlotInfo = [];
-        if ($this->thisTeam == '') {
-            $this->thisTeam = 'All';
+        if ($this->thisTeam == 'All') {
+            $this->thisTeam = '';
         }
-        if ($thisCounty == '') {
-            $thisCounty = 'All';
+        if ($thisCounty == 'All') {
+            $thisCounty = '';
+        }
+
+        if ($this->thisCensusYear == 'All'){
+            $this->thisCensusYear = '';
         }
 
         $this->thisCounty = $thisCounty;
 
         $plotListQuery = SubPlotEnv2025::select('im_splotdata_2025.plot as plot')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->where('year', $this->thisCensusYear);
+            ->when(!blank($this->thisCensusYear), fn($q) =>
+                $q->where('census_year', $this->thisCensusYear)
+            );
 
 // dd($thisCounty);
 
-        if ($thisCounty === 'All') {
+        if ($thisCounty === '') {
             $plotListQuery->whereIn('plot_list.county', $this->countyList);
         } else {
             $plotListQuery->where('plot_list.county', $thisCounty);
@@ -124,7 +134,7 @@ class DataExport extends Component
             ->distinct()
             ->pluck('plot')
             ->toArray();
-
+// dd($plotList);
 
         $this->plotList = $plotList;
         // $this->dispatch('thisPlotUpdated');
@@ -134,9 +144,10 @@ class DataExport extends Component
     }
     public $thisPlotFile = null;
     public $selectedPlots = []; // 用於存儲選中的樣區
+    public $message='';
     public function loadAllPlotInfo($plotList)
     {
-
+        $this->message = '';
         $summary = [];
         foreach ($plotList as $plot) {
 
@@ -150,12 +161,18 @@ class DataExport extends Component
 
             ];
         }
-
+        if (empty($summary)) {
+            $this->allPlotInfo = [];
+            $this->message = '尚未有調查資料。';
+            return;
+        }
         $this->allPlotInfo = collect($summary)
             ->sortByDesc(fn($item) => !is_null($item['plot']))
             ->values()
             ->toArray();
         $this->selectedPlots = $plotList;
+
+
         // dd($this->allPlotInfo);
         //  dd($summary);
         // $this->allPlotInfo = $summary;

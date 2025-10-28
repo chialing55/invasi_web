@@ -260,7 +260,7 @@ class DataExport extends Component
                 new MultiSheetExport($this->selectedPlots, $fmt),
                 "$prefix.xlsx",
             ],
-            $fmt === 'xlsx' && $dataType === 'allplantlist' => [
+            $fmt === 'xlsx' && $dataType === 'allPlantList' => [
                 new PlantListMultiSheetExport($this->selectedPlots, $fmt),
                 "allPlantList.xlsx",
             ],
@@ -280,7 +280,7 @@ class DataExport extends Component
                 new PlantDataExport($this->selectedPlots, $fmt, '植物資料'),
                 "$prefix-plant.$ext",
             ],
-            $fmt === 'xlsx' && $dataType === 'plantlist.xlsx' => (function () use ($prefix, $ext) {
+            $fmt === 'xlsx' && $dataType === 'plantList.xlsx' => (function () use ($prefix, $ext) {
                 // 特例：plantlist xlsx 需要先算 rows/headings，再用 TableExport + tab 分隔
                 $sel = PlantListExport::PlantListDistinctForPlots(
                     selectedPlots: $this->selectedPlots,
@@ -294,7 +294,7 @@ class DataExport extends Component
                         layouts: '',
                         csvDelimiter: "\t" // 關鍵：tab 分隔
                     ),
-                    "{$prefix}-plantlist.$ext",
+                    "{$prefix}-plantList.$ext",
                 ];
             })(),
             // === txt 類 ===
@@ -306,7 +306,7 @@ class DataExport extends Component
                 new PlantDataExport($this->selectedPlots, $fmt, '植物資料'),
                 "$prefix-plant.$ext",
             ],
-            $fmt === 'txt' && $dataType === 'plantlist.txt' => (function () use ($prefix, $ext) {
+            $fmt === 'txt' && $dataType === 'plantList.txt' => (function () use ($prefix, $ext) {
                 // 特例：plantlist txt 需要先算 rows/headings，再用 TableExport + tab 分隔
                 $sel = PlantListExport::PlantListDistinctForPlots(
                     selectedPlots: $this->selectedPlots,
@@ -320,7 +320,7 @@ class DataExport extends Component
                         layouts: '',
                         csvDelimiter: "\t" // 關鍵：tab 分隔
                     ),
-                    "{$prefix}-plantlist.$ext",
+                    "{$prefix}-plantList.$ext",
                 ];
             })(),
 

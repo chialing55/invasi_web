@@ -110,7 +110,7 @@
                     ['value' => 'plantList.txt', 'label' => '植物名錄.txt'],
                 ]" class="flex items-center mt-2" />
                 <x-radio-group name="dataType" model="dataType" :options="[
-                    ['value' => 'statusTable', 'label' => '統計表格.xlsx'],
+                    ['value' => 'statsTable', 'label' => '統計表格.xlsx'],
                     ['value' => 'reasonsTable', 'label' => '小樣方未調查原因.xlsx'],
                 ]" class="flex items-center mt-2" />
                 <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allPlantList', 'label' => '全部植物名錄.xlsx']]" class="mb-4 mt-2" />

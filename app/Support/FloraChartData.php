@@ -47,7 +47,7 @@ class FloraChartData
             ->values()
             ->all();
 
-
+        $rows[]['植物科名']= '無法直接以程式製圖，請自行繪製成柱狀圖。';
         return [
             'title'    => '歸化物種優勢科 Top ' . $limit,
             'headings' => ['植物科名','物種數'],

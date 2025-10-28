@@ -238,8 +238,9 @@ class DataExport extends Component
 
         $format = $formatConstants[$this->downloadFormat] ?? Excel::CSV;
         $ext = $this->downloadFormat;
-
-        $prefix = $this->thisTeam . '_' . $this->thisCounty . '_' . date('Ymd');
+        $prefix='';
+        if( $this->thisTeam != '' ){ $prefix = $this->thisTeam.'_';}
+        $prefix .= $this->thisCounty . '_' . date('Ymd');
         // 這一行會同時拿到對應的 Export 物件與檔名
         [$export, $filename] = $this->buildExportAndFilename($dataType, $prefix, $ext, $format);
 

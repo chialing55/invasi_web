@@ -118,12 +118,19 @@
         </div>
 
         <div class="flex justify-start gap-8 items-start flex-wrap {{ $showTeamProgress ? '' : 'hidden' }}">
-            <div class="gray-card mb-6 space-y-3">
+            <div class="gray-card space-y-3">
                 <canvas id="teamBarChart2" class="w-[400px] h-[260px]"></canvas>
             </div>
-            <div class="gray-card mb-6 space-y-3">
+            <div class="gray-card space-y-3">
                 <canvas id="teamBarChart1" class="w-[400px] h-[260px]"></canvas>
             </div>
+            <div class="gray-card mb-6 space-y-3">@include('components.team-stats-table', [
+                'subPlotTeam' => $this->subPlotTeam,
+                'subPlantTeam' => $this->subPlantTeam,
+
+            ])
+            </div>
+
         </div>
 
     @endif
@@ -144,7 +151,7 @@
                     @php
                         $completed = (int) ($row['completed_plots'] ?? 0); // 已完成數
                         $hasData = (int) ($row['has_data_plots'] ?? 0); // 有資料數
-                        $total = max(0, (int) ($row['total_plots'] ?? 0)); // 總樣區數（分母）
+                        $total = max(0, (int) ($row['total_subPlots'] ?? 0)); // 總樣區數（分母）
 
                         $entryCnt = max(0, $hasData - $completed); // 尚未完成但已有資料的數
 
@@ -177,7 +184,8 @@
                         </div>
 
                         <div class="mb-3">
-                            <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} + {{ $entryCnt }} / {{ $row['total_plots'] }}
+                            <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} + {{ $entryCnt }} /
+                                {{ $row['total_plots'] }}
                             </p>
 
                             <div class="relative w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">

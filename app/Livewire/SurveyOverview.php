@@ -24,7 +24,6 @@ class SurveyOverview extends Component
     public $thisCounty;
     public $plotList=[];
     public $thisPlot='';
-    public $thisYear='2025';
 
     public $totalPlotCount = 0;
     public $completedSubPlotCount = 0;
@@ -175,7 +174,14 @@ class SurveyOverview extends Component
         if (empty($this->subPlotTeam) && empty($this->subPlantTeam)) {
            
             $subPlot_team = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-                ->select('plot_list.team', DB::raw('COUNT(DISTINCT im_splotdata_2025.plot_full_id) as total_plots'))
+                ->select('plot_list.team', 
+                    DB::raw('COUNT(DISTINCT im_splotdata_2025.plot) as total_plots',),
+                    DB::raw('COUNT(DISTINCT im_splotdata_2025.plot_full_id) as total_subPlots',),
+                    //草本樣方
+                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code REGEXP '^(0[1-7]|1[0-9]|20)$', im_splotdata_2025.plot_full_id, NULL)) AS herb_plots"), 
+                    //木本樣方
+                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code REGEXP '^(08|09)$', im_splotdata_2025.plot_full_id, NULL)) AS woody_plots"),
+                    )
                 ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')
                 ->orderByDesc('total_plots')
@@ -184,7 +190,11 @@ class SurveyOverview extends Component
 
             $subPlant_team = SubPlotPlant2025::join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
                 ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-                ->select('plot_list.team', DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'))
+                ->select('plot_list.team', 
+                    DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'),
+                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code REGEXP '^(0[1-7]|1[0-9]|20)$', 1, NULL)) AS herb_plants"),
+                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code REGEXP '^(08|09)$', 1, NULL)) AS woody_plants"),
+                    )
                 ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')
                 ->orderByDesc('total_plants')
@@ -193,6 +203,7 @@ class SurveyOverview extends Component
 
             $this->subPlotTeam = $subPlot_team;
             $this->subPlantTeam = $subPlant_team;
+
         }
 // dd($subPlant_team);
         $this->dispatch('thisTeamProgress', data:[

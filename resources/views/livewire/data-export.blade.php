@@ -79,10 +79,10 @@
 
                     <tbody class=" cursor-pointer bg-white">
                         @foreach ($allPlotInfo as $index => $row)
-                            <tr class='group hover:bg-amber-800/10' wire:key="row-{{ $row['plot'] }}">
+                            <tr class='group hover:bg-amber-800/10' wire:key="row-{{ $row['plot'] }}" wire:click="toggleRow('{{ (string)$row['plot'] }}')">
                                 <td class="border-b px-4 py-2 text-center align-middle">
-                                    <input type="checkbox" wire:key="cb-{{ $row['plot'] }}" wire:model="selectedPlots"
-                                        value="{{ $row['plot'] }}">
+                                    <input type="checkbox" wire:key="cb-{{ $row['plot'] }}" wire:model.live="selectedPlots"
+                                        value="{{ $row['plot'] }}" wire:click.stop>
                                 </td>
                                 <td class="border-b px-4 py-2 text-center align-top">
                                     {{ $row['county'] }}

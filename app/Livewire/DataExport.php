@@ -195,8 +195,23 @@ class DataExport extends Component
     {
         // 保持僅包含目前列表存在的 id（避免舊值殘留）
         $this->selectedPlots = array_values(array_intersect($this->selectedPlots, $this->allPlotIds));
-        $this->selectAll = count($this->selectedPlots) === count($this->allPlotIds) && count($this->allPlotIds) > 0;
+
+        $this->selectAll = count($this->allPlotIds) > 0 && count($this->selectedPlots) === count($this->allPlotIds);
     }
+
+    public function toggleRow(string $id): void
+    {
+        $id = (string) $id;
+        if (in_array($id, $this->selectedPlots, true)) {
+            $this->selectedPlots = array_values(array_diff($this->selectedPlots, [$id]));
+        } else {
+            $this->selectedPlots[] = $id;
+        }
+
+        // 與全選狀態同步（若你已有這段可共用）
+        $this->updatedSelectedPlots();
+    }
+
 
     public $downloadFormat = 'xlsx'; // 預設下載格式為 xlsx
     public $dataType = 'allData';

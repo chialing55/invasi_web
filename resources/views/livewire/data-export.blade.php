@@ -88,7 +88,7 @@
                                         class="inline-flex items-center gap-2 select-none">
                                         {{-- ★ 用 x-model 綁定，不做 indeterminate，點了就一定能切換 --}}
                                         <input type="checkbox" x-model="master" @change="toggleMaster()">
-                                        <span class="text-xs">全選</span>
+                                        <span>全選</span>
                                     </label></th>
                                 <th class="border-b px-4 py-2">縣市</th>
                                 <th class="border-b px-4 py-2">樣區編號</th>
@@ -124,29 +124,30 @@
                     </table>
                 </div>
                 <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allData', 'label' => '所有資料.xlsx']]" class="flex items-center mt-4" />
+                <div class='ml-2'>
+                    <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allData', 'label' => '所有資料.xlsx']]" class="flex items-center mt-4" />
 
-                <x-radio-group name="dataType" model="dataType" :options="[
-                    ['value' => 'env.xlsx', 'label' => '環境資料.xlsx'],
-                    ['value' => 'plant.xlsx', 'label' => '植物資料.xlsx'],
-                    ['value' => 'plantList.xlsx', 'label' => '植物名錄.xlsx'],
-                ]" class="flex items-center mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'env.xlsx', 'label' => '環境資料.xlsx'],
+                        ['value' => 'plant.xlsx', 'label' => '植物資料.xlsx'],
+                        ['value' => 'plantList.xlsx', 'label' => '植物名錄.xlsx'],
+                    ]" class="flex items-center mt-2" />
 
-                <x-radio-group name="dataType" model="dataType" :options="[
-                    ['value' => 'env.txt', 'label' => '環境資料.txt'],
-                    ['value' => 'plant.txt', 'label' => '植物資料.txt'],
-                    ['value' => 'plantList.txt', 'label' => '植物名錄.txt'],
-                ]" class="flex items-center mt-2" />
-                <x-radio-group name="dataType" model="dataType" :options="[
-                    ['value' => 'statsTable', 'label' => '統計表格.xlsx'],
-                    ['value' => 'reasonsTable', 'label' => '小樣方未調查原因.xlsx'],
-                ]" class="flex items-center mt-2" />
-                <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allPlantList', 'label' => '全部植物名錄.xlsx']]" class="mb-4 mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'env.txt', 'label' => '環境資料.txt'],
+                        ['value' => 'plant.txt', 'label' => '植物資料.txt'],
+                        ['value' => 'plantList.txt', 'label' => '植物名錄.txt'],
+                    ]" class="flex items-center mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[
+                        ['value' => 'statsTable', 'label' => '統計表格.xlsx'],
+                        ['value' => 'reasonsTable', 'label' => '小樣方未調查原因.xlsx'],
+                    ]" class="flex items-center mt-2" />
+                    <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allPlantList', 'label' => '全部植物名錄.xlsx']]" class="mb-4 mt-2" />
 
-                <div class="mt-4 text-right">
-                    <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>
+                    <div class="mt-4 text-right">
+                        <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>
+                    </div>
                 </div>
-
             </div>
         @endif
         @if ($message)

@@ -99,6 +99,8 @@ class DataExport extends Component
     public $thisHabitat = '';           // 使用者目前選的 habitat_code
     public $filteredSubPlotSummary = []; // 用來顯示的表格資料
     //選擇縣市之後
+
+    public bool  $selectAll = true;
     public function surveryedPlotInfo($thisCounty)
     {
         $this->message = '';
@@ -145,6 +147,8 @@ class DataExport extends Component
     public $thisPlotFile = null;
     public $selectedPlots = []; // 用於存儲選中的樣區
     public $message='';
+    public array $allPlotIds = []; 
+
     public function loadAllPlotInfo($plotList)
     {
         $this->message = '';
@@ -171,6 +175,7 @@ class DataExport extends Component
             ->values()
             ->toArray();
         $this->selectedPlots = $plotList;
+        $this->allPlotIds = $plotList;
 
 
         // dd($this->allPlotInfo);
@@ -179,6 +184,18 @@ class DataExport extends Component
         // $this->showAllPlotInfo = $this->allPlotInfo;
 
 
+    }
+
+    public function updatedSelectAll($value)
+    {
+        $this->selectedPlots = $value ? $this->allPlotIds : [];
+
+    }
+    public function updatedSelectedPlots()
+    {
+        // 保持僅包含目前列表存在的 id（避免舊值殘留）
+        $this->selectedPlots = array_values(array_intersect($this->selectedPlots, $this->allPlotIds));
+        $this->selectAll = count($this->selectedPlots) === count($this->allPlotIds) && count($this->allPlotIds) > 0;
     }
 
     public $downloadFormat = 'xlsx'; // 預設下載格式為 xlsx

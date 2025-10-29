@@ -48,7 +48,7 @@
 
 
         @if ($allPlotInfo)
-            <div class="gray-card w-fit mb-6">
+            <div class="gray-card w-fit mb-6 ">
                 <h3>樣區列表</h3>
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
                     <p class="font-bold">⚠️ 重要提醒</p>
@@ -61,21 +61,28 @@
                                 target='_blank'>資料欄位說明</a></li>
                     </ul>
                 </div>
-                <table class="text-sm border border-gray-300">
+
+
+                <table class="text-sm border border-gray-300 " wire:key="tbl-{{ count($selectedPlots) }}-{{ implode('-', $allPlotIds) }}">
+    {{-- table --}}
                     <thead style="background-color: #F9E7AC;">
                         <tr>
-                            <th class="border-b px-4 py-2">下載</th>
+                            <th class="border-b px-4 py-2"> <label class="inline-flex items-center gap-2 select-none">
+                                    <input type="checkbox" wire:model.live="selectAll">
+                                    <span>全選</span>
+                                </label></th>
                             <th class="border-b px-4 py-2">縣市</th>
                             <th class="border-b px-4 py-2">樣區編號</th>
                             <th class="border-b px-4 py-2">樣區調查完成</th>
                         </tr>
                     </thead>
 
-                    <tbody class="group hover:bg-amber-800/10 cursor-pointer bg-white">
+                    <tbody class=" cursor-pointer bg-white">
                         @foreach ($allPlotInfo as $index => $row)
-                            <tr>
+                            <tr class='group hover:bg-amber-800/10' wire:key="row-{{ $row['plot'] }}">
                                 <td class="border-b px-4 py-2 text-center align-middle">
-                                    <input type="checkbox" wire:model="selectedPlots" value="{{ $row['plot'] }}">
+                                    <input type="checkbox" wire:key="cb-{{ $row['plot'] }}" wire:model="selectedPlots"
+                                        value="{{ $row['plot'] }}">
                                 </td>
                                 <td class="border-b px-4 py-2 text-center align-top">
                                     {{ $row['county'] }}

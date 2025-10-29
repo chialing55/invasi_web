@@ -62,46 +62,67 @@
                     </ul>
                 </div>
 
-
-                <table class="text-sm border border-gray-300 " wire:key="tbl-{{ count($selectedPlots) }}-{{ implode('-', $allPlotIds) }}">
-    {{-- table --}}
-                    <thead style="background-color: #F9E7AC;">
-                        <tr>
-                            <th class="border-b px-4 py-2"> <label class="inline-flex items-center gap-2 select-none">
-                                    <input type="checkbox" wire:model.live="selectAll">
-                                    <span>全選</span>
-                                </label></th>
-                            <th class="border-b px-4 py-2">縣市</th>
-                            <th class="border-b px-4 py-2">樣區編號</th>
-                            <th class="border-b px-4 py-2">樣區調查完成</th>
-                        </tr>
-                    </thead>
-
-                    <tbody class=" cursor-pointer bg-white">
-                        @foreach ($allPlotInfo as $index => $row)
-                            <tr class='group hover:bg-amber-800/10' wire:key="row-{{ $row['plot'] }}" wire:click="toggleRow('{{ (string)$row['plot'] }}')">
-                                <td class="border-b px-4 py-2 text-center align-middle">
-                                    <input type="checkbox" wire:key="cb-{{ $row['plot'] }}" wire:model.live="selectedPlots"
-                                        value="{{ $row['plot'] }}" wire:click.stop>
-                                </td>
-                                <td class="border-b px-4 py-2 text-center align-top">
-                                    {{ $row['county'] }}
-                                </td>
-                                <td class="border-b px-4 py-2 text-center align-top">
-                                    {{ $row['plot'] }}
-                                </td>
-                                <td class="border-b px-4 py-2 text-center align-middle">
-                                    @if ($row['completed'])
-                                        ✔️
-                                    @else
-                                        <span class="text-gray-400 text-xs">—</span>
-                                    @endif
-                                </td>
-
+                <div x-data="{
+                    all: @js(collect($allPlotInfo)->pluck('plot')->map(fn($v) => (string) $v)->values()),
+                    checked: @js(array_values(array_map('strval', $selectedPlots ?? []))),
+                    master: false,
+                    init() { this.master = this.checked.length === this.all.length },
+                    toggle(id) {
+                        id = String(id);
+                        const i = this.checked.indexOf(id);
+                        if (i === -1) this.checked.push(id);
+                        else this.checked.splice(i, 1);
+                        // 每次子項變動都同步 master（不用半選）
+                        this.master = this.checked.length === this.all.length;
+                    },
+                    toggleMaster() {
+                        this.checked = this.master ? [...this.all] : [];
+                    }
+                }" x-init="init()"
+                    x-effect.debounce.150ms="$wire.set('selectedPlots', checked)" {{-- 停手 150ms 後一次回寫給 Livewire --}}>
+                    <table class="text-sm border border-gray-300 " wire:ignore>
+                        {{-- table --}}
+                        <thead style="background-color: #F9E7AC;">
+                            <tr>
+                                <th class="border-b px-4 py-2"> <label
+                                        class="inline-flex items-center gap-2 select-none">
+                                        {{-- ★ 用 x-model 綁定，不做 indeterminate，點了就一定能切換 --}}
+                                        <input type="checkbox" x-model="master" @change="toggleMaster()">
+                                        <span class="text-xs">全選</span>
+                                    </label></th>
+                                <th class="border-b px-4 py-2">縣市</th>
+                                <th class="border-b px-4 py-2">樣區編號</th>
+                                <th class="border-b px-4 py-2">樣區調查完成</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+
+                        <tbody class=" cursor-pointer bg-white">
+                            @foreach ($allPlotInfo as $index => $row)
+                                <tr class='group hover:bg-amber-800/10' wire:key="row-{{ $row['plot'] }}"
+                                    @click="toggle('{{ $row['plot'] }}')">
+                                    <td class="border-b px-4 py-2 text-center align-middle">
+                                        <input type="checkbox":checked="checked.includes('{{ $row['plot'] }}')"
+                                            @click.stop="toggle('{{ $row['plot'] }}')">
+                                    </td>
+                                    <td class="border-b px-4 py-2 text-center align-top">
+                                        {{ $row['county'] }}
+                                    </td>
+                                    <td class="border-b px-4 py-2 text-center align-top">
+                                        {{ $row['plot'] }}
+                                    </td>
+                                    <td class="border-b px-4 py-2 text-center align-middle">
+                                        @if ($row['completed'])
+                                            ✔️
+                                        @else
+                                            <span class="text-gray-400 text-xs">—</span>
+                                        @endif
+                                    </td>
+
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
                 <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
                 <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allData', 'label' => '所有資料.xlsx']]" class="flex items-center mt-4" />
 

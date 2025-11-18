@@ -164,9 +164,9 @@ b 為對數底（常用 e、2、10）
                 '栽培種數'             => $nCultiv,
                 '歸化種數比例(%)'       => $nAll ? round($nAlien / $nAll * 100, 2) : 0.0,
                 '歸化物種平均覆蓋度(%)' => $avgAlienCover,
-                'Shannon_原生'         => $H($xiNative),
-                'Shannon_歸化'         => $H($xiAlien),
-                'Shannon_全部'         => $H($xiAll),
+                'Shannon_原生物種'         => $H($xiNative),
+                'Shannon_歸化物種'         => $H($xiAlien),
+                'Shannon_全部物種'         => $H($xiAll),
             ];
         }
 

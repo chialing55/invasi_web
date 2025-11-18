@@ -147,7 +147,7 @@ b 為對數底（常用 e、2、10）
                 $h = 0.0;
                 foreach ($xi as $x) {
                     if ($x <= 0) continue;
-                    $p = $x / $sumX;
+                    $p = (float) $x / $sumX;
                     $h -= $p * $logFn($p);
                 }
                 return $h;
@@ -164,8 +164,8 @@ b 為對數底（常用 e、2、10）
                 '栽培種數'             => $nCultiv,
                 '歸化種數比例(%)'       => $nAll ? round($nAlien / $nAll * 100, 2) : 0.0,
                 '歸化物種平均覆蓋度(%)' => $avgAlienCover,
-                'Shannon_歸化'         => $H($xiAlien),
                 'Shannon_原生'         => $H($xiNative),
+                'Shannon_歸化'         => $H($xiAlien),
                 'Shannon_全部'         => $H($xiAll),
             ];
         }

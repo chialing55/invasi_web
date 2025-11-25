@@ -151,7 +151,7 @@
                     @php
                         $completed = (int) ($row['completed_plots'] ?? 0); // 已完成數
                         $hasData = (int) ($row['has_data_plots'] ?? 0); // 有資料數
-                        $total = max(0, (int) ($row['total_subPlots'] ?? 0)); // 總樣區數（分母）
+                        $total = max(0, (int) ($row['total_plots'] ?? 0)); // 總樣區數（分母）
 
                         $entryCnt = max(0, $hasData - $completed); // 尚未完成但已有資料的數
 
@@ -168,7 +168,9 @@
 
                         // 供進度條用的實際寬度
                         $done = $donePct;
-                        $entry = $entryPct;
+
+                        // $entry = $entryPct;
+                        $entry = 20;
 
                         $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
 

@@ -10,7 +10,7 @@
             <!-- 選擇年分 -->
 
             <div class="md:flex md:flex-row md:items-center">
-                <label class="block font-semibold md:mr-2">選擇資料年份：</label>
+                <label class="block font-semibold md:mr-2">選擇資料年度：</label>
                 <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
                     <option value="">- 請選擇 -</option>
                     <option value="All">All</option>

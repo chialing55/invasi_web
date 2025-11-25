@@ -8,7 +8,7 @@
     <div class="md:flex md:flex-row md:items-center gap-4 mb-4 md:mb-0">
 
         <div class="md:flex md:flex-row md:items-center">
-            <label class="block font-semibold md:mr-2">選擇年分：</label>
+            <label class="block font-semibold md:mr-2">選擇資料年份：</label>
             <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
                 <option value="">- 請選擇 -</option>
                 <option value="All">All</option>

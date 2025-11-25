@@ -13,7 +13,7 @@
           }
           $note = '';
           if ($subPlotEnvForm['year'] == '') {
-              $note = '預設為 ' . date('Y') . ' 年；';
+              $note = '預設為調查年 (' . date('Y') . ')；';
           }
       @endphp
 
@@ -132,9 +132,9 @@
               placeholder="生育地類型小樣方流水號(ex: 0101)">
       </div>
       <div class="md:flex gap-2 items-center">
-          <label for="census_year" class="w-24 text-right text-gray-500">資料所屬年度</label>
+          <label for="census_year" class="w-24 text-right text-gray-500">計畫年度</label>
           <input id="census_year" name="census_year" type="text" wire:model.defer="subPlotEnvForm.census_year"
               class="border border-gray-300 px-2 py-1 w-32 {{ $addclass }} text-gray-500" {{ $readonly }}>
-          <span class="text-xs text-gray-500">* {{ $note }}預做 {{date('Y')+1}} 年調查者，請填 {{date('Y')+1}}。<br>* 同一樣區為同一資料所屬年度。 </span>
+          <span class="text-xs text-gray-500">* {{ $note }}預做下一年度 ({{date('Y')+1}}) 調查者，請填下一年度的年份 ({{date('Y')+1}})。<br>* 同一樣區為同一計畫年度。 </span>
       </div>
   </div>

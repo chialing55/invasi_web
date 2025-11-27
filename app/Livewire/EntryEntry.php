@@ -515,7 +515,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 if ($updatedCount >1){
                     FixLog::create([
                         'table_name' => 'im_spvptdata_2025',
-                        'record_id' => '',
+                        'record_id' => 0,
                         'changes' => $diff['plot_full_id'],
                         'modified_by' => $this->creatorCode,
                         'modified_at' => now(),
@@ -577,7 +577,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                         if ($updatedCount2>1){
                             FixLog::create([
                                 'table_name' => 'im_spvptdata_2025',
-                                'record_id' => '',
+                                'record_id' => 0,
                                 'changes' => $diff['plot_full_id'],
                                 'modified_by' => $this->creatorCode,
                                 'modified_at' => now(),

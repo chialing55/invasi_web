@@ -23,7 +23,7 @@
         </ul>
     </div>
     @if ($thisCounty == '')
-        <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2025年目標：完成 20-25 個 1 ×1 km<sup>2</sup>樣區</span><span
+        <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2026年目標：完成 70 個 1 ×1 km<sup>2</sup>樣區</span><span
                 class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
         <div class="gray-card mb-6 space-y-3">
             {{-- 圖說 --}}
@@ -40,10 +40,10 @@
             </div>
             @foreach ($showTeamInfo as $row)
                 @php
-                    $target = 20;
+                    $target = 70;
                     $plotDone = $row['completed_plots'];
                     $plotEntry = $row['has_data_plots'] > 0 ? $row['has_data_plots'] - $row['completed_plots'] : 0;
-                    $plotTotal = 25;
+                    $plotTotal = 70;
 
                     $plotDonePercent = $plotTotal > 0 ? round(($plotDone / $plotTotal) * 100) : 0;
                     $plotEntryPercent = $plotTotal > 0 ? round(($plotEntry / $plotTotal) * 100) : 0;
@@ -74,9 +74,9 @@
                                 🎊 全部完成！
                             @elseif ($plotDone >= $target)
                                 🎉 完成目標！
-                            @elseif ($plotDone >= 15)
+                            @elseif ($plotDone >= 55)
                                 🌟 就快完成了！
-                            @elseif ($plotDone >= 8)
+                            @elseif ($plotDone >= 35)
                                 🌟 期中進度達標！
                             @else
                                 💪 加油加油

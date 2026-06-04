@@ -4,14 +4,10 @@ import Alpine from 'alpinejs';
 window.Alpine = Alpine;
 Alpine.start();
 
-// import 'tom-select/dist/css/tom-select.css';
-// import TomSelect from 'tom-select';
-// window.TomSelect = TomSelect;
 
 
 // resources/js/tabulatorHelpers.js
 
-window.Tabulator = Tabulator;
 window.initTabulator = function ({
     tableData = [],
     elementId = 'tabulator-table',
@@ -24,13 +20,18 @@ window.initTabulator = function ({
     enableRowContextMenu = true,
 }) {
     setTimeout(() => {
+        if (!window.Tabulator) {
+            console.warn('Tabulator is not loaded for this page.');
+            return;
+        }
+
         const tabulatorDiv = document.getElementById(elementId);
         if (!tabulatorDiv) return;
 
         if (!tabulatorDiv.classList.contains('tabulator-initialized')) {
             const componentId = tabulatorDiv.closest('[wire\\:id]')?.getAttribute('wire:id');
 
-            const tabulator = new Tabulator(`#${elementId}`, {
+            const tabulator = new window.Tabulator(`#${elementId}`, {
                 layout: "fitColumns",
                 responsiveLayout: "collapse",
                 reactiveData: true,
@@ -71,7 +72,6 @@ window.initTabulator = function ({
             });
             // 🔑 綁定 Tabulator 的鍵盤操作：按 Enter 往右移動
             // tabulator.on("cellEditing", function (cell) {
-            //     console.log("🧪 cellEditing fired:", cell.getField());
             // });
 
             tabulator.on("cellEditing", function (cell) {
@@ -213,7 +213,6 @@ window.listenAndResetSelect = function (eventName, selectId) {
         const componentEl = select.closest('[wire\\:id]');
         const componentId = componentEl?.getAttribute('wire:id');
 
-        console.log(`🟡 ${eventName} 事件收到，重設 #${selectId}`);
         select.selectedIndex = 0;
     });
 };

@@ -4,7 +4,7 @@
         class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
-    <h2 class="text-xl font-bold mb-4">樣區成果初步統計</h2>
+    <h2 class="text-xl font-bold mb-4">物種數</h2>
     <div class="md:flex md:flex-row md:items-center gap-4 mb-4 md:mb-0">
 
         <div class="md:flex md:flex-row md:items-center">

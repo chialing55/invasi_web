@@ -226,14 +226,12 @@
 
 
     // window.addEventListener('plantListLoaded', () => {
-    //     console.log("🟡 plantListLoaded received");
 
     //     // 等 DOM 插入完成
     //     setTimeout(() => {
     //         if (window.plantListSorter) {
     //             // ⚠ 不 destroy，避免干擾 DOM
     //             window.plantListSorter.reIndex(); // ✅ 讓 sorter 讀到最新 DOM
-    //             console.log("🔁 plantListSorter reIndex 完成");
     //         } else {
     //             // 第一次初始化
     //             window.plantListSorter = new List("plant-list-wrapper", {
@@ -245,14 +243,12 @@
     //                     { name: 'sub2025', attr: 'data-sort' }
     //                 ]
     //             });
-    //             console.log("✅ plantListSorter 初始化成功");
     //         }
     //     }, 200); // 讓 DOM 有足夠時間插入
     // });
 
 
     // function initPlantListSorter() {
-    //     console.log("🟢 初始化 plantListSorter");
     //     const wrapper = document.getElementById("plant-list-wrapper");
     //     const listBody = wrapper?.querySelector(".list");
 
@@ -298,7 +294,6 @@
     //     });
 
     //     resetRowColors();
-    //     console.log(`🔃 排序 ${sortField} - ${currentSortOrder}`);
     // });
 
 

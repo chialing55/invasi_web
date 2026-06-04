@@ -9,6 +9,7 @@
     <!-- <script src="//unpkg.com/alpinejs" defer></script> -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    @stack('styles')
 
     <style>
         .tabulator-edit-list-item.focused {
@@ -114,13 +115,7 @@
         如有任何意見與問題，請至群組 @chialing lu
     </footer>
     @livewireScripts
+    @stack('scripts')
 </body>
 
 </html>
-<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
-<link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
-<!-- 載入 Tom Select（CDN） -->
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

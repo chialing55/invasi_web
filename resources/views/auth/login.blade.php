@@ -55,16 +55,6 @@
 
                     <button type="submit" class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">登入</button>
                 </form>
-                <!-- <div class="my-4 text-center relative">
-
-                <div class="text-gray-400 text-sm my-2">或</div>
-
-                    <a href="{{ route('google.redirect') }}"
-                    class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100 transition text-sm">
-                        <img src="{{ asset('images/google_logo.svg') }}" alt="Google" class="w-5 h-5">
-                        使用 Google 帳號登入
-                    </a>
-                </div> -->
                 <div class="text-center mt-4">
                     <a href="{{ route('register') }}" class="text-sm text-gray-600 hover:underline">還沒有帳號？點此註冊</a>
                 </div>

@@ -303,10 +303,8 @@
             if (componentId && window.Livewire && typeof Livewire.find === 'function') {
                 const rawValue = input.value;
                 const matchedOption = document.querySelector(`#plants option[value="${rawValue}"]`);
-                // console.log('matchedOption', matchedOption.value);
                 if (matchedOption) {
                     const spcode = matchedOption.getAttribute('data-spcode');
-                    // console.log('spcode', spcode);
                     Livewire.find(componentId2)?.set('plantCode', spcode);
                     Livewire.find(componentId2)?.call('plantInfo', spcode);
 
@@ -330,11 +328,9 @@
         const input = document.getElementById('plant-select');
         input.value = '';
         if (window.chnameIndexTable != null) {
-            console.log("🔁 已有表格，清掉");
 
             resetAndInitTabulator();
         } else {
-            console.log("🆕 沒有表格");
         }
 
     });
@@ -348,10 +344,8 @@
                     window.chnameIndexTable.redraw(true);
                 }
             });
-            console.log("🔁 已有表格");
 
         } else {
-            console.log("🆕 沒有表格，新建");
             initTabulatorStart(data.data, data.spcode);
         }
 
@@ -359,8 +353,6 @@
 
     window.addEventListener('sync-complete', (event) => {
         const data = event.detail.data;
-        console.log("data.data", data.data);
-        console.log("🔁 已有表格，用 replaceData");
         window.chnameIndexTable.replaceData(data.data);
     });
 
@@ -375,7 +367,6 @@
 
         // 1. 銷毀舊表格
         if (window.chnameIndexTable instanceof Tabulator) {
-            console.log("🧹 銷毀舊 Tabulator");
             window.chnameIndexTable.destroy();
             window.chnameIndexTable = null;
         }
@@ -433,7 +424,6 @@
 
     document.addEventListener('click', function(e) {
         if (e.target && e.target.id === 'submit-btn') {
-            // console.log(window.chnameIndexTable);
             const data = window.chnameIndexTable.getData();
             const componentId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
             if (componentId) {

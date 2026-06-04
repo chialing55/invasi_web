@@ -7,11 +7,8 @@ use Livewire\Component;
 use App\Models\PlotList2025;
 
 use App\Models\SubPlotEnv2025;
-
-
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
-use App\Support\AnalysisHelper;
 use App\Exports\PlantListTableExport;
 use App\Exports\PlotExport;
 use App\Exports\MissingPlotExport;
@@ -22,8 +19,6 @@ use App\Exports\StatsMultiSheetExport;
 use App\Exports\PlantListMultiSheetExport;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 use Maatwebsite\Excel\Excel;
-use Illuminate\Support\Facades\Storage;
-use ZipArchive;
 
 class DataExport extends Component
 {
@@ -152,38 +147,35 @@ class DataExport extends Component
     public function loadAllPlotInfo($plotList)
     {
         $this->message = '';
-        $summary = [];
-        foreach ($plotList as $plot) {
+        $plotList = array_values(array_unique($plotList));
 
-            $county = PlotList2025::where('plot', $plot)->value('county');
-            $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-
-            $summary[] = [
-                'county' => $county,
-                'plot' => $plot,
-                'completed' => $status['plotCompleted'] == '1' ? true : false,
-
-            ];
+        if (empty($plotList)) {
+            $this->allPlotInfo = [];
+            $this->selectedPlots = [];
+            $this->allPlotIds = [];
+            $this->message = '尚未有調查資料。';
+            return;
         }
+
+        $summary = PlotCompletedCheckHelper::getPlotCompletedInfoForPlots($plotList)
+            ->map(fn ($row) => [
+                'county' => $row['county'] ?? null,
+                'plot' => $row['plot'],
+                'completed' => $row['plotCompleted'] == '1',
+            ])
+            ->sortByDesc(fn ($item) => !is_null($item['plot']))
+            ->values()
+            ->toArray();
+
         if (empty($summary)) {
             $this->allPlotInfo = [];
             $this->message = '尚未有調查資料。';
             return;
         }
-        $this->allPlotInfo = collect($summary)
-            ->sortByDesc(fn($item) => !is_null($item['plot']))
-            ->values()
-            ->toArray();
+
+        $this->allPlotInfo = $summary;
         $this->selectedPlots = $plotList;
         $this->allPlotIds = $plotList;
-
-
-        // dd($this->allPlotInfo);
-        //  dd($summary);
-        // $this->allPlotInfo = $summary;
-        // $this->showAllPlotInfo = $this->allPlotInfo;
-
-
     }
 
     public function updatedSelectAll($value)
@@ -265,7 +257,6 @@ class DataExport extends Component
             'txt'  => Excel::CSV // txt 實際上用 CSV 格式 + 自訂分隔符
         ];
 
-        // $rows = AnalysisHelper::buildHabitatShannonIndex($envdata, $plantdata);
         // dd($rows);
 
         $format = $formatConstants[$this->downloadFormat] ?? Excel::CSV;

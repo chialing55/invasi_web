@@ -35,12 +35,18 @@
                         ['label' => '小樣方未調查原因', 'route' => 'entry.missingnote']
                     ]"
                 />
+                <div class="relative">
+                    <div class="btn-navigation-div">
+                        <button class="btn-navigation @navActive('survey.overview')"><a href="{{ route('survey.overview') }}">調查進度</a></button>
+                    </div>
+                </div>
+
                 <x-nav.dropdown
-                    label="調查進度"
-                    active="survey.*"
+                    label="調查成果"
+                    active="results.*"
                     :routes="[
-                        ['label' => '樣區完成狀況總覽', 'route' => 'survey.overview'],
-                        ['label' => '初步統計分析', 'route' => 'survey.stats']
+                        ['label' => '物種數', 'route' => 'results.species'],
+                        ['label' => '成果圖表', 'route' => 'results.charts']
                     ]"
                 />
 
@@ -60,8 +66,9 @@
         <a href="{{ route('query.plot') }}">依樣區查詢</a>
         <a href="{{ route('entry.notes') }}">資料輸入注意事項</a>
         <a href="{{ route('entry.entry') }}">資料輸入</a>
-        <a href="{{ route('survey.overview') }}">樣區完成狀況總覽</a>
-        <a href="{{ route('survey.stats') }}">初步統計分析</a>
+        <a href="{{ route('survey.overview') }}">調查進度</a>
+        <a href="{{ route('results.species') }}">物種數</a>
+        <a href="{{ route('results.charts') }}">成果圖表</a>
         <a href="{{ route('data.export') }}">資料匯出</a>
     </div>
 </nav>

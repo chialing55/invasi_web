@@ -263,10 +263,8 @@
 
     window.addEventListener('reset_plant_table', (event) => {
         if (window.plantTable != null) {
-            console.log("🔁 已有表格，清掉");
             resetAndInitTabulator();
         } else {
-            console.log("🆕 沒有表格");
         }
 
     });
@@ -274,7 +272,6 @@
     window.addEventListener('plant_table', (event) => {
         const data = event.detail.data;
         // const rawPlantList = event.detail.data.plantList;
-        console.log(data.data);
         // const chnameList = rawPlantList.map(item => item.chname);
         if (window.plantTable != null) {
             // ✅ 更新 autocomplete name list（column editorParams）
@@ -285,17 +282,13 @@
 
             // ✅ 再更新表格資料
             window.plantTable.replaceData(data.data);
-            console.log("🔁 已有表格，用 replaceData");
         } else {
-            console.log("🆕 沒有表格，新建");
             initTabulatorStart(data.data, data.thisSubPlot);
         }
     });
 
     window.addEventListener('sync-complete-plant-name', (event) => {
         const data = event.detail.data;
-        console.log(data.data);
-        console.log("🔁 已有表格，用 replaceData");
         window.plantTable.replaceData(data.data);
 
     });
@@ -310,7 +303,6 @@
 
         // 1. 銷毀舊表格
         if (window.plantTable instanceof Tabulator) {
-            console.log("🧹 銷毀舊 Tabulator");
             window.plantTable.destroy();
             window.plantTable = null;
         }
@@ -449,7 +441,6 @@
 
     document.addEventListener('click', function(e) {
         if (e.target && e.target.id === 'submit-btn-plant') {
-            // console.log(window.chnameIndexTable);
             const data = window.plantTable.getData();
             const componentId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
             if (componentId) {
@@ -461,7 +452,6 @@
 
     window.listenAndResetAllHabitatCheckboxes = function(eventName) {
         window.addEventListener(eventName, () => {
-            console.log(`🟡 ${eventName} 事件收到，清除所有 habitat checkbox`);
 
             document.querySelectorAll('.habitat-checkbox').forEach(input => {
                 input.checked = false;
@@ -578,7 +568,6 @@
             const handleKey = (e) => {
                 const cursorPos = input.selectionStart;
                 const valueLength = input.value.length;
-                // console.log(cursorPos, valueLength);
                 if (e.key === "ArrowDown") {
                     if (results.length > 0 && dropdown.style.display !== "none") {
                         // 下拉選單開啟，選擇選項

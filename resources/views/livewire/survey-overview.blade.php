@@ -169,8 +169,7 @@
                         // 供進度條用的實際寬度
                         $done = $donePct;
 
-                        // $entry = $entryPct;
-                        $entry = 20;
+                        $entry = $entryPct;
 
                         $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
 
@@ -312,8 +311,7 @@
                                             </td>
                                         @endif
 
-                                        <td class="border-b px-4 py-2">{!! $row['hab_code'] !!} {!! $row['hab_name'] !!}
-                                        </td>
+                                        <td class="border-b px-4 py-2">{{ $row['hab_code'] }} {{ $row['hab_name'] }}</td>
                                         <td class="border-b px-4 py-2 text-center">{{ $row['subplot_count_2025'] }}
                                         </td>
                                         <td class="border-b px-4 py-2 text-center">{{ $row['unidentified_count'] }}
@@ -417,9 +415,9 @@
                                         <td class="px-4 py-2 text-center">{{ $row['data_error_count'] }}</td>
                                         <td class="px-4 py-2 text-center">{{ $row['original_plot_id'] }}</td>
                                         <td class="px-4 py-2 text-center">
-                                            {!! !empty($row['uploaded_at'])
-                                                ? "<a href='{$row['photo_path']}' target='_blank' class='hover:no-underline no-underline'>✅</a>"
-                                                : '' !!}
+                                            @if (!empty($row['uploaded_at']) && !empty($row['photo_path']))
+                                                <a href="{{ $row['photo_path'] }}" target="_blank" class="hover:no-underline no-underline">✅</a>
+                                            @endif
                                         </td>
                                         <td class="px-4 py-2 text-center">
                                             @php
@@ -469,10 +467,6 @@
             const select = document.getElementById(selectId);
             if (!select) return;
 
-            const componentEl = select.closest('[wire\\:id]');
-            const componentId = componentEl?.getAttribute('wire:id');
-
-            console.log(`🟡 ${eventName} 事件收到，重設 #${selectId}`);
             select.selectedIndex = 0;
         });
     };

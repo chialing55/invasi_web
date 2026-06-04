@@ -105,23 +105,18 @@
 
     window.addEventListener('reset_missingSubPlot_table', (event) => {
         if (window.missingSubPlotTable != null) {
-            console.log("🔁 已有表格，清掉");
             resetAndInitTabulator();
         } else {
-            console.log("🆕 沒有表格");
         }
 
     });
 
     window.addEventListener('missingSubPlot_table', (event) => {
         const data = event.detail.data;
-        console.log(data.data);
 
         if (window.missingSubPlotTable != null) {
             window.missingSubPlotTable.replaceData(data.data);
-            console.log("🔁 已有表格，用 replaceData");
         } else {
-            console.log("🆕 沒有表格，新建");
             initTabulatorStart(data.data, data.thisPlot);
         }
     });
@@ -137,7 +132,6 @@
 
         // 1. 銷毀舊表格
         if (window.missingSubPlotTable instanceof Tabulator) {
-            console.log("🧹 銷毀舊 Tabulator");
             window.missingSubPlotTable.destroy();
             window.missingSubPlotTable = null;
         }
@@ -207,7 +201,6 @@
 
     document.addEventListener('click', function(e) {
         if (e.target && e.target.id === 'submit-btn-subPlot') {
-            // console.log(window.chnameIndexTable);
             const data = window.missingSubPlotTable.getData();
             const componentId = document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
             if (componentId) {

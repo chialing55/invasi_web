@@ -61,41 +61,11 @@ class SurveyOverview extends Component
     public $thisPlotWithStatus = [];
     public function allContyInfo()
     {
-        //各團隊調查進度，只取調查年度為 [今年] 的樣區
-        // 先取得所有 plot 的基本資料
-        $plotList = PlotList2025::all()->toArray();
-
-        $currentYear = (int)date('Y');
-
-        // $envDataByPlot = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-        //     ->where('plot_list.census_year', $currentYear)
-        //     ->get(['im_splotdata_2025.*'])
-        //     ->groupBy('plot');
-
-        // dd($envDataByPlot->toArray());
-
-        $envDataByPlot = SubPlotEnv2025::all()->groupBy('plot');
-
-        $plantDataByPrefix = SubPlotPlant2025::all()->groupBy(function ($row) {
-            return substr($row->plot_full_id, 0, 6);
-        });
-        $plotListByPlot = PlotList2025::all()->keyBy('plot');
-// dd($plotListByPlot->toArray());
-        $habDataByPlot = PlotHab::all()->groupBy('plot');
-
-        $plotWithStatus = collect($plotList)->map(function ($row) use (
-            $envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot
-        ) {
-    
-            $plot = $row['plot'];
-
-            $status = PlotCompletedCheckHelper::getPlotCompletedInfo_v2(
-                $plot, $envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot
-            );
-
-            return array_merge($row, $status);
-        });
-// dd($plotWithStatus->toArray());
+        // 各團隊調查進度，只取調查年度為 [今年] 的樣區
+        $currentYear = (int) date('Y');
+        $plotWithStatus = PlotCompletedCheckHelper::getPlotCompletedInfoForPlots(
+            PlotList2025::pluck('plot')
+        );
         $this->thisPlotWithStatus = $plotWithStatus;
         // group by county
         $grouped_county = $plotWithStatus
@@ -422,52 +392,53 @@ class SurveyOverview extends Component
                 ->toArray();
 
             // dd($thisPlotList);
+            $habTypeMap = HabitatInfo::pluck("habitat", "habitat_code")->toArray();
+            $plotQueries = SubPlotEnv2025::whereIn("plot_full_id", $subPlotList2025)
+                ->get()
+                ->keyBy("plot_full_id");
+            $plantStats = SubPlotPlant2025::whereIn("plot_full_id", $subPlotList2025)
+                ->select(
+                    "plot_full_id",
+                    DB::raw("COUNT(*) as total"),
+                    DB::raw("SUM(CASE WHEN unidentified = 1 THEN 1 ELSE 0 END) as unidentified_count"),
+                    DB::raw("SUM(CASE WHEN data_error != 0 OR coverage = 0 THEN 1 ELSE 0 END) as data_error_count")
+                )
+                ->groupBy("plot_full_id")
+                ->get()
+                ->keyBy("plot_full_id");
+
             foreach ($subPlotList2025 as $subPlot) {
                 $plotFullID = $subPlot;
+                $photopath = null;
                 // 生育地對照
-                $habitatCode = substr($plotFullID , 6, 2);  
-                $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
-                $habitat = $habTypeMap[$habitatCode] ?? '未知';
+                $habitatCode = substr($plotFullID, 6, 2);
+                $habitat = $habTypeMap[$habitatCode] ?? "未知";
 
-                $plotQuery = SubPlotEnv2025::where('plot_full_id', $plotFullID)->first()?->toArray();
-                
-                // 查該小樣方的植物資料
-                $plantQuery = SubPlotPlant2025::where('plot_full_id', $plotFullID);
-                if ($plotQuery['file_uploaded_at']!= null) {
+                $plotQuery = optional($plotQueries->get($plotFullID))->toArray();
+                $plantStat = $plantStats->get($plotFullID);
+
+                if (($plotQuery["file_uploaded_at"] ?? null) != null) {
                     $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$habitatCode}/{$plotFullID}.jpg";
                     $fullPath = public_path($relativePath);
 
                     if (file_exists($fullPath)) {
                         $photopath = asset($relativePath);
-                    } else {
-                        $photopath = null;
                     }
                 }
-                
-
-                $total = $plantQuery->count();
-                $unidentified = (clone $plantQuery)->where('unidentified', 1)->count();
-                //包含覆蓋度錯誤(coverage == 0)與物種重複(cov_error == 2)
-                $dataError = (clone $plantQuery)
-                    ->where(function ($query) {
-                        $query->where('data_error', '!=', 0)
-                            ->orWhere('coverage', 0);
-                    })
-                    ->count();
 
                 $this->subPlotSummary[] = [
-                    'team' => $thisPlotTeam,
-                    'plot_full_id' => $plotFullID,
-                    'subplot_id' => substr($plotFullID , 8, 2),
-                    'habitat_code' => $habitatCode,  // ⬅️ 需保留 code 才能篩選
-                    'habitat' => $habitat,
-                    'plant_count' => $total,
-                    'unidentified_count' => $unidentified,
-                    'data_error_count' => $dataError,
-                    'original_plot_id' =>$plotQuery['original_plot_id'] ?? null,
-                    'date' => $plotQuery['date'] ?? null,
-                    'uploaded_at' => $plotQuery['file_uploaded_at'] ?? null,
-                    'photo_path' => $photopath ?? null,
+                    "team" => $thisPlotTeam,
+                    "plot_full_id" => $plotFullID,
+                    "subplot_id" => substr($plotFullID, 8, 2),
+                    "habitat_code" => $habitatCode,
+                    "habitat" => $habitat,
+                    "plant_count" => (int) ($plantStat->total ?? 0),
+                    "unidentified_count" => (int) ($plantStat->unidentified_count ?? 0),
+                    "data_error_count" => (int) ($plantStat->data_error_count ?? 0),
+                    "original_plot_id" => $plotQuery["original_plot_id"] ?? null,
+                    "date" => $plotQuery["date"] ?? null,
+                    "uploaded_at" => $plotQuery["file_uploaded_at"] ?? null,
+                    "photo_path" => $photopath,
                 ];
             }
 

@@ -7,8 +7,6 @@ use App\Models\SubPlotPlant2025;
 use App\Models\PlotList2025;
 use App\Models\PlotHab;
 
-use App\Helpers\HabHelper;
-
 class PlotCompletedCheckHelper
 {
     public static function getPlotCompletedInfo(string $plot): array
@@ -72,6 +70,55 @@ class PlotCompletedCheckHelper
             'plotCompleted'  => $plotCompleted,
         ];
 
+    }
+
+
+    public static function getPlotCompletedInfoForPlots($plots)
+    {
+        $plotList = collect($plots)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($plotList->isEmpty()) {
+            return collect();
+        }
+
+        $plotListByPlot = PlotList2025::whereIn('plot', $plotList)->get()->keyBy('plot');
+        $envDataByPlot = SubPlotEnv2025::whereIn('plot', $plotList)->get()->groupBy('plot');
+        $habDataByPlot = PlotHab::whereIn('plot', $plotList)->get()->groupBy('plot');
+        $prefixes = $plotList->map(fn ($plot) => substr($plot, 0, 6))->unique()->values();
+
+        $plantQuery = SubPlotPlant2025::query();
+        $prefixes->each(function ($prefix, $index) use ($plantQuery) {
+            $method = $index === 0 ? 'where' : 'orWhere';
+            $plantQuery->{$method}('plot_full_id', 'like', $prefix . '%');
+        });
+
+        $plantDataByPrefix = $plantQuery
+            ->get()
+            ->groupBy(fn ($row) => substr($row->plot_full_id, 0, 6));
+
+        return $plotList
+            ->map(function ($plot) use ($envDataByPlot, $plantDataByPrefix, $plotListByPlot, $habDataByPlot) {
+                $plotRow = $plotListByPlot[$plot] ?? null;
+
+                if (!$plotRow) {
+                    return null;
+                }
+
+                $status = self::getPlotCompletedInfo_v2(
+                    $plot,
+                    $envDataByPlot,
+                    $plantDataByPrefix,
+                    $plotListByPlot,
+                    $habDataByPlot
+                );
+
+                return array_merge($plotRow->toArray(), $status);
+            })
+            ->filter()
+            ->values();
     }
 
     public static function getPlotCompletedInfo_v2(

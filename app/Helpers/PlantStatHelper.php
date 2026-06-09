@@ -8,13 +8,19 @@ use App\Models\HabitatInfo;
 
 class PlantStatHelper
 {
-    public static function summarizeByCountyAndHabitat(string $spcode): array
+    public static function summarizeByCountyAndHabitat(string|array $spcode): array
     {
+        $spcodes = array_values(array_filter((array) $spcode, fn ($code) => !blank($code)));
+
+        if (empty($spcodes)) {
+            return [];
+        }
+
         $plotCounty = PlotList2025::get()->keyBy('plot')->toArray(); // plot => 縣市
         $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray(); // code => 中文名
 
         // 🟩 讀取並格式化 2010 資料
-        $data2010 = SubPlotPlant2010::where('spcode', $spcode)->get()->map(function ($item) {
+        $data2010 = SubPlotPlant2010::whereIn('spcode', $spcodes)->get()->map(function ($item) {
             return [
                 'plot' => $item->PLOT_ID,
                 'hab' => $item->HAB_TYPE,
@@ -24,7 +30,7 @@ class PlantStatHelper
         });
 
         // 🟦 讀取並格式化 2025 資料（解碼 plot_full_id）
-        $data2025 = SubPlotPlant2025::where('spcode', $spcode)->get()->map(function ($item) {
+        $data2025 = SubPlotPlant2025::whereIn('spcode', $spcodes)->get()->map(function ($item) {
             $plot_full_id = $item->plot_full_id;
             return [
                 'plot' => substr($plot_full_id, 0, 6),

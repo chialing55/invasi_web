@@ -6,6 +6,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class StatsSheetLayouts
 {
@@ -17,10 +18,13 @@ class StatsSheetLayouts
                 'header'      => self::header($e),        // 凍結＋表頭置中粗體
                 'rowWrap'     => self::rowWrap($e),       // ← 只做換行＋自動列高
                 'numbers'     => self::numbers($e, $export), // 數字格式（含 0 顯示）
-                'show-zeros'  => self::showZeros($e),     // 僅強制顯示 0
-                'row-groups'  => self::rowGroups($e),     // A 欄相同值垂直合併
+                'show-zeros'  => self::showZeros($e),
+                'showZeros'   => self::showZeros($e),     // 僅強制顯示 0
+                'row-groups'  => self::rowGroups($e),
+                'ivi-groups'  => self::iviGroups($e),     // A 欄相同值垂直合併
                 'merge-a1b1'  => self::mergeA1B1($e),
                 'two-row-group-header' => self::twoRowGroupHeader($e, $export),
+                'ivi-comparison' => self::iviComparison($e, $export),
                 'pg-groups' => self::insertPgAndFamilyHeaderRows($e),
                 'base'        => ( // 基本款：header + rowWrap + numbers + show-zeros
                     self::header($e)
@@ -51,6 +55,27 @@ class StatsSheetLayouts
         }
     }
 
+    /** IVI 表分段列：[天然林] / [人工林] 橫向合併 */
+    protected static function iviGroups(AfterSheet $e): void
+    {
+        $s = $e->sheet->getDelegate();
+        $lastCol = $s->getHighestDataColumn();
+        $lastRow = $s->getHighestDataRow();
+
+        for ($r = 2; $r <= $lastRow; $r++) {
+            $label = trim((string) $s->getCell("A{$r}")->getValue());
+            if (!preg_match('/^\[[^\]]+\]$/u', $label)) {
+                continue;
+            }
+
+            $s->mergeCells("A{$r}:{$lastCol}{$r}");
+            $s->getStyle("A{$r}:{$lastCol}{$r}")->getAlignment()
+              ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+              ->setVertical(Alignment::VERTICAL_CENTER);
+            $s->getStyle("A{$r}:{$lastCol}{$r}")->getFont()->setBold(true);
+        }
+    }
+
     /** 凍結首列＋表頭粗體置中 */
     protected static function header(AfterSheet $e): void
     {
@@ -66,7 +91,9 @@ class StatsSheetLayouts
     /** 僅強制顯示 0 */
     protected static function showZeros(AfterSheet $e): void
     {
-        $e->sheet->getDelegate()->getSheetView()->setShowZeros(true);
+        $sheet = $e->sheet->getDelegate();
+        $sheet->getSheetView()->setShowZeros(true);
+        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 1);
     }
 
     /** 數字格式（B2~末欄）；四段格式確保 0 會顯示；特定欄位覆寫為 0.00 */
@@ -223,6 +250,71 @@ class StatsSheetLayouts
         $lastCol = $s->getHighestDataColumn();
         $s->getStyle("A1:{$lastCol}2")->getFont()->setBold(true);
         $s->freezePane('A3');
+    }
+
+
+    protected static function iviComparison(AfterSheet $e, $export): void
+    {
+        $s = $e->sheet->getDelegate();
+        $headings = method_exists($export, 'headings') ? $export->headings() : [];
+        if (count($headings) < 10) {
+            return;
+        }
+
+        $s->insertNewRowBefore(1, 1);
+        $s->mergeCells('A1:A2');
+        $s->mergeCells('B1:B2');
+        $s->mergeCells('C1:F1');
+        $s->mergeCells('G1:J1');
+
+        $s->setCellValue('A1', '中文名');
+        $s->setCellValue('B1', '學名');
+        $s->setCellValue('C1', '本次調查');
+        $s->setCellValue('G1', '前次調查');
+
+        $subLabels = ['相對覆蓋度(%)', '相對頻度(%)', 'IVI重要值(%)', '名次'];
+        foreach ($subLabels as $i => $label) {
+            $s->setCellValue(Coordinate::stringFromColumnIndex($i + 3) . '2', $label);
+            $s->setCellValue(Coordinate::stringFromColumnIndex($i + 7) . '2', $label);
+        }
+
+        $widths = [15.3, 20.5, 8, 8, 8, 8, 8, 8, 8, 8];
+        foreach ($widths as $i => $width) {
+            $s->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        $lastRow = $s->getHighestDataRow();
+        $s->getStyle("A1:J{$lastRow}")->getAlignment()
+            ->setWrapText(true)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $s->getStyle('A1:J2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $s->getStyle('A3:J' . max(3, $lastRow))->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        $s->getStyle('C3:J' . max(3, $lastRow))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $s->getStyle('F3:F' . max(3, $lastRow))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $s->getStyle('J3:J' . max(3, $lastRow))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $s->getStyle('A3:A' . max(3, $lastRow))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $s->getStyle('B3:B' . max(3, $lastRow))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $s->getStyle('G1:J' . max(2, $lastRow))->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setRGB('D9D9D9');
+
+        $s->getStyle("A1:J{$lastRow}")->getAlignment()->setIndent(0);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getLeft()->setBorderStyle(Border::BORDER_NONE);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getRight()->setBorderStyle(Border::BORDER_NONE);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getVertical()->setBorderStyle(Border::BORDER_NONE);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getTop()->setBorderStyle(Border::BORDER_THIN);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        $s->getStyle("A1:J{$lastRow}")->getBorders()->getHorizontal()->setBorderStyle(Border::BORDER_NONE);
+        $s->getStyle('C1:F1')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        $s->getStyle('G1:J1')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        $s->getStyle('A2:J2')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        $s->getStyle("A{$lastRow}:J{$lastRow}")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_THIN);
+        $s->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 2);
+
+        $s->freezePane('A3');
+        for ($row = 1; $row <= $lastRow; $row++) {
+            $s->getRowDimension($row)->setRowHeight(-1);
+        }
     }
 
     public static function mergeSameFamilyVertically(AfterSheet $event): void

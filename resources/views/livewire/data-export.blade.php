@@ -124,25 +124,71 @@
                     </table>
                 </div>
                 <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                <div class='ml-2'>
-                    <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allData', 'label' => '所有資料.xlsx']]" class="flex items-center mt-4" />
+                <div class='ml-2 mt-3'>
+                    @php
+                        $downloadSections = [
+                            [
+                                'title' => '前次調查',
+                                'options' => [
+                                    ['label' => '環境資料', 'formats' => ['xlsx' => 'env2010.xlsx', 'txt' => 'env2010.txt']],
+                                    ['label' => '植物資料', 'formats' => ['xlsx' => 'plant2010.xlsx', 'txt' => 'plant2010.txt']],
+                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList2010.xlsx', 'txt' => 'plantList2010.txt']],
+                                ],
+                            ],
+                            [
+                                'title' => '本次調查',
+                                'options' => [
+                                    ['label' => '環境資料', 'formats' => ['xlsx' => 'env.xlsx', 'txt' => 'env.txt']],
+                                    ['label' => '植物資料', 'formats' => ['xlsx' => 'plant.xlsx', 'txt' => 'plant.txt']],
+                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt']],
+                                    ['label' => '統計表格', 'formats' => ['xlsx' => 'statsTable', 'docx' => 'statsTable.docx']],
+                                    ['label' => '小樣方未調查原因', 'formats' => ['xlsx' => 'reasonsTable']],
+                                    ['label' => '全部植物名錄', 'formats' => ['xlsx' => 'allPlantList']],
+                                ],
+                            ],
+                        ];
+                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'docx'];
+                    @endphp
 
-                    <x-radio-group name="dataType" model="dataType" :options="[
-                        ['value' => 'env.xlsx', 'label' => '環境資料.xlsx'],
-                        ['value' => 'plant.xlsx', 'label' => '植物資料.xlsx'],
-                        ['value' => 'plantList.xlsx', 'label' => '植物名錄.xlsx'],
-                    ]" class="flex items-center mt-2" />
-
-                    <x-radio-group name="dataType" model="dataType" :options="[
-                        ['value' => 'env.txt', 'label' => '環境資料.txt'],
-                        ['value' => 'plant.txt', 'label' => '植物資料.txt'],
-                        ['value' => 'plantList.txt', 'label' => '植物名錄.txt'],
-                    ]" class="flex items-center mt-2" />
-                    <x-radio-group name="dataType" model="dataType" :options="[
-                        ['value' => 'statsTable', 'label' => '統計表格.xlsx'],
-                        ['value' => 'reasonsTable', 'label' => '小樣方未調查原因.xlsx'],
-                    ]" class="flex items-center mt-2" />
-                    <x-radio-group name="dataType" model="dataType" :options="[['value' => 'allPlantList', 'label' => '全部植物名錄.xlsx']]" class="mb-4 mt-2" />
+                    <table class="text-sm border border-gray-300 bg-white">
+                        <thead style="background-color: #F9E7AC;">
+                            <tr>
+                                <th class="border-b px-4 py-2 text-left">資料內容</th>
+                                @foreach ($formatLabels as $format => $label)
+                                    <th class="border-b px-4 py-2 text-center">{{ $label }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($downloadSections as $section)
+                                <tr style="background-color: #D9EAD3;">
+                                    <td class="border-b px-4 py-2 font-semibold text-green-950" colspan="{{ count($formatLabels) + 1 }}">
+                                        {{ $section['title'] }}
+                                    </td>
+                                </tr>
+                                @foreach ($section['options'] as $option)
+                                    <tr>
+                                        <td class="border-b px-4 py-2">{{ $option['label'] }}</td>
+                                        @foreach ($formatLabels as $format => $label)
+                                            <td class="border-b px-4 py-2 text-center">
+                                                @if (isset($option['formats'][$format]))
+                                                    <label class="inline-flex items-center justify-center cursor-pointer">
+                                                        <input type="radio"
+                                                            name="dataType"
+                                                            value="{{ $option['formats'][$format] }}"
+                                                            wire:model="dataType"
+                                                            aria-label="{{ $section['title'] }} {{ $option['label'] }} {{ $label }}">
+                                                    </label>
+                                                @else
+                                                    <span class="text-gray-300">—</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                        </tbody>
+                    </table>
 
                     <div class="mt-4 text-right">
                         <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>

@@ -3,11 +3,16 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
-use App\Support\SpNameHelper;
+use App\Support\ScientificNameHelper;
 
 final class FloraIVISupport
 {
     // 把 <em> 轉 RichText：只把 em 的內容設為 italic
+    private static function formatIviNumber(float $value): float|string
+    {
+        return $value > 0 && $value < 0.01 ? '<0.01' : number_format($value, 2, '.', '');
+    }
+
     private static function emHtmlToRichText(string $html): RichText
     {
         $rt = new RichText();
@@ -42,8 +47,8 @@ final class FloraIVISupport
         // 基礎
         $base = $db->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
+        TaiwanChecklistQuery::joinCurrent($base, 'p');
 
         // 外來條件
         // $base->where(function ($q) use ($includeCultivated) {
@@ -62,30 +67,26 @@ final class FloraIVISupport
             default   => null,
         };
         // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
-        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated) {
-            $q->where('s.naturalized', '1');
+        $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
+        $cultivatedExpr = TaiwanChecklistQuery::cultivatedExpr('s');
+        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated, $naturalizedExpr, $cultivatedExpr) {
+            $q->whereRaw("({$naturalizedExpr}) = 1");
             if ($includeCultivated) {
-                $q->orWhere('s.cultivated', '1');
+                $q->orWhereRaw("({$cultivatedExpr}) = 1");
             }
         });
 
         // 物種彙總 + 學名組件（不含作者）（分子）
         $spAgg = (clone $baseForeign)
             ->selectRaw('
-                p.spcode                         as sp,
+                s.spcode                         as sp,
                 s.chname                         as chname,
-                s.genus                          as genus,
-                s.species                        as species,
-                s.ssp                            as ssp,
-                s.var                            as var,
-                s.subvar                         as subvar,
-                s.f                              as f,
-                s.cv                             as cv,
+                s.full_name                      as full_name,
+                s.canonical_name                 as canonical_name,
                 SUM(p.coverage)                  as cov_sum,
-                COUNT(DISTINCT p.plot_full_id)     as freq_cnt
+                COUNT(DISTINCT p.plot_full_id)   as freq_cnt
             ')
-            ->groupBy(
-                'p.spcode','s.chname','s.genus','s.species','s.ssp','s.var','s.subvar','s.f','s.cv')
+            ->groupBy('s.spcode', 's.chname', 's.full_name', 's.canonical_name')
             ->get();
 
         // 4) 分母：用「全部物種」計算
@@ -97,10 +98,11 @@ final class FloraIVISupport
 
         // 4c) 所有物種之「頻度總和」分母（= 各物種在不同小樣方出現數的加總）
         //     不能用單純 DISTINCT 小樣方數，要「先依物種算 distinct，再把各物種相加」
+        $speciesKeyExpr = "COALESCE(s.spcode, p.spcode)";
         $totalFreq = (int) (clone $base)
-            ->select('p.spcode')
+            ->selectRaw("{$speciesKeyExpr} as sp")
             ->selectRaw('COUNT(DISTINCT p.plot_full_id) as n')
-            ->groupBy('p.spcode')
+            ->groupByRaw($speciesKeyExpr)
             ->get()
             ->sum('n');
 
@@ -122,14 +124,7 @@ final class FloraIVISupport
 */
 
         $rows = $spAgg->map(function ($r) use ($nSubplots, $totalCov, $totalFreq) {
-                // 用你的 helper 組「簡化學名」（不含作者）
-                $sim = SpNameHelper::combine([
-                    'genus' => $r->genus, 'species' => $r->species,
-                    'ssp'   => $r->ssp,   'var'     => $r->var,
-                    'subvar'=> $r->subvar,'f'      => $r->f,
-                    'cv'    => $r->cv,
-                    // 其他鍵給空字串即可（helper 會處理）
-                ])['simnametitle']; // 含 <em> 的簡化學名
+                $sim = ScientificNameHelper::canonicalToHtml($r->canonical_name ?? '');
 
                 $avg = $nSubplots > 0 ? $r->cov_sum / $nSubplots : 0.0;       // 平均覆蓋度(%)
                 $rc  = $totalCov  > 0 ? $r->cov_sum / $totalCov * 100 : 0.0;  // 相對覆蓋度(%)
@@ -140,13 +135,18 @@ final class FloraIVISupport
                     '中文名'        => $r->chname,
                     // 這格給 RichText（Excel 只會把 <em> 部分斜體）
                     '學名'          => self::emHtmlToRichText($sim),
-                    '平均覆蓋度(%)'  => $avg,
-                    '相對覆蓋度(%)'  => $rc,
-                    '相對頻度(%)'    => $rf,
-                    'IVI 重要值(%)'  => $ivi,
+                    '平均覆蓋度(%)'  => self::formatIviNumber($avg),
+                    '相對覆蓋度(%)'  => self::formatIviNumber($rc),
+                    '相對頻度(%)'    => self::formatIviNumber($rf),
+                    'IVI 重要值(%)'  => self::formatIviNumber($ivi),
+                    '__sort_ivi'      => $ivi,
                 ];
             })
-            ->sortByDesc('IVI 重要值(%)')
+            ->sortByDesc('__sort_ivi')
+            ->map(function ($row) {
+                unset($row['__sort_ivi']);
+                return $row;
+            })
             ->values()
             ->all();
 

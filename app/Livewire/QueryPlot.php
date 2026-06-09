@@ -8,7 +8,6 @@ use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
-use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\PlantListHelper;

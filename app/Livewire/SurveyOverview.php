@@ -8,7 +8,6 @@ use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
-use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use App\Models\PlotHab;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +23,23 @@ class SurveyOverview extends Component
     public $thisCounty;
     public $plotList=[];
     public $thisPlot='';
+
+    private array $photoExts = ['jpg', 'jpeg', 'png', 'webp'];
+
+    private function findSubPlotPhotoUrl(string $county, string $plot, string $plotFullID): ?string
+    {
+        $habitatCode = substr($plotFullID, 6, 2);
+        $baseDir = "invasi_files/subPlotPhoto/{$county}/{$plot}/{$habitatCode}";
+
+        foreach ($this->photoExts as $ext) {
+            $relativePath = "{$baseDir}/{$plotFullID}.{$ext}";
+            if (file_exists(public_path($relativePath))) {
+                return asset($relativePath);
+            }
+        }
+
+        return null;
+    }
 
     public $totalPlotCount = 0;
     public $completedSubPlotCount = 0;
@@ -418,12 +434,7 @@ class SurveyOverview extends Component
                 $plantStat = $plantStats->get($plotFullID);
 
                 if (($plotQuery["file_uploaded_at"] ?? null) != null) {
-                    $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$habitatCode}/{$plotFullID}.jpg";
-                    $fullPath = public_path($relativePath);
-
-                    if (file_exists($fullPath)) {
-                        $photopath = asset($relativePath);
-                    }
+                    $photopath = $this->findSubPlotPhotoUrl($this->thisCounty, $this->thisPlot, $plotFullID);
                 }
 
                 $this->subPlotSummary[] = [

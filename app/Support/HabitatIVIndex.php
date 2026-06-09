@@ -35,8 +35,8 @@ class HabitatIVIndex
         // 共同基礎（全部物種；只過濾樣區）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
+        TaiwanChecklistQuery::joinCurrent($base, 'p');
 
         // 統一生育地代碼：88=>08、99=>09，其餘補成兩位
         $habExpr = "CASE
@@ -46,10 +46,12 @@ class HabitatIVIndex
         END";
 
         // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
-        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated) {
-            $q->where('s.naturalized', '1');
+        $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
+        $cultivatedExpr = TaiwanChecklistQuery::cultivatedExpr('s');
+        $baseForeign = (clone $base)->where(function ($q) use ($includeCultivated, $naturalizedExpr, $cultivatedExpr) {
+            $q->whereRaw("({$naturalizedExpr}) = 1");
             if ($includeCultivated) {
-                $q->orWhere('s.cultivated', '1');
+                $q->orWhereRaw("({$cultivatedExpr}) = 1");
             }
         });
 
@@ -57,13 +59,13 @@ class HabitatIVIndex
         $spAgg = (clone $baseForeign)
             ->selectRaw('
                 '.$habExpr.'    as hab,
-                p.spcode          as sp,
+                s.spcode          as sp,
                 s.chname          as chname,
-                s.latinname       as latinname,
-                SUM(p.coverage)   as cov_sum,   
+                s.full_name       as latinname,
+                SUM(p.coverage)   as cov_sum,
                 COUNT(DISTINCT p.plot_full_id) as freq_cnt
             ')
-            ->groupBy('hab','sp','chname','latinname')
+            ->groupBy('hab', 's.spcode', 's.chname', 's.full_name')
             ->get();
 
         if ($spAgg->isEmpty()) return ['headings'=>[], 'rows'=>[]];
@@ -75,9 +77,10 @@ class HabitatIVIndex
             ->pluck('cov_sum_hab', 'hab');
 
         // 2) 所有物種在各生育地的「頻度總和」分母（⚠️ 用物種別 DISTINCT 再相加）
+        $speciesKeyExpr = "COALESCE(s.spcode, p.spcode)";
         $sumFreqByHab = (clone $base)
-            ->selectRaw("{$habExpr} as hab, p.spcode, COUNT(DISTINCT p.plot_full_id) as n")
-            ->groupBy('hab', 'p.spcode')
+            ->selectRaw("{$habExpr} as hab, {$speciesKeyExpr} as sp, COUNT(DISTINCT p.plot_full_id) as n")
+            ->groupByRaw("{$habExpr}, {$speciesKeyExpr}")
             ->get()
             ->groupBy('hab')
             ->map(fn($g) => (int)$g->sum('n')); // => ['08' => 1234, '09' => 987, ...]    

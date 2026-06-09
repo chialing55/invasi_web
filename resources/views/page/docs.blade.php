@@ -31,4 +31,8 @@
             </a>
         </li>
     </ul>
+
+    @if (auth()->user()?->role === 'admin')
+        <livewire:taiwan-checklist-import />
+    @endif
 @endsection

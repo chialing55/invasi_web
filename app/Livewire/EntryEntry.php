@@ -7,7 +7,6 @@ use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2025;
 use App\Models\SubPlotPlant2010;
-use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use App\Models\PlotHab;
 use App\Models\FixLog;
@@ -27,6 +26,7 @@ use App\Helpers\CoordinateHelper;
 use App\Helpers\DateHelper;
 use App\Models\SpcodeIndex;
 use App\Models\SubPlotEnv2010;
+use App\Support\TaiwanChecklistQuery;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -286,13 +286,13 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         // dd($this->plantList);
         // $data = SubPlotPlant2025::where('plot_full_id', $subPlot)->get();
         $data = SubPlotPlant2025::query()
-            ->where('plot_full_id', $subPlot)
-            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->select(
+            ->where('plot_full_id', $subPlot);
+        TaiwanChecklistQuery::joinCurrent($data, 'im_spvptdata_2025');
+        $data = $data->select(
                 'im_spvptdata_2025.*',
-                'spinfo.chname',
-                'spinfo.chfamily',
-                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hint")
+                's.chname',
+                's.chfamily',
+                DB::raw("CONCAT(s.chname, ' / ', s.chfamily) AS hint")
             )
             ->get();        
         if ($data->isNotEmpty()) {
@@ -319,13 +319,13 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $empty = $emptyRow ['empty'];
 
          $data = SubPlotPlant2025::query()
-            ->where('plot_full_id', $this->thisSubPlot)
-            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->select(
+            ->where('plot_full_id', $this->thisSubPlot);
+        TaiwanChecklistQuery::joinCurrent($data, 'im_spvptdata_2025');
+        $data = $data->select(
                 'im_spvptdata_2025.*',
-                'spinfo.chname',
-                'spinfo.chfamily',
-                DB::raw("CONCAT(spinfo.chname, ' / ', spinfo.chfamily) AS hint")
+                's.chname',
+                's.chfamily',
+                DB::raw("CONCAT(s.chname, ' / ', s.chfamily) AS hint")
             )
             ->orderBy('id')
             ->get();  
@@ -416,26 +416,33 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         // dd($this->thisPhoto);
     }
 
-    public $thisPhoto;
+    private array $photoExts = ['jpg', 'jpeg', 'png', 'webp'];
 
-    public function loadPhotoInfo(){
-        $hab = substr($this->thisSubPlot, 6, 2);
-        $baseDir = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
-        $basename = $this->thisSubPlot; // 不含副檔名
-        $exts = ['jpg','jpeg','png','webp'];
+    private function photoRelativeDir(string $hab): string
+    {
+        return "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+    }
 
-        $foundUrl = null;
-        foreach ($exts as $ext) {
-            $path = "{$baseDir}/{$basename}.{$ext}";
+    private function findPhotoPath(string $subPlot): ?string
+    {
+        $hab = substr($subPlot, 6, 2);
+        $baseDir = $this->photoRelativeDir($hab);
+
+        foreach ($this->photoExts as $ext) {
+            $path = "{$baseDir}/{$subPlot}.{$ext}";
             if (Storage::disk('public')->exists($path)) {
-                // public disk 的網址須加上 'storage/'
-                $foundUrl = asset("{$path}") . '?t=' . time(); // cache-busting
-                break;
+                return $path;
             }
         }
 
-        $this->thisPhoto = $foundUrl; // 找不到則為 null      
+        return null;
+    }
 
+    public $thisPhoto;
+
+    public function loadPhotoInfo(){
+        $path = $this->findPhotoPath((string) $this->thisSubPlot);
+        $this->thisPhoto = $path ? asset($path) : null;
     }
     public $hasUnderData = '';
     public function envInfoSave(FormAuditService $audit)
@@ -894,12 +901,12 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $basename = $this->thisSubPlot; // 不含副檔名
         $ext      = strtolower($this->photo->getClientOriginalExtension() ?: $this->photo->extension() ?: 'jpg');
 
-        $relativeDir = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+        $relativeDir = $this->photoRelativeDir($hab);
         $filename    = "{$basename}.{$ext}";
         $targetPath  = "{$relativeDir}/{$filename}";
 
-        $disk        = Storage::disk('public'); // storage/app/public（需 php artisan storage:link）
-        $allExts     = ['jpg','jpeg','png','webp'];
+        $disk        = Storage::disk('public'); // config/filesystems.php 目前指向 public_path()
+        $allExts     = $this->photoExts;
 
         try {
             DB::beginTransaction();
@@ -907,7 +914,12 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             // 2) 確保目錄存在（同一個 disk）
             $disk->makeDirectory($relativeDir);
 
-            // 3) 先刪掉「同名不同副檔名」舊檔，避免殘留多份
+            // 3) 先寫暫存檔，成功後才刪舊檔，避免失敗時舊照片消失。
+            $tmpName = $filename . '.tmp_' . Str::random(8);
+            $tmpPath = "{$relativeDir}/{$tmpName}";
+            $disk->putFileAs($relativeDir, $this->photo, $tmpName);
+
+            // 4) 清掉「同名不同副檔名」舊檔，避免殘留多份。
             foreach ($allExts as $oldExt) {
                 $old = "{$relativeDir}/{$basename}.{$oldExt}";
                 if ($disk->exists($old)) {
@@ -915,22 +927,23 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 }
             }
 
-            // 4) 原子寫入：先寫暫存，再 rename 成正式檔名
-            $tmpName = $filename . '.tmp_' . Str::random(8);
-            $disk->putFileAs($relativeDir, $this->photo, $tmpName); // 寫入暫存檔
-            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);  // 同 disk rename 幾乎原子
+            $disk->move($tmpPath, $targetPath);
 
             // 5) 更新 DB（成功寫檔後再更新）
-            SubPlotEnv2025::where('plot_full_id', $basename)->update([
+            $updated = SubPlotEnv2025::where('plot_full_id', $basename)->update([
                 'file_uploaded_at' => now(),
                 'file_uploaded_by' => $this->creatorCode,
             ]);
+
+            if ($updated === 0) {
+                throw new \RuntimeException("找不到小樣方資料：{$basename}");
+            }
 
             // 6) 若 08/09，鏡像到 88/99（檔名也要改成對應小樣區 ID）
             if ($hab === '08' || $hab === '09') {
                 $mirrorHab      = $hab === '08' ? '88' : '99';
                 $mirrorSubPlot  = substr($basename, 0, 6) . $mirrorHab . substr($basename, 8);
-                $mirrorDir      = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$mirrorHab}";
+                $mirrorDir      = $this->photoRelativeDir($mirrorHab);
                 $mirrorFilename = "{$mirrorSubPlot}.{$ext}";
                 $mirrorPath     = "{$mirrorDir}/{$mirrorFilename}";
 
@@ -948,7 +961,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 // 複製並改檔名（同 disk copy）
                 $disk->copy($targetPath, $mirrorPath);
 
-                // 更新鏡像小樣區 DB
+                // 更新鏡像小樣區 DB；若 88/99 資料不存在，不阻斷主照片上傳。
                 SubPlotEnv2025::where('plot_full_id', $mirrorSubPlot)->update([
                     'file_uploaded_at' => now(),
                     'file_uploaded_by' => $this->creatorCode,
@@ -980,53 +993,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
 
 
-    public function clickUploadPhoto_o()
-    {
-        // dd('test');
-        // $request->validate([
-        //     'photo' => 'required|image|max:12288'
-        // ]);
 
-        if (!$this->photo) {
-            $this->addError('photo', '請先選擇檔案');
-            return;
-        }
-        $this->resetErrorBag();
-
-        $filename = $this->thisSubPlot . '.jpg';
-        $hab = substr($this->thisSubPlot, 6, 2);
-        $relativePath = "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/$hab";
-// dd($relativePath);
-
-        // 確保資料夾存在
-        $destination = public_path($relativePath);
-        if (!file_exists($destination)) {
-            mkdir($destination, 0755, true);
-        }
-// ✅ 2. 若有舊檔案，先刪除
-        $fullPath = $destination . '/' . $filename;
-        if (file_exists($fullPath)) {
-            unlink($fullPath);
-        }        
-        SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)->update(
-            ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
-        );
-
-        if ($hab=='08' || $hab=='09') {
-            // 如果是 08 或 09，則同時更新 88 或 99 的樣區
-            $copyHab = $hab == '08' ? '88' : '99';
-            $copySubPlot = substr($this->thisSubPlot, 0, 6) . $copyHab . substr($this->thisSubPlot, 8);
-            SubPlotEnv2025::where('plot_full_id', $copySubPlot)->update(
-                ['file_uploaded_at' => now(), 'file_uploaded_by' => $this->creatorCode]
-            );
-        }   
-
-        $this->photo->storeAs($relativePath, $filename, 'public');
-        $this->loadPhotoInfo();
-        session()->flash('photoUploadSuccess', '上傳成功！');
-        $this->photo = null;
-
-    }
 
     public $plotFile;
 

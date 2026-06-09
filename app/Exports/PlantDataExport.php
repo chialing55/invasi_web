@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Illuminate\Support\Facades\DB;
 use App\Models\SubPlotPlant2025;
+use App\Support\TaiwanChecklistQuery;
 
 class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvSettings, WithTitle
 {
@@ -27,49 +28,35 @@ class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCusto
     // === 查詢 ===
     public function query(): Builder
     {
-        return SubPlotPlant2025::query()
-            ->leftJoin('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
+        $query = SubPlotPlant2025::query()
+            ->from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025', 'p.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->leftJoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
-            ->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
+            ->whereIn('im_splotdata_2025.plot', $this->selectedPlots);
+
+        TaiwanChecklistQuery::joinCurrent($query, 'p');
+
+        return $query
             ->select(
-                'im_spvptdata_2025.*',
-                'spinfo.family',
-                'spinfo.chfamily',
-                'spinfo.latinname',
-                'spinfo.chname',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                          AND spinfo.cultivated  != '1' 
-                          AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 ELSE 0 
-                    END AS native
-                "),
-                'spinfo.endemic',
-                'spinfo.naturalized',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                          AND spinfo.cultivated  = '1' 
-                          AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 ELSE 0 
-                    END AS cultivated
-                "),
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
-                        ELSE twredlist2017.IUCN
-                    END AS IUCN
-                "),
+                'p.*',
+                's.family',
+                's.chfamily',
+                DB::raw('s.full_name as latinname'),
+                DB::raw('s.canonical_name as simname'),
+                's.chname',
+                DB::raw(TaiwanChecklistQuery::nativeExpr('s') . ' AS native'),
+                DB::raw(TaiwanChecklistQuery::endemicExpr('s') . ' AS endemic'),
+                DB::raw(TaiwanChecklistQuery::naturalizedExpr('s') . ' AS naturalized'),
+                DB::raw(TaiwanChecklistQuery::cultivatedExpr('s') . ' AS cultivated'),
+                DB::raw('s.IUCN as IUCN'),
                 'plot_list.county',
                 'im_splotdata_2025.plot',
                 'im_splotdata_2025.habitat_code',
                 'im_splotdata_2025.subplot_id',
+                DB::raw('s.taicol_taxon_id as taicol_taxon_id'),
             )
-            ->orderBy('im_spvptdata_2025.plot_full_id')
-            ->orderBy('im_spvptdata_2025.coverage', 'desc');
+            ->orderBy('p.plot_full_id')
+            ->orderBy('p.coverage', 'desc');
             // ⚠️ 不要 ->get()，直接回傳 Builder
     }
 

@@ -1,115 +1,141 @@
 <?php
+
 namespace App\Helpers;
 
-use App\Models\SpInfo;
 use App\Models\SpcodeIndex;
+use App\Models\TaiwanChecklist;
 
 class PlantSearchHelper
 {
-
     public static function plantNameSearchHelper($value)
     {
-        // 🔍 1. 開頭比對 (priority 1)
-        $startsWith = SpInfo::where(function ($query) use ($value) {
+        $startsWithCodes = self::activeChecklistQuery()
+            ->where(function ($query) use ($value) {
                 $query->where('chname', 'like', "{$value}%")
-                    ->orWhere('simname', 'like', "{$value}%");
+                    ->orWhere('canonical_name', 'like', "{$value}%")
+                    ->orWhere('full_name', 'like', "{$value}%");
             })
-            ->limit(20)
+            ->limit(40)
             ->get()
-            ->flatMap(function ($item) {
-                $list = [];
-                if ($item->chname) {
-                    $list[] = [
-                        'family' => $item->chfamily,
-                        'label' => $item->chname,
-                        'spcode' => $item->spcode,
-                    ];
-                }
-                if ($item->simname) {
-                    $list[] = [
-                        'family' => $item->chfamily,
-                        'label' => $item->simname,
-                        'spcode' => $item->spcode,
-                    ];
-                }
-                return $list;
-            });
-
-        // 🔍 2. 包含比對，但排除已出現過的
-        $contains = SpInfo::where(function ($query) use ($value) {
-                $query->where('chname', 'like', "%{$value}%")
-                    ->orWhere('simname', 'like', "%{$value}%");
-            })
-            ->limit(50)
-            ->get()
-            ->flatMap(function ($item) {
-                $list = [];
-                if ($item->chname) {
-                    $list[] = [
-                        'family' => $item->chfamily,
-                        'label' => $item->chname,
-                        'spcode' => $item->spcode,
-                    ];
-                }
-                if ($item->simname) {
-                    $list[] = [
-                        'family' => $item->chfamily,
-                        'label' => $item->simname,
-                        'spcode' => $item->spcode,
-                    ];
-                }
-                return $list;
-            })
-            ->reject(function ($item) use ($startsWith) {
-                return $startsWith->contains('label', $item['label']);
-            });
-
-        $mainMatches = $startsWith->concat($contains);
-
-        // 🔍 3. chname_index 比對
-        $indexMatches = SpcodeIndex::query()
-            ->where('chname_index', 'like', "%{$value}%")
-            ->join('spinfo', 'spcode_index.spcode', '=', 'spinfo.spcode')
-            ->select(
-                'spinfo.chfamily as family',
-                'spcode_index.chname_index as label',
-                'spcode_index.spcode as spcode'
-            )
-            ->limit(20)
-            ->get()
-            ->map(function ($row) {
-                return [
-                    'family' => $row->family,
-                    'label' => $row->label,
-                    'spcode' => $row->spcode,
-                ];
-            });
-
-        // ✅ 4. 合併主名與別名結果
-        $merged = $mainMatches
-            ->merge($indexMatches)
-            ->sortByDesc(fn($item) => $item['label'] === $value ? 1 : 0) // 完全符合優先
+            ->map(fn ($item) => self::currentCode($item))
+            ->filter()
             ->values();
 
-        // 🔍 5. fallback: 用 family 查找
+        $containsCodes = self::activeChecklistQuery()
+            ->where(function ($query) use ($value) {
+                $query->where('chname', 'like', "%{$value}%")
+                    ->orWhere('canonical_name', 'like', "%{$value}%")
+                    ->orWhere('full_name', 'like', "%{$value}%");
+            })
+            ->limit(80)
+            ->get()
+            ->map(fn ($item) => self::currentCode($item))
+            ->filter()
+            ->values();
+
+        $indexCodes = SpcodeIndex::query()
+            ->where('chname_index', 'like', "%{$value}%")
+            ->join('taiwan_checklist', 'spcode_index.spcode', '=', 'taiwan_checklist.spcode')
+            ->limit(40)
+            ->get()
+            ->map(fn ($item) => self::currentCode($item))
+            ->filter()
+            ->values();
+
+        $currentCodes = $startsWithCodes
+            ->concat($containsCodes)
+            ->concat($indexCodes)
+            ->unique()
+            ->values();
+
+        $merged = self::currentChecklistRows($currentCodes)
+            ->flatMap(fn ($item) => self::nameOptions($item))
+            ->unique(fn ($item) => ($item['spcode'] ?? '') . '|' . ($item['label'] ?? ''))
+            ->sortByDesc(fn ($item) => $item['label'] === $value ? 1 : 0)
+            ->values();
+
         if ($merged->isEmpty()) {
-            $merged = SpInfo::where(function ($query) use ($value) {
+            $familyCodes = self::activeChecklistQuery()
+                ->where(function ($query) use ($value) {
                     $query->where('family', 'like', "%$value%")
                         ->orWhere('chfamily', 'like', "%$value%");
                 })
-                ->limit(10)
+                ->limit(20)
                 ->get()
-                ->map(function ($item) {
-                    return [
-                        'family' => $item->chfamily,
-                        'label' => $item->chname,
-                        'spcode' => $item->spcode,
-                    ];
-                });
+                ->map(fn ($item) => self::currentCode($item))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $merged = self::currentChecklistRows($familyCodes)
+                ->map(fn ($item) => [
+                    'family' => $item->chfamily,
+                    'label' => $item->chname,
+                    'spcode' => self::currentCode($item),
+                ]);
         }
 
         return $merged->toArray();
     }
- 
 
+    private static function activeChecklistQuery()
+    {
+        return TaiwanChecklist::query()->where('spcode_status', 'active');
+    }
+
+    private static function currentChecklistRows($currentCodes)
+    {
+        $codes = collect($currentCodes)->filter()->unique()->values();
+
+        if ($codes->isEmpty()) {
+            return collect();
+        }
+
+        $rows = self::activeChecklistQuery()
+            ->whereIn('spcode', $codes)
+            ->get()
+            ->keyBy('spcode');
+
+        return $codes
+            ->map(fn ($code) => $rows->get($code))
+            ->filter()
+            ->values();
+    }
+
+    private static function currentCode($item): string
+    {
+        return trim((string) ($item->spcode_current ?: $item->spcode));
+    }
+
+    private static function nameOptions($item): array
+    {
+        $spcode = self::currentCode($item);
+        $list = [];
+
+        if ($item->chname) {
+            $list[] = [
+                'family' => $item->chfamily,
+                'label' => $item->chname,
+                'spcode' => $spcode,
+            ];
+        }
+
+        if ($item->canonical_name) {
+            $list[] = [
+                'family' => $item->chfamily,
+                'label' => $item->canonical_name,
+                'spcode' => $spcode,
+            ];
+        }
+
+        if ($item->full_name && $item->full_name !== $item->canonical_name) {
+            $list[] = [
+                'family' => $item->chfamily,
+                'label' => $item->full_name,
+                'spcode' => $spcode,
+            ];
+        }
+
+        return $list;
+    }
 }

@@ -217,7 +217,7 @@
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
                     <p class="font-bold">⚠️ 重要提醒</p>
                     <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
-                        <li>系統會自動將檔名更名為小樣方編號，並以 .jpg 儲存，檔案大小不得超過 20MB。</li>
+                        <li>系統會自動將檔名更名為小樣方編號，並保留 JPG、PNG 或 WEBP 格式，檔案大小不得超過 20MB。</li>
                         <li>每個小樣方僅可上傳一張照片。若需更換照片，請直接重新上傳，系統會自動覆蓋原有檔案。</li>
                     </ul>
                 </div>
@@ -234,7 +234,10 @@
 
                     <input type="file" wire:model="photo" accept="image/*">
 
-                    <button id="submit-btn-photo" type="button" class="btn-submit" wire:click="clickUploadPhoto">
+                    <div wire:loading wire:target="photo" class="mt-2 text-sm text-gray-600">照片上傳暫存中，請稍候...</div>
+                    <div wire:loading wire:target="clickUploadPhoto" class="mt-2 text-sm text-gray-600">照片儲存中，請稍候...</div>
+
+                    <button id="submit-btn-photo" type="button" class="btn-submit" wire:click="clickUploadPhoto" wire:loading.attr="disabled" wire:target="photo,clickUploadPhoto">
                         {{ $thisPhoto ? '更新小樣方照片' : '上傳小樣方照片' }}
                     </button>
 

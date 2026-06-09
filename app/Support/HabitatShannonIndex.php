@@ -34,29 +34,19 @@ class HabitatShannonIndex
             ELSE LPAD(CAST(e.habitat_code AS CHAR), 2, '0')
             END";    
 
-        $statusExpr = "CASE
-            WHEN s.spcode IS NULL THEN 'uncertain'                                  -- ← 查無 spinfo 視為不明
-            WHEN COALESCE(s.naturalized, 0) = 1 THEN 'naturalized'
-            WHEN COALESCE(s.cultivated, 0) = 1 AND COALESCE(s.naturalized, 0) != 1 THEN 'cultivated'
-            WHEN COALESCE(s.uncertain, 0) = 1 THEN 'uncertain'
-            ELSE 'native'
-        END";
-        // 針對 unknown 建一個「物種鍵」避免被併群：可用 chname_index + plot_full_id 區分
+        $statusExpr = TaiwanChecklistQuery::statusExpr('s');
+        // 針對 unknown 建一個「物種鍵」避免被併群；查得到名錄的資料則用 current spcode。
         $spKeyExpr = "
         CASE
-        WHEN s.spcode IS NULL THEN CONCAT('UNK:', COALESCE(p.chname_index,'')) 
-        ELSE p.spcode
+        WHEN s.spcode IS NULL THEN CONCAT('UNK:', COALESCE(p.chname_index,''))
+        ELSE s.spcode
         END";
-
-        // 顯示用中文名：優先 spinfo.chname，再用 p.chname_index，最後給個 placeholder
-        $chLabelExpr = "COALESCE(s.chname, p.chname_index, CONCAT('未知物種(', COALESCE(p.spcode,''), ')'))";
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->leftJoin('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
-                // {$chLabelExpr}      as chname,
+        TaiwanChecklistQuery::joinCurrent($base, 'p');
                 //{$spKeyExpr}      as sp,
         // 查詢：用 selectRaw + groupByRaw，把**表達式本身**放進群組
         $rows = (clone $base)
@@ -68,7 +58,7 @@ class HabitatShannonIndex
                 COUNT(*)          as n_rows,
                 SUM(p.coverage)   as sum_cov_rows
             ")
-            ->groupByRaw("{$habExpr}, {$statusExpr}, {$spKeyExpr}, {$chLabelExpr}")
+            ->groupByRaw("{$habExpr}, {$statusExpr}, {$spKeyExpr}")
             ->get();
 
 // dd($rows->toArray());
@@ -81,9 +71,10 @@ class HabitatShannonIndex
 */
         /* === 新增：依⑤公式計「各生育地的歸化物種平均覆蓋度(%)」 === */
         /* 先算每個小樣方的「總覆蓋度」與「歸化覆蓋度」，再把(歸化/總*100)做平均 */
+        $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
         $alienCovExpr = "
             CASE
-            WHEN s.naturalized = '1'
+            WHEN ({$naturalizedExpr}) = 1
             THEN p.coverage ELSE 0
             END ";
 

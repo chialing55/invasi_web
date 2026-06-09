@@ -102,7 +102,7 @@
     <div class="gray-card mb-4">
         <h3 class="text-lg font-semibold mb-2">小樣方照片上傳</h3>
         <ul class="list-disc pl-5 space-y-1">
-            <li>系統會自動將檔名更名為小樣方編號，並以 .jpg 儲存，檔案大小不得超過 12MB。</li>
+            <li>系統會自動將檔名更名為小樣方編號，並保留 JPG、PNG 或 WEBP 格式，檔案大小不得超過 20MB。</li>
             <li>每個小樣方僅可上傳一張照片。</li>
             <li>若需更換照片，請直接重新上傳，系統會自動覆蓋原有檔案。</li>
             <li>生育地編號為 88 或 99 者，無需上傳小樣方照片。</li>

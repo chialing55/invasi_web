@@ -8,12 +8,11 @@ use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
-use App\Models\Twredlist2017;   
-use App\Models\SpInfo;
 use App\Models\HabitatInfo;
 use App\Helpers\HabHelper;
 use Illuminate\Support\Facades\DB;
-use App\Support\SpNameHelper;
+use App\Support\ScientificNameHelper;
+use App\Support\TaiwanChecklistQuery;
 
 class SurveyStats extends Component
 {
@@ -193,9 +192,8 @@ class SurveyStats extends Component
         $thisCounty = $this->thisCounty;
 
         $this->message = '';
-        $base = SubPlotPlant2025::join('spinfo', 'im_spvptdata_2025.spcode', '=', 'spinfo.spcode')
-            ->leftjoin('twredlist2017', 'im_spvptdata_2025.spcode', '=', 'twredlist2017.spcode')
-            ->join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
+        $base = SubPlotPlant2025::from('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025', 'p.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
             ->when(!blank($this->thisTeam), fn($q) => 
                 $q->where('plot_list.team',  $this->thisTeam) // 單一值 where
@@ -209,59 +207,30 @@ class SurveyStats extends Component
             ->when(!blank($this->thisCensusYear), fn($q) =>
                 $q->where('census_year', $this->thisCensusYear)
         );
-            // ->where('spinfo.growth_form', '!=', '')
+        TaiwanChecklistQuery::joinCurrent($base, 'p');
+        $base->whereNotNull('s.spcode');
+            // ->where('s.growth_form', '!=', '')
         $plantListAll=(clone $base)->select(
-                'spinfo.spcode',
-                'spinfo.family',
-                'spinfo.chfamily',
-                'spinfo.latinname',
-                'spinfo.chname',                
-                // 'spinfo.family',                
-                'spinfo.growth_form',
-                'spinfo.genus',
-                'spinfo.species',
-                'spinfo.ssp',
-                'spinfo.var',
-                'spinfo.subvar',
-                'spinfo.f',
-                'spinfo.cv',
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized != '1' 
-                            AND spinfo.cultivated != '1' 
-                            AND (spinfo.uncertain IS NULL OR spinfo.uncertain != '1')
-                        THEN 1 
-                        ELSE 0 
-                    END AS native
-                "),
-                'spinfo.endemic',
-                'spinfo.naturalized',
-                'spinfo.cultivated',                
-                DB::raw("
-                    CASE 
-                        WHEN spinfo.naturalized = '1' OR spinfo.cultivated = '1' THEN 'NA'
-                        ELSE twredlist2017.IUCN
-                    END AS IUCN
-                "),
-                // 'twredlist2017.origin_type as origin_type_redlist'
+                's.spcode',
+                's.family',
+                's.chfamily',
+                DB::raw('s.full_name as latinname'),
+                DB::raw('s.canonical_name as simname'),
+                's.chname',
+                's.growth_form',
+                's.genus',
+                DB::raw(TaiwanChecklistQuery::nativeExpr('s') . ' AS native'),
+                DB::raw(TaiwanChecklistQuery::endemicExpr('s') . ' AS endemic'),
+                DB::raw(TaiwanChecklistQuery::naturalizedExpr('s') . ' AS naturalized'),
+                DB::raw(TaiwanChecklistQuery::cultivatedExpr('s') . ' AS cultivated'),
+                DB::raw('s.IUCN as IUCN'),
             )
             ->distinct()
             ->orderBy('family')
-            ->orderBy('spinfo.latinname')
+            ->orderBy('s.full_name')
             ->get()
             ->map(function ($r) {
-                $sim = SpNameHelper::combine([
-                    'genus'   => $r->genus ?? '',
-                    'species' => $r->species ?? '',
-                    'ssp'     => $r->ssp ?? '',
-                    'var'     => $r->var ?? '',
-                    'subvar'  => $r->subvar ?? '',
-                    'f'       => $r->f ?? '',
-                    'cv'      => $r->cv ?? '',
-                ]);
-                // 產生含 <em> 的學名（簡化學名）
-                $r->latinname_html = $sim['simnametitle'];
-                // 若你也想保留完整學名可用 $sim['simnamefull']（依你的 helper 實作）
+                $r->latinname_html = ScientificNameHelper::italicize($r->latinname ?? '', $r->simname ?? '');
                 return $r;
             })
             ->toArray();

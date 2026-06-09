@@ -47,17 +47,13 @@
         @endphp
         <div class="mt-8">
             <h2><strong>{{ $spnameInfo['chname'] }}</strong>
-                <strong><i>{{ $spnameInfo['simname'] }}</i></strong>
+                <strong>{!! $spnameInfo['scientific_name_html'] ?? '' !!}</strong>
             </h2>
             <p><strong>{{ $spnameInfo['chfamily'] }} {{ $spnameInfo['family'] }} </strong></p>
             <p>
-                @if ($spnameInfo['endemic'] == 1)
-                    <span class="font-bold">特有</span>
-                @elseif($spnameInfo['naturalized'] == 1)
-                    <span class="font-bold">外來</span>
-                @elseif($spnameInfo['cultivated'] == 1)
-                    <span class="font-bold">栽培</span>
-                @endif
+                @foreach ($spnameInfo['status_labels'] ?? [] as $statusLabel)
+                    <span class="font-bold mr-2">{{ $statusLabel }}</span>
+                @endforeach
             </p>
             <p>{{ $spnameInfo['growth_form'] }}</p>
 

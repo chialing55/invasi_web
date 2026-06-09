@@ -6,7 +6,7 @@ use Livewire\Component;
 use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
 use App\Models\PlotList2025;
-use App\Models\SpInfo;
+use App\Models\TaiwanChecklist;
 use App\Models\HabitatInfo;
 use App\Models\SpcodeIndex;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +15,8 @@ use App\Services\DataSyncService;
 use App\Helpers\PlantStatHelper;
 use App\Helpers\PlantSearchHelper;
 use App\Helpers\HabHelper;
+use App\Support\PlantStatusHelper;
+use App\Support\ScientificNameHelper;
 class QueryPlant extends Component
 {
 
@@ -87,14 +89,44 @@ class QueryPlant extends Component
         $this->thisCounty = '';
         $this->thisHabType = '';
  
-        $this->spnameInfo = SpInfo::select()->where('spcode',$value)->first()->toArray();
-    // // dd($this->spnameInfo);
+        $plant = TaiwanChecklist::where('spcode', $value)->first()
+            ?? TaiwanChecklist::where('spcode_current', $value)->first();
+
+        if (!$plant) {
+            $this->spnameInfo = [];
+            $this->suggestions = [];
+            return;
+        }
+
+        $currentSpcode = trim((string) ($plant->spcode_current ?: $plant->spcode));
+        $plant = TaiwanChecklist::where('spcode', $currentSpcode)->first() ?: $plant;
+        $relatedSpcodes = TaiwanChecklist::where('spcode_current', $currentSpcode)
+            ->pluck('spcode')
+            ->push($currentSpcode)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $flags = PlantStatusHelper::flags($plant->origin_status, $plant->is_endemic);
+        $this->spnameInfo = array_merge($plant->toArray(), [
+            'latinname' => $plant->full_name,
+            'simname' => $plant->canonical_name,
+            'endemic' => $flags['endemic'],
+            'native' => $flags['native'],
+            'naturalized' => $flags['naturalized'],
+            'cultivated' => $flags['cultivated'],
+            'uncertain' => $flags['uncertain'],
+            'origin_status_label' => PlantStatusHelper::label($plant->origin_status),
+            'status_labels' => PlantStatusHelper::labels($plant->origin_status, $plant->is_endemic),
+            'scientific_name_html' => ScientificNameHelper::italicize($plant->full_name, $plant->canonical_name),
+        ]);
         $this->plantName = $this->spnameInfo['chname'];
         $this->suggestions = []; // 清空建議即可
         
-        $this->comparisonTable = PlantStatHelper::summarizeByCountyAndHabitat($value);
+        $this->comparisonTable = PlantStatHelper::summarizeByCountyAndHabitat($relatedSpcodes);
         // dd($this->comparisonTable);
-        $this->plantCode = $value;
+        $this->plantCode = $currentSpcode;
         $this->showTable = true;
 
         // 取得所有縣市

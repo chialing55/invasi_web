@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 class FloraGroupStats
 {
     /**
-     * 類群(蕨/石松/裸子/雙子/單子) × 屬性(特有/原生/歸化/栽培) × 生活型 的彙整表
+     * 類群(蕨/石松/裸子/雙子/單子) × 屬性(特有/原生/歸化/栽培) × 生長習性 的彙整表
      * 不含unknown
      *
      * @param array  $selectedPlots      要統計的 plot 清單
@@ -22,26 +22,24 @@ class FloraGroupStats
     ): array {
         if (empty($selectedPlots)) return ['headings'=>[], 'rows'=>[]];
 
-        // 🔹 來源屬性（原生/外來/栽培）：你既有的邏輯
-        $isNativeExpr = "
-            CASE
-              WHEN s.naturalized != '1' AND s.cultivated != '1'
-                   AND (s.uncertain IS NULL OR s.uncertain != '1')
-              THEN 1 ELSE 0 END
-        ";
+        $isNativeExpr = TaiwanChecklistQuery::nativeExpr('s');
+        $isEndemicExpr = TaiwanChecklistQuery::endemicExpr('s');
+        $isNaturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
+        $isCultivatedExpr = TaiwanChecklistQuery::cultivatedExpr('s');
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = SubPlotPlant2025::query()
             ->from((new SubPlotPlant2025)->getTable().' as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
-            ->join('spinfo as s', 'p.spcode', '=', 's.spcode')
             ->whereIn('e.plot', $selectedPlots);
+        TaiwanChecklistQuery::joinCurrent($base, 'p');
+        $base->whereNotNull('s.spcode');
 
         // 僅外來模式：收歸化 +（可選）栽培
         if ($mode === 'alien-only') {
-            $base->where(function ($q) use ($includeCultivated) {
-                $q->where('s.naturalized', '1');
-                if ($includeCultivated) $q->orWhere('s.cultivated', '1');
+            $base->where(function ($q) use ($includeCultivated, $isNaturalizedExpr, $isCultivatedExpr) {
+                $q->whereRaw("({$isNaturalizedExpr}) = 1");
+                if ($includeCultivated) $q->orWhereRaw("({$isCultivatedExpr}) = 1");
             });
         }
 
@@ -53,9 +51,9 @@ class FloraGroupStats
                 s.genus                                as genus,
                 s.spcode                               as sp,
                 {$isNativeExpr}                        as native,
-                s.endemic                              as endemic,
-                s.naturalized                          as naturalized,
-                s.cultivated                           as cultivated,
+                {$isEndemicExpr}                       as endemic,
+                {$isNaturalizedExpr}                   as naturalized,
+                {$isCultivatedExpr}                    as cultivated,
                 s.growth_form                          as growth_form
             ")
             ->distinct()
@@ -81,9 +79,9 @@ class FloraGroupStats
         $countSpecies  = fn($col) => $col->pluck('sp')->filter()->unique()->count();
 
         $countNative   = fn($col) => $col->where('native', 1)->pluck('sp')->unique()->count();
-        $countEndemic  = fn($col) => $col->where('endemic', '1')->pluck('sp')->unique()->count();
-        $countAlien    = fn($col) => $col->where('naturalized', '1')->pluck('sp')->unique()->count();
-        $countCult     = fn($col) => $col->where('cultivated', '1')->where('naturalized', '!=', '1')->pluck('sp')->unique()->count();
+        $countEndemic  = fn($col) => $col->where('endemic', 1)->pluck('sp')->unique()->count();
+        $countAlien    = fn($col) => $col->where('naturalized', 1)->pluck('sp')->unique()->count();
+        $countCult     = fn($col) => $col->where('cultivated', 1)->where('naturalized', '!=', 1)->pluck('sp')->unique()->count();
 
         $countLife = function ($col, $name) {
             return $col->where('growth_form', $name)->pluck('sp')->unique()->count();
@@ -106,7 +104,7 @@ class FloraGroupStats
             $rows[] = self::buildRow('栽培種', $byGroup, $countCult);
         }
 
-        // 生活型
+        // 生長習性
         foreach ($lifeforms as $lf) {
             $rows[] = self::buildRow($lf, $byGroup, fn($col) => $countLife($col, $lf));
         }
@@ -133,7 +131,7 @@ class FloraGroupStats
             $groupOf = function (string $label) use ($lifeforms) {
                 if (in_array($label, ['科數','屬數','種數'], true)) return '類別';
                 if (in_array($label, ['特有種','原生種','歸化種','栽培種'], true)) return '屬性';
-                return '生活型'; // 其餘當生活型
+                return '生長習性'; // 其餘當生長習性
             };
 
             $tableRows = array_map(function ($r) use ($groupOf) {

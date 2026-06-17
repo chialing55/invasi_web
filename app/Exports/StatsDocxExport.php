@@ -113,12 +113,12 @@ class StatsDocxExport
 
     private function isSkippedSection(array $section): bool
     {
-        return false;
+        return !empty($section['chartSpec']);
     }
 
     private function isChartSection(array $section): bool
     {
-        return ($section['title'] ?? '') === '歸化物種優勢科 Top 10';
+        return !empty($section['chartSpec']);
     }
 
     private function isHabitatIvSection(array $section): bool
@@ -136,6 +136,7 @@ class StatsDocxExport
         $county = $this->countyLabel();
         return match ((string) ($section['title'] ?? '')) {
             '歸化物種優勢科 Top 10' => $county . '地區歸化物種優勢科前十名排名圖',
+            '低海拔外來植物優勢科比較圖' => '針對' . (string) ($section['countyLabel'] ?? $county) . '海拔500 m以下的' . ((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0) . '處' : '') . '平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
             default => (string) ($section['title'] ?? ''),
         };
     }
@@ -383,13 +384,26 @@ class StatsDocxExport
 
     private function chartFigure(array $section): string
     {
-        $rows = array_values(array_filter($section['rows'] ?? [], fn($row) => (int) (((array) $row)['物種數'] ?? 0) > 0));
+        $isComparisonChart = ($section['chartSpec']['type'] ?? null) === 'family-comparison';
+        $rows = array_values(array_filter($section['rows'] ?? [], function ($row) use ($isComparisonChart) {
+            $row = (array) $row;
+            if ($isComparisonChart) {
+                return ((int) ($row['前次調查'] ?? 0) > 0) || ((int) ($row['本次調查'] ?? 0) > 0);
+            }
+
+            return (int) ($row['物種數'] ?? 0) > 0;
+        }));
         if (empty($rows)) {
             return $this->paragraph('無資料', null, true);
         }
 
         $path = tempnam(sys_get_temp_dir(), 'family-chart-docx-') . '.png';
-        FamilyChartImage::render($rows, $path);
+        if (($section['chartSpec']['type'] ?? null) === 'family-comparison') {
+            FamilyChartImage::renderComparison($rows, $path);
+        } else {
+            FamilyChartImage::render($rows, $path);
+        }
+        $imageSize = getimagesize($path) ?: [588, 354];
         $content = file_get_contents($path) ?: '';
         @unlink($path);
 
@@ -401,7 +415,10 @@ class StatsDocxExport
         $name = 'family-chart-' . (count($this->media) + 1) . '.png';
         $this->media[] = ['rid' => $rid, 'name' => $name, 'content' => $content];
 
-        return $this->imageParagraph($rid, 5943600, 3579180);
+        $widthEmu = 5270500;
+        $heightEmu = (int) round($widthEmu * ((int) ($imageSize[1] ?? 354)) / max(1, (int) ($imageSize[0] ?? 588)));
+
+        return $this->imageParagraph($rid, $widthEmu, $heightEmu);
     }
 
     private function iviTable(?array $headings, array $rows): string

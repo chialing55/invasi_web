@@ -142,12 +142,13 @@
                                     ['label' => '植物資料', 'formats' => ['xlsx' => 'plant.xlsx', 'txt' => 'plant.txt']],
                                     ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt']],
                                     ['label' => '統計表格', 'formats' => ['xlsx' => 'statsTable', 'docx' => 'statsTable.docx']],
+                                    ['label' => '統計圖', 'formats' => ['pdf' => 'statsCharts.pdf']],
                                     ['label' => '小樣方未調查原因', 'formats' => ['xlsx' => 'reasonsTable']],
                                     ['label' => '全部植物名錄', 'formats' => ['xlsx' => 'allPlantList']],
                                 ],
                             ],
                         ];
-                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'docx'];
+                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'docx', 'pdf' => 'pdf'];
                     @endphp
 
                     <table class="text-sm border border-gray-300 bg-white">
@@ -207,6 +208,12 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('download-generated-file', function(event) {
+            const url = event.detail?.url || event.detail?.[0]?.url;
+            if (url) {
+                window.location.href = url;
+            }
+        });
         //監聽的名稱, select的id
         listenAndResetSelect('thisCountyUpdated', 'county');
         // listenAndResetSelect('thisHabTypeUpdated', 'habType');

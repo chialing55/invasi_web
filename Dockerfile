@@ -9,8 +9,12 @@ RUN apt-get update && apt-get install -y \
     libpng-dev libjpeg-dev libfreetype6-dev \
     libzip-dev libxml2-dev \
     ca-certificates nodejs npm \
+    r-base \
+    fonts-noto-cjk \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_mysql zip gd xml
+
+RUN Rscript -e "install.packages(c('showtext','sysfonts'), repos='https://cloud.r-project.org')"
 
 WORKDIR /app
 

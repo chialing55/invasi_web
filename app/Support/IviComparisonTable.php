@@ -30,6 +30,7 @@ class IviComparisonTable
             $rows[] = [
                 '中文名' => $row['中文名'],
                 '學名' => $row['學名'],
+                '學名_html' => $row['學名_html'],
                 '本次調查_相對覆蓋度(%)' => self::fmt($row['relative_coverage_raw']),
                 '本次調查_相對頻度(%)' => self::fmt($row['relative_frequency_raw']),
                 '本次調查_IVI重要值(%)' => self::fmt($row['ivi_raw']),
@@ -142,6 +143,7 @@ class IviComparisonTable
                     'spcode' => (string) $row->spcode,
                     '中文名' => (string) $row->chname,
                     '學名' => self::canonicalRichText((string) ($row->canonical_name ?? '')),
+                    '學名_html' => ScientificNameHelper::canonicalToHtml((string) ($row->canonical_name ?? '')),
                     'relative_coverage_raw' => $relativeCoverage,
                     'relative_frequency_raw' => $relativeFrequency,
                     'ivi_raw' => $ivi,

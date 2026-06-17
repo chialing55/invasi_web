@@ -32,6 +32,7 @@ class FileController extends Controller
         $allowedRoots = [
             realpath(public_path('invasi_files/plotData')),
             realpath(public_path('invasi_files/subPlotPhoto')),
+            realpath(public_path('invasi_files/exports')),
         ];
 
         foreach (array_filter($allowedRoots) as $root) {

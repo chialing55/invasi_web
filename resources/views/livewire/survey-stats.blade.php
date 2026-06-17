@@ -90,8 +90,8 @@
                         <x-th-sort field="chname" :sort-field="$sortField" :sort-direction="$sortDirection">中文名</x-th-sort>
                         <x-th-sort field="growth_form" :sort-field="$sortField" :sort-direction="$sortDirection">生長型</x-th-sort>
                         <x-th-sort field="native" :sort-field="$sortField" :sort-direction="$sortDirection">原生</x-th-sort>
-                        <x-th-sort field="naturalized" :sort-field="$sortField" :sort-direction="$sortDirection">歸化</x-th-sort>
                         <x-th-sort field="endemic" :sort-field="$sortField" :sort-direction="$sortDirection">特有</x-th-sort>
+                        <x-th-sort field="naturalized" :sort-field="$sortField" :sort-direction="$sortDirection">歸化</x-th-sort>
                         <x-th-sort field="cultivated" :sort-field="$sortField" :sort-direction="$sortDirection">栽培</x-th-sort>
                         <x-th-sort field="IUCN" :sort-field="$sortField" :sort-direction="$sortDirection">IUCN</x-th-sort>
                     </tr>
@@ -110,10 +110,10 @@
                                 {!! $plant['native'] ?? 0 ? '✔' : '' !!}
                             </td>
                             <td class="border px-4 py-2">
-                                {!! $plant['naturalized'] ?? 0 ? '✔' : '' !!}
+                                {!! $plant['endemic'] ?? 0 ? '✔' : '' !!}
                             </td>
                             <td class="border px-4 py-2">
-                                {!! $plant['endemic'] ?? 0 ? '✔' : '' !!}
+                                {!! $plant['naturalized'] ?? 0 ? '✔' : '' !!}
                             </td>
                             <td class="border px-4 py-2">
                                 {!! $plant['cultivated'] ?? 0 ? '✔' : '' !!}

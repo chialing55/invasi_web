@@ -18,11 +18,14 @@ class StatsMultiSheetExport implements WithMultipleSheets
 
         foreach (StatsTablesBuilder::build($this->selectedPlots) as $section) {
             if (!empty($section['chartSpec'])) {
-                $sheets[] = new StatsFigExport(
+                $sheets[] = new StatsTableExport(
                     rows: $section['rows'],
                     title: $section['title'],
                     headings: $section['headings'],
-                    chartSpec: $section['chartSpec'],
+                    numberCols: $section['numberCols'] ?? [],
+                    fillEmptyWithZero: $section['fillEmptyWithZero'] ?? false,
+                    layouts: $section['layouts'] ?? [],
+                    headerGroups: $section['headerGroups'] ?? [],
                 );
                 continue;
             }

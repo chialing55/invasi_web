@@ -19,6 +19,7 @@ use App\Exports\PlantListExport;
 use App\Exports\PlantListExport2010;
 use App\Exports\StatsMultiSheetExport;
 use App\Exports\StatsDocxExport;
+use App\Exports\StatsChartsPdfExport;
 use App\Exports\PlantListMultiSheetExport;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 use Maatwebsite\Excel\Excel;
@@ -120,15 +121,13 @@ class DataExport extends Component
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
             ->when(!blank($this->thisCensusYear), fn($q) =>
                 $q->where('census_year', $this->thisCensusYear)
+            )
+            ->when(!blank($this->thisTeam), fn($q) =>
+                $q->where('plot_list.team', $this->thisTeam)
+            )
+            ->when(!blank($thisCounty), fn($q) =>
+                $q->where('plot_list.county', $thisCounty)
             );
-
-// dd($thisCounty);
-
-        if ($thisCounty === '') {
-            $plotListQuery->whereIn('plot_list.county', $this->countyList);
-        } else {
-            $plotListQuery->where('plot_list.county', $thisCounty);
-        }
 
         $plotList = $plotListQuery
             ->distinct()
@@ -222,6 +221,9 @@ class DataExport extends Component
             case 'statsTable.docx':
                 $this->downloadFormat = 'docx';
                 break;
+            case 'statsCharts.pdf':
+                $this->downloadFormat = 'pdf';
+                break;
             case 'reasonsTable':
                 $this->downloadFormat = 'xlsx';
                 break;
@@ -270,11 +272,18 @@ class DataExport extends Component
 
         $format = $formatConstants[$this->downloadFormat] ?? null;
         $ext = $this->downloadFormat;
-        $prefix='';
-        if( $this->thisTeam != '' ){ $prefix = $this->thisTeam.'_';}
-        $prefix .= $this->thisCounty . '_' . date('Ymd');
+        $prefix = '';
+        if ($this->thisTeam !== '') {
+            $prefix = $this->thisTeam . '_';
+        }
+        $prefix .= ($this->thisCounty !== '' ? $this->thisCounty : '全部縣市') . '_' . date('Ymd');
         if ($this->downloadFormat === 'docx' && $dataType === 'statsTable.docx') {
             return (new StatsDocxExport($this->selectedPlots))->download("$prefix-statsTable.docx");
+        }
+        if ($this->downloadFormat === 'pdf' && $dataType === 'statsCharts.pdf') {
+            $url = (new StatsChartsPdfExport($this->selectedPlots))->publicDownloadUrl("$prefix-statsCharts.pdf");
+            $this->dispatch('download-generated-file', url: $url);
+            return null;
         }
 
         // 這一行會同時拿到對應的 Export 物件與檔名

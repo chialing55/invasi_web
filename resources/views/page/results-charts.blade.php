@@ -126,5 +126,9 @@
 
 @section('content')
     <h2 class="text-xl font-bold mb-4">成果圖表</h2>
+    <p class="mb-4 text-sm text-gray-700">
+        如需下載圖表，請至
+        <a href="{{ route('data.export') }}" class="font-semibold text-forest underline hover:text-forest-dark">資料匯出</a>。
+    </p>
     <livewire:results-charts />
 @endsection

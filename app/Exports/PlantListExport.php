@@ -27,7 +27,7 @@ class PlantListExport
 
         self::applyListOrder($builder);
 
-        $headings = array_merge(['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN'], array_values($teamMap), ['taicol_taxon_id', '簡化學名']);
+        $headings = array_merge(['科名', '學名', '中文名', '生長型', '原生種', '特有種', '歸化種', '栽培種', 'IUCN'], array_values($teamMap), ['taicol_taxon_id', '簡化學名']);
 
         $rows = $builder->toBase()->get()
             ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
@@ -47,7 +47,7 @@ class PlantListExport
 
         self::applyListOrder($builder);
 
-        $headings = ['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名'];
+        $headings = ['科名', '學名', '中文名', '生長型', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名'];
         $rows = $builder->toBase()->get()
             ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
             ->values()
@@ -112,6 +112,7 @@ class PlantListExport
                 '科名' => '',
                 '學名' => $arr['學名'] ?? '',
                 '中文名' => $arr['中文名'] ?? '',
+                '生長型' => $arr['生長型'] ?? '',
                 '類別' => $arr['類別'] ?? '',
                 'IUCN' => $arr['IUCN'] ?? '',
             ];
@@ -127,7 +128,7 @@ class PlantListExport
             return $row;
         })->values()->all();
 
-        $headings = array_merge(['科名', '學名', '中文名', '類別', 'IUCN'], $habCodes, ['taicol_taxon_id', '簡化學名'], ['__pg', '__fam', '__chfam', '__group']);
+        $headings = array_merge(['科名', '學名', '中文名', '生長型', '類別', 'IUCN'], $habCodes, ['taicol_taxon_id', '簡化學名'], ['__pg', '__fam', '__chfam', '__group']);
         $blankRow = array_fill_keys($headings, '');
         $rows = [];
         $prevPg = null;
@@ -186,6 +187,7 @@ class PlantListExport
             MAX(s.full_name) AS `學名`,
             MAX(s.canonical_name) AS `簡化學名`,
             MAX(s.chname) AS `中文名`,
+            MAX(s.growth_form) AS `生長型`,
             MAX(CASE WHEN " . TaiwanChecklistQuery::nativeExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `原生種`,
             MAX(CASE WHEN " . TaiwanChecklistQuery::endemicExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `特有種`,
             MAX(CASE WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `歸化種`,
@@ -207,6 +209,7 @@ class PlantListExport
             MAX(s.full_name) AS `學名`,
             MAX(s.canonical_name) AS `簡化學名`,
             MAX(s.chname) AS `中文名`,
+            MAX(s.growth_form) AS `生長型`,
             MAX(CASE
                 WHEN " . TaiwanChecklistQuery::endemicExpr('s') . " = 1 THEN '原生 特有'
                 WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '歸化'

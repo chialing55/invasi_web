@@ -27,7 +27,7 @@ class PlantListExport
 
         self::applyListOrder($builder);
 
-        $headings = array_merge(['科名', '學名', '中文名', '生長型', '原生種', '特有種', '歸化種', '栽培種', 'IUCN'], array_values($teamMap), ['taicol_taxon_id', '簡化學名']);
+        $headings = array_merge(['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN'], array_values($teamMap), ['taicol_taxon_id', '簡化學名', '生長型', 'spcode']);
 
         $rows = $builder->toBase()->get()
             ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
@@ -47,7 +47,7 @@ class PlantListExport
 
         self::applyListOrder($builder);
 
-        $headings = ['科名', '學名', '中文名', '生長型', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名'];
+        $headings = ['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名', '生長型', 'spcode'];
         $rows = $builder->toBase()->get()
             ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
             ->values()
@@ -112,7 +112,6 @@ class PlantListExport
                 '科名' => '',
                 '學名' => $arr['學名'] ?? '',
                 '中文名' => $arr['中文名'] ?? '',
-                '生長型' => $arr['生長型'] ?? '',
                 '類別' => $arr['類別'] ?? '',
                 'IUCN' => $arr['IUCN'] ?? '',
             ];
@@ -121,6 +120,8 @@ class PlantListExport
             }
             $row['taicol_taxon_id'] = $arr['taicol_taxon_id'] ?? '';
             $row['簡化學名'] = $arr['簡化學名'] ?? '';
+            $row['生長型'] = $arr['生長型'] ?? '';
+            $row['spcode'] = $arr['spcode'] ?? '';
             $row['__pg'] = $arr['__pg'] ?? '';
             $row['__fam'] = $arr['__fam'] ?? '';
             $row['__chfam'] = $arr['__chfam'] ?? '';
@@ -128,7 +129,7 @@ class PlantListExport
             return $row;
         })->values()->all();
 
-        $headings = array_merge(['科名', '學名', '中文名', '生長型', '類別', 'IUCN'], $habCodes, ['taicol_taxon_id', '簡化學名'], ['__pg', '__fam', '__chfam', '__group']);
+        $headings = array_merge(['科名', '學名', '中文名', '類別', 'IUCN'], $habCodes, ['taicol_taxon_id', '簡化學名', '生長型', 'spcode'], ['__pg', '__fam', '__chfam', '__group']);
         $blankRow = array_fill_keys($headings, '');
         $rows = [];
         $prevPg = null;
@@ -193,6 +194,7 @@ class PlantListExport
             MAX(CASE WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `歸化種`,
             MAX(CASE WHEN " . TaiwanChecklistQuery::cultivatedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `栽培種`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
+            MAX(COALESCE(NULLIF(s.spcode_current, ''), s.spcode)) AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
         ";
     }
@@ -218,6 +220,7 @@ class PlantListExport
                 ELSE '原生'
             END) AS `{$statusColumn}`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
+            MAX(COALESCE(NULLIF(s.spcode_current, ''), s.spcode)) AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
         ";
     }

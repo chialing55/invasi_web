@@ -407,7 +407,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $fullPath = public_path($relativePath);
 
         if (file_exists($fullPath)) {
-            $this->thisPlotFile = asset($relativePath) . '?v=' . filemtime($fullPath);
+            $this->thisPlotFile = route('file.view', ['path' => $relativePath]) . '?v=' . filemtime($fullPath);
         } else {
             $this->thisPlotFile = null;
         }        

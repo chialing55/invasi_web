@@ -282,7 +282,7 @@ class SurveyOverview extends Component
             $fullPath = public_path($relativePath);
 
             if (file_exists($fullPath)) {
-                $thisPlotFile = asset($relativePath);
+                $thisPlotFile = route('file.view', ['path' => $relativePath]) . '?v=' . filemtime($fullPath);
             } else {
                 $thisPlotFile = null;
             }

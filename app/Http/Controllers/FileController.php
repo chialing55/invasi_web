@@ -10,14 +10,14 @@ class FileController extends Controller
     {
         $fullPath = $this->resolveAllowedPublicPath($path);
 
-        return response()->download($fullPath);
+        return response()->download($fullPath)->withHeaders($this->noCacheHeaders());
     }
 
     public function view($path)
     {
         $fullPath = $this->resolveAllowedPublicPath($path);
 
-        return response()->file($fullPath);
+        return response()->file($fullPath, $this->noCacheHeaders());
     }
 
     private function resolveAllowedPublicPath(string $path): string
@@ -42,5 +42,14 @@ class FileController extends Controller
         }
 
         abort(404);
+    }
+
+    private function noCacheHeaders(): array
+    {
+        return [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
     }
 }

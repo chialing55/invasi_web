@@ -102,9 +102,12 @@
                 @endif
                 <div>
 
-                    <input type="file" wire:model.defer="plotFile" accept=".pdf">
+                    <input type="file" wire:model="plotFile" accept=".pdf">
 
-                    <button id="submit-btn-file" type="button" class="btn-submit" wire:click="clickUploadFile">
+                    <div wire:loading wire:target="plotFile" class="mt-2 text-sm text-gray-600">檔案上傳暫存中，請稍候...</div>
+                    <div wire:loading wire:target="clickUploadFile" class="mt-2 text-sm text-gray-600">檔案儲存中，請稍候...</div>
+
+                    <button id="submit-btn-file" type="button" class="btn-submit" wire:click="clickUploadFile" wire:loading.attr="disabled" wire:target="plotFile,clickUploadFile">
                         {{ $thisPlotFile ? '更新樣區調查資料' : '上傳樣區調查資料' }}
                     </button>
 

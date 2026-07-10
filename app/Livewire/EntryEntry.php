@@ -407,7 +407,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $fullPath = public_path($relativePath);
 
         if (file_exists($fullPath)) {
-            $this->thisPlotFile = asset($relativePath);
+            $this->thisPlotFile = asset($relativePath) . '?v=' . filemtime($fullPath);
         } else {
             $this->thisPlotFile = null;
         }        
@@ -1003,6 +1003,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function clickUploadFile()
     {
+        $this->resetErrorBag('plotFile');
+
         $rules = [
             'plotFile' => 'required|file|mimes:pdf|max:20480', // 20MB (= 20*1024 KB)
         ];
@@ -1014,7 +1016,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         ];
         // dd('test');
         // 1) 先做表單驗證（這一步的錯誤會自動進到 $errors）
-        $this->validate();
+        $this->validate($rules, $messages);
 
         // 2) 準備路徑與檔名
         $filename     = $this->thisPlot . '.pdf';
@@ -1051,8 +1053,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
             // 6) UI 狀態
             $this->loadFileInfo();
             session()->flash('fileUploadSuccess', '上傳成功！');
-            // 可視需要清掉選擇的檔案欄位
-            // $this->plotFile = null;
+            $this->plotFile = null;
 
         } catch (Throwable $e) {
             DB::rollBack();

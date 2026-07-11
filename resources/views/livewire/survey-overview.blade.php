@@ -1,17 +1,17 @@
 {{-- livewire/survey-overview.blade.php --}}
 <div>
     <div wire:loading.class="flex" wire:loading.remove.class="hidden"
-        class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
-        <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+        class="fixed left-0 top-0 z-50 hidden h-full w-full items-center justify-center bg-white/50">
+        <div class="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"></div>
     </div>
-    <h2 class="text-xl font-bold mb-4">樣區完成狀況總覽</h2>
-    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
-        <ul class="list-['🌼'] pl-5 space-y-1 mt-2 text-sm">
+    <h2 class="mb-4 text-xl font-bold">樣區完成狀況總覽</h2>
+    <div class="mb-6 border-l-4 border-yellow-500 bg-yellow-100 p-4 text-yellow-800" role="alert">
+        <ul class="mt-2 list-['🌼'] space-y-1 pl-5 text-sm">
             <li>
                 工作流程：野外調查→資料輸入→物種鑑定→修改紙本資料、掃描、上傳。
             </li>
             <li>樣區調查完成條件：
-                <ol class="list-decimal list-inside">
+                <ol class="list-inside list-decimal">
                     <li>無資料錯誤（覆蓋度為 0 或資料重複）。</li>
                     <li>各生育地類型皆已完成 5 筆小樣方資料輸入（以選取的生育地類型為準）。</li>
                     <li>所有小樣方皆已上傳照片。</li>
@@ -23,27 +23,27 @@
         </ul>
     </div>
     @if ($thisCounty == '')
-        <h3>各團隊調查進度 <span class='text-sm text-gray-500 ml-8'> 2026年目標：完成 70 個 1 ×1 km<sup>2</sup>樣區</span><span
-                class='text-sm text-gray-500 ml-8'>年度主題：平地</span></h3>
+        <h3>各團隊調查進度 <span class='ml-8 text-sm text-gray-500'> 2026年目標：完成 60 個 1 ×1 km<sup>2</sup>樣區</span><span
+                class='ml-8 text-sm text-gray-500'>年度主題：平地</span></h3>
         <div class="gray-card mb-6 space-y-3">
             {{-- 圖說 --}}
-            <div class="flex flex-wrap gap-3 text-xs text-gray-700 mt-1 justify-end">
+            <div class="mt-1 flex flex-wrap justify-end gap-3 text-xs text-gray-700">
                 <div class="flex items-center gap-1">
-                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #2E7D32"></span>
-                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #F87171"></span>
+                    <span class="inline-block h-3 w-3 rounded-sm" style="background-color: #2E7D32"></span>
+                    <span class="inline-block h-3 w-3 rounded-sm" style="background-color: #F87171"></span>
                     <span>已完成</span>
                 </div>
                 <div class="flex items-center gap-1">
-                    <span class="w-3 h-3 rounded-sm inline-block" style="background-color: #adaeaeff"></span>
+                    <span class="inline-block h-3 w-3 rounded-sm" style="background-color: #adaeaeff"></span>
                     <span>已調查</span>
                 </div>
             </div>
             @foreach ($showTeamInfo as $row)
                 @php
-                    $target = 70;
+                    $target = 60;
                     $plotDone = $row['completed_plots'];
                     $plotEntry = $row['has_data_plots'] > 0 ? $row['has_data_plots'] - $row['completed_plots'] : 0;
-                    $plotTotal = 70;
+                    $plotTotal = 60;
 
                     $plotDonePercent = $plotTotal > 0 ? round(($plotDone / $plotTotal) * 100) : 0;
                     $plotEntryPercent = $plotTotal > 0 ? round(($plotEntry / $plotTotal) * 100) : 0;
@@ -60,12 +60,12 @@
 
                 <div class="flex items-center gap-2 md:gap-4">
                     {{-- Team 名稱 --}}
-                    <div class="w-[60px] font-semibold text-sm">{{ $row['team'] }}</div>
+                    <div class="w-[60px] text-sm font-semibold">{{ $row['team'] }}</div>
 
                     {{-- 完成數 + 達標狀態（手機隱藏 emoji） --}}
-                    <div class="w-[110px] md:w-[240px] text-sm">
+                    <div class="w-[110px] text-sm md:w-[240px]">
                         <span
-                            class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} w-[110px] inline-block">
+                            class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} inline-block w-[110px]">
                             {{ $plotDone }}<span class='text-gray-500'>+{{ $plotEntry }}</span> /
                             {{ $plotTotal }} ({{ $plotDonePercent }}%)
                         </span>
@@ -92,14 +92,14 @@
                             $rounded = 'rounded-l';
                         }
                     @endphp
-                    <div class="relative w-[180px] sm:w-[240px] md:w-[500px] h-4 bg-[#CBD5E0] rounded overflow-hidden">
+                    <div class="relative h-4 w-[180px] overflow-hidden rounded bg-[#CBD5E0] sm:w-[240px] md:w-[500px]">
                         @php
                             $done = max(0, min(100, (float) $plotDonePercent));
                             $entry = max(0, min(100 - $done, (float) $plotEntryPercent));
                             $firstClass = $entry > 0 ? 'rounded-l' : 'rounded';
                         @endphp
 
-                        <div class="absolute left-0 h-4 {{ $firstClass }}"
+                        <div class="{{ $firstClass }} absolute left-0 h-4"
                             style="width: {{ $done }}%; background-color: {{ $plotDoneColor }}"></div>
 
                         @if ($entry > 0)
@@ -114,20 +114,19 @@
         </div>
         <div>
             <button wire:click="showTeamProgressToggle()"
-                class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300 mb-4">團隊詳細調查進度</button>
+                class="mb-4 rounded bg-gray-200 px-4 py-2 hover:bg-gray-300">團隊詳細調查進度</button>
         </div>
 
-        <div class="flex justify-start gap-8 items-start flex-wrap {{ $showTeamProgress ? '' : 'hidden' }}">
+        <div class="{{ $showTeamProgress ? '' : 'hidden' }} flex flex-wrap items-start justify-start gap-8">
             <div class="gray-card space-y-3">
-                <canvas id="teamBarChart2" class="w-[400px] h-[260px]"></canvas>
+                <canvas id="teamBarChart2" class="h-[260px] w-[400px]"></canvas>
             </div>
             <div class="gray-card space-y-3">
-                <canvas id="teamBarChart1" class="w-[400px] h-[260px]"></canvas>
+                <canvas id="teamBarChart1" class="h-[260px] w-[400px]"></canvas>
             </div>
             <div class="gray-card mb-6 space-y-3">@include('components.team-stats-table', [
                 'subPlotTeam' => $this->subPlotTeam,
                 'subPlantTeam' => $this->subPlantTeam,
-
             ])
             </div>
 
@@ -138,12 +137,12 @@
 
     <h3>各縣市調查進度</h3>
     @if ($thisCounty != '')
-        <button wire:click="surveryedPlotInfo('')" class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300 mb-4">
+        <button wire:click="surveryedPlotInfo('')" class="mb-4 rounded bg-gray-200 px-4 py-2 hover:bg-gray-300">
             顯示全部縣市
         </button>
     @endif
 
-    <div class="flex justify-start gap-8 items-start">
+    <div class="flex items-start justify-start gap-8">
 
         <div>
             <div class="flex flex-wrap justify-start gap-3">
@@ -178,20 +177,20 @@
                     @endphp
 
                     <div wire:click="surveryedPlotInfo('{{ $row['county'] }}')" wire:key="card-{{ $row['county'] }}"
-                        class="cursor-pointer w-[200px] sm:w-[220px] md:w-[240px] rounded p-4 shadow transition bg-white hover:bg-gray-50 hover:shadow-xl">
+                        class="w-[200px] cursor-pointer rounded bg-white p-4 shadow transition hover:bg-gray-50 hover:shadow-xl sm:w-[220px] md:w-[240px]">
                         <div class="mb-2 flex justify-between">
                             <h3>{{ $row['county'] }} </h3>
                             <p>{{ $row['teams'] }}</p>
                         </div>
 
                         <div class="mb-3">
-                            <p class="text-sm mb-1">樣區完成數：{{ $row['completed_plots'] }} + {{ $entryCnt }} /
+                            <p class="mb-1 text-sm">樣區完成數：{{ $row['completed_plots'] }} + {{ $entryCnt }} /
                                 {{ $row['total_plots'] }}
                             </p>
 
-                            <div class="relative w-full h-4 bg-[#CBD5E0] rounded overflow-hidden">
+                            <div class="relative h-4 w-full overflow-hidden rounded bg-[#CBD5E0]">
 
-                                <div class="absolute left-0 h-4 {{ $firstClass }}"
+                                <div class="{{ $firstClass }} absolute left-0 h-4"
                                     style="width: {{ $done }}%; background-color: {{ $plotColor }}"></div>
 
                                 @if ($entry > 0)
@@ -209,7 +208,7 @@
             @if ($plotList)
                 <div class="mt-4 md:mb-0">
                     <label class="block font-semibold">選擇其他縣市：</label>
-                    <select wire:model="thisCounty" class="border rounded p-2 w-40"
+                    <select wire:model="thisCounty" class="w-40 rounded border p-2"
                         wire:change="surveryedPlotInfo($event.target.value)">
                         <option value="">-- 全部縣市 --</option>
                         @foreach ($countyList as $county)
@@ -221,11 +220,11 @@
         </div>
         <div>
             @if ($plotList)
-                <div class="md:flex md:flex-row gap-4 mb-4">
-                    <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0"
+                <div class="mb-4 gap-4 md:flex md:flex-row">
+                    <div class="mb-4 gap-2 md:mb-0 md:flex md:flex-row md:items-center"
                         wire:key="refresh-{{ $refreshKey }}">
                         <label class="block font-semibold">選擇資料所屬年度：</label>
-                        <select id="census_year" wire:model="thisCensusYear" class="border rounded p-2 w-40"
+                        <select id="census_year" wire:model="thisCensusYear" class="w-40 rounded border p-2"
                             wire:change="loadThisCensusYearData($event.target.value)">
                             <option value="all">-- All --</option>
                             @foreach ($censusYearList as $year)
@@ -234,11 +233,11 @@
                         </select>
                     </div>
                 </div>
-                <div class="md:flex md:flex-row gap-4 mb-8">
-                    <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0"
+                <div class="mb-8 gap-4 md:flex md:flex-row">
+                    <div class="mb-4 gap-2 md:mb-0 md:flex md:flex-row md:items-center"
                         wire:key="refresh-{{ $refreshKey }}">
                         <label class="block font-semibold">選擇樣區：</label>
-                        <select id="plot" wire:model="thisPlot" class="border rounded p-2 w-40"
+                        <select id="plot" wire:model="thisPlot" class="w-40 rounded border p-2"
                             wire:change="loadPlotInfo($event.target.value)">
                             <option value="">-- All --</option>
                             @foreach ($plotList as $plot)
@@ -247,9 +246,9 @@
                         </select>
                     </div>
                     @if (!empty($subPlotSummary))
-                        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0 ">
+                        <div class="mb-4 gap-2 md:mb-0 md:flex md:flex-row md:items-center">
                             <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
-                            <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
+                            <select id='habType' wire:model="thisHabType" class="w-40 rounded border p-2"
                                 wire:change="reloadPlotInfo($event.target.value)">
                                 <option value="">-- All --</option>
                                 @foreach ($subPlotHabList as $code => $label)
@@ -258,9 +257,9 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0 ml-0 md:ml-4">
+                        <div class="mb-4 ml-0 gap-2 md:mb-0 md:ml-4 md:flex md:flex-row md:items-center">
                             <button wire:click="loadPlotInfo('')"
-                                class="px-4 py-2  bg-gray-200 rounded hover:bg-gray-300">
+                                class="rounded bg-gray-200 px-4 py-2 hover:bg-gray-300">
                                 回樣區列表
                             </button>
                         </div>
@@ -279,9 +278,9 @@
 
                     $printedPlots = []; // 記錄已經輸出過的 plot
                 @endphp
-                <div class="gray-card w-fit mb-6">
+                <div class="gray-card mb-6 w-fit">
                     <h3>樣區列表</h3>
-                    <table class="text-sm border border-gray-300 w-full">
+                    <table class="w-full border border-gray-300 text-sm">
                         <thead style="background-color: #F9E7AC;">
                             <tr>
                                 <th class="border-b px-4 py-2">樣區編號</th>
@@ -299,7 +298,7 @@
                         @endphp
 
                         @foreach ($grouped as $plot => $rows)
-                            <tbody class="group hover:bg-amber-800/10 cursor-pointer bg-white"
+                            <tbody class="group cursor-pointer bg-white hover:bg-amber-800/10"
                                 wire:click="loadPlotInfo('{{ $plot }}')"
                                 wire:key="plot-{{ $plot }}">
                                 @foreach ($rows as $index => $row)
@@ -311,7 +310,8 @@
                                             </td>
                                         @endif
 
-                                        <td class="border-b px-4 py-2">{{ $row['hab_code'] }} {{ $row['hab_name'] }}</td>
+                                        <td class="border-b px-4 py-2">{{ $row['hab_code'] }} {{ $row['hab_name'] }}
+                                        </td>
                                         <td class="border-b px-4 py-2 text-center">{{ $row['subplot_count_2025'] }}
                                         </td>
                                         <td class="border-b px-4 py-2 text-center">{{ $row['unidentified_count'] }}
@@ -328,7 +328,7 @@
                                                         {{ basename($row['plotFile']) }}
                                                     </a>
                                                 @else
-                                                    <span class="text-gray-400 text-xs">-</span>
+                                                    <span class="text-xs text-gray-400">-</span>
                                                 @endif
                                             </td>
                                             <td class="border-b px-4 py-2 text-center align-top"
@@ -336,7 +336,7 @@
                                                 @if ($row['completed'])
                                                     <span>✔️</span>
                                                 @else
-                                                    <span class="text-gray-400 text-xs">-</span>
+                                                    <span class="text-xs text-gray-400">-</span>
                                                 @endif
                                             </td>
                                         @endif
@@ -377,11 +377,11 @@
                         @if ($thisPlotFile)
                             <div class="mb-4">
                                 樣區調查資料：<a href='{{ $thisPlotFile }}' target="_blank"><img
-                                        src="/images/PDF_file_icon.svg" alt="PDF" class="inline w-5 h-5 mr-1">
+                                        src="/images/PDF_file_icon.svg" alt="PDF" class="mr-1 inline h-5 w-5">
                                     {{ $thisPlot }}.pdf</a>
                             </div>
                         @endif
-                        <table class="text-sm border border-gray-300 w-full">
+                        <table class="w-full border border-gray-300 text-sm">
                             <thead class="bg-yellow-500/30">
                                 <tr>
                                     <th class="border-b px-4 py-2">小樣方編號</th>
@@ -405,7 +405,7 @@
                                         $lastHabitatCode = $row['habitat_code'];
                                     @endphp
                                     <tr
-                                        class="hover:bg-amber-800/10 bg-white {{ $habitatChanged ? 'border-t border-gray-300' : '' }}">
+                                        class="{{ $habitatChanged ? 'border-t border-gray-300' : '' }} bg-white hover:bg-amber-800/10">
                                         <td class="px-4 py-2">{{ $row['plot_full_id'] }}</td>
                                         <td class="px-4 py-2">{{ $row['habitat_code'] }} {{ $row['habitat'] }}</td>
                                         <td class="px-4 py-2 text-center">{{ $row['subplot_id'] }}</td>
@@ -416,7 +416,8 @@
                                         <td class="px-4 py-2 text-center">{{ $row['original_plot_id'] }}</td>
                                         <td class="px-4 py-2 text-center">
                                             @if (!empty($row['uploaded_at']) && !empty($row['photo_path']))
-                                                <a href="{{ $row['photo_path'] }}" target="_blank" class="hover:no-underline no-underline">✅</a>
+                                                <a href="{{ $row['photo_path'] }}" target="_blank"
+                                                    class="no-underline hover:no-underline">✅</a>
                                             @endif
                                         </td>
                                         <td class="px-4 py-2 text-center">
@@ -433,10 +434,10 @@
 
                                             @endphp
                                             <a href="{{ route('overview.to.query.plot', ['county' => $thisCounty, 'plot' => $thisPlot, 'subPlot' => $row['plot_full_id']]) }}"
-                                                target="_blank" class="hover:no-underline no-underline">🔍</a>
+                                                target="_blank" class="no-underline hover:no-underline">🔍</a>
                                             @if ($entryLink != '#')
                                                 <a href="{{ $entryLink }}" target="_blank"
-                                                    class="hover:no-underline no-underline">✏️</a>
+                                                    class="no-underline hover:no-underline">✏️</a>
                                             @endif
                                         </td>
                                     </tr>

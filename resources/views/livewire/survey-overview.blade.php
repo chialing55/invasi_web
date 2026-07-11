@@ -74,9 +74,9 @@
                                 🎊 全部完成！
                             @elseif ($plotDone >= $target)
                                 🎉 完成目標！
-                            @elseif ($plotDone >= 55)
+                            @elseif ($plotDone >= 50)
                                 🌟 就快完成了！
-                            @elseif ($plotDone >= 35)
+                            @elseif ($plotDone >= 30)
                                 🌟 期中進度達標！
                             @else
                                 💪 加油加油

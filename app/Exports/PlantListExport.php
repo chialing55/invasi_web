@@ -15,7 +15,7 @@ class PlantListExport
             return ['headings' => [], 'rows' => []];
         }
 
-        $headings = ['行號', '科名', '學名', '中文名', '原生', '特有', '外來', '栽培'];
+        $headings = ['行號', '科名', '學名', '中文名', '原生', '特有', '外來', '栽培', 'IUCN'];
         $builder = self::baseQuery($selectedPlots)
             ->groupBy('s.spcode')
             ->selectRaw(self::listSelectSql('●'));
@@ -34,6 +34,7 @@ class PlantListExport
                     '特有' => $row['特有種'] ?? '',
                     '外來' => $row['歸化種'] ?? '',
                     '栽培' => $row['栽培種'] ?? '',
+                    'IUCN' => $row['IUCN'] ?? '',
                 ];
             })
             ->values()

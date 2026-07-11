@@ -45,8 +45,8 @@ class PlantListDocxExport
 
     private function tableXml(): string
     {
-        $headings = ['行號', '科名', '學名', '中文名', '原生', '特有', '外來', '栽培'];
-        $widths = [520, 2100, 5100, 2500, 800, 800, 800, 800];
+        $headings = ['行號', '科名', '學名', '中文名', '原生', '特有', '外來', '栽培', 'IUCN'];
+        $widths = [520, 2000, 4800, 2300, 800, 800, 800, 800, 900];
         $xml = '<w:tbl><w:tblPr><w:tblBorders>'
             . '<w:top w:val="single" w:sz="6" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/>'
             . '<w:bottom w:val="single" w:sz="6" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/>'
@@ -66,7 +66,7 @@ class PlantListDocxExport
             foreach ($headings as $i => $heading) {
                 $merge = $heading === '科名' ? ($spans[$wordRow] ?? null) : null;
                 $text = $merge === 'continue' ? '' : (string) ($row[$heading] ?? '');
-                $center = in_array($heading, ['原生', '特有', '外來', '栽培'], true);
+                $center = in_array($heading, ['原生', '特有', '外來', '栽培', 'IUCN'], true);
                 $xml .= $this->cell($text, $widths[$i], $heading === '行號' ? 'right' : ($center ? 'center' : 'left'), false, $heading === '學名', $merge, $heading === '行號');
             }
             $xml .= '</w:tr>';

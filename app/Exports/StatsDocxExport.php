@@ -21,7 +21,10 @@ class StatsDocxExport
 
     private array $media = [];
 
-    public function __construct(private array $selectedPlots) {}
+    public function __construct(
+        private array $selectedPlots,
+        private ?string $scopeLabel = null,
+    ) {}
 
     public function download(string $filename)
     {
@@ -139,7 +142,7 @@ class StatsDocxExport
     {
         $title = (string) ($section['title'] ?? '');
         if (str_ends_with($title, '低海拔IVI比較')) {
-            $county = (string) ($section['countyLabel'] ?? $this->countyLabel());
+            $county = $this->countyLabel();
             $plotCount = (int) ($section['plotCount'] ?? 0);
             $countText = $plotCount > 0 ? $plotCount . '處' : '';
             return '針對' . $county . '海拔500 m以下的' . $countText . '平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
@@ -150,6 +153,10 @@ class StatsDocxExport
 
     private function countyLabel(): string
     {
+        if ($this->scopeLabel !== null && $this->scopeLabel !== '') {
+            return $this->scopeLabel;
+        }
+
         $plots = array_values(array_filter($this->selectedPlots, fn($plot) => $plot !== null && $plot !== ''));
         if (empty($plots)) {
             return '選取縣市';

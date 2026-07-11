@@ -23,6 +23,7 @@ class ResultsCharts extends Component
     public array $selectedPlots = [];
     public array $draftSelectedPlots = [];
     public array $availablePlots = [];
+    public array $plotFilterCounties = [];
     public string $plotSelectionMode = 'all';
     public int $plotSelectionRevision = 0;
     public array $sections = [];
@@ -72,6 +73,7 @@ class ResultsCharts extends Component
         $this->selectedPlots = [];
         $this->draftSelectedPlots = [];
         $this->availablePlots = [];
+        $this->plotFilterCounties = [];
         $this->plotSelectionMode = 'all';
         $this->sections = [];
         $this->loadedSections = [];
@@ -97,6 +99,7 @@ class ResultsCharts extends Component
     {
         $this->thisCounty = $county === 'All' ? '' : (string) $county;
         $this->availablePlots = $this->queryAvailablePlots();
+        $this->plotFilterCounties = [];
         $this->selectedPlots = array_column($this->availablePlots, 'plot');
         $this->draftSelectedPlots = $this->selectedPlots;
         $this->plotSelectionMode = 'all';
@@ -125,6 +128,45 @@ class ResultsCharts extends Component
     public function selectAllPlots(bool $selected): void
     {
         $this->draftSelectedPlots = $selected ? array_column($this->availablePlots, 'plot') : [];
+        $this->plotSelectionRevision++;
+    }
+
+    public function toggleCountyPlots(string $county, bool $selected): void
+    {
+        $countyPlots = collect($this->availablePlots)
+            ->where('county', $county)
+            ->pluck('plot')
+            ->map(fn ($plot) => (string) $plot)
+            ->values()
+            ->all();
+
+        $current = array_map('strval', $this->draftSelectedPlots);
+        $this->draftSelectedPlots = $selected
+            ? array_values(array_unique(array_merge($current, $countyPlots)))
+            : array_values(array_diff($current, $countyPlots));
+        $this->updatedDraftSelectedPlots();
+        $this->plotSelectionRevision++;
+    }
+
+    public function togglePlotFilterCounty(string $county, bool $visible): void
+    {
+        $this->plotFilterCounties = $visible ? [$county] : [];
+        $this->plotSelectionRevision++;
+    }
+
+    public function selectVisiblePlots(bool $selected): void
+    {
+        $visiblePlots = collect($this->availablePlots)
+            ->whereIn('county', $this->plotFilterCounties)
+            ->pluck('plot')
+            ->map(fn ($plot) => (string) $plot)
+            ->values()
+            ->all();
+        $current = array_map('strval', $this->draftSelectedPlots);
+        $this->draftSelectedPlots = $selected
+            ? array_values(array_unique(array_merge($current, $visiblePlots)))
+            : array_values(array_diff($current, $visiblePlots));
+        $this->updatedDraftSelectedPlots();
         $this->plotSelectionRevision++;
     }
 
@@ -173,7 +215,7 @@ class ResultsCharts extends Component
     {
         if (!$this->hasSelectedPlots()) return null;
 
-        return (new StatsDocxExport($this->selectedPlots))
+        return (new StatsDocxExport($this->selectedPlots, $this->countyLabel()))
             ->download($this->exportPrefix() . '-statsTable.docx');
     }
 
@@ -472,7 +514,7 @@ class ResultsCharts extends Component
 
         return match ((string) ($section['title'] ?? '')) {
             '歸化物種優勢科 Top 10' => $county . '地區歸化物種優勢科前十名排名圖',
-            '低海拔外來植物優勢科比較圖' => '針對' . (string) ($section['countyLabel'] ?? $county) . '海拔500 m以下的' . ((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0) . '處' : '') . '平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
+            '低海拔外來植物優勢科比較圖' => '針對' . $county . '海拔500 m以下的' . ((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0) . '處' : '') . '平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
             default => (string) ($section['title'] ?? ''),
         };
     }
@@ -481,7 +523,7 @@ class ResultsCharts extends Component
     {
         $title = (string) ($section['title'] ?? '');
         if (str_ends_with($title, '低海拔IVI比較')) {
-            $county = (string) ($section['countyLabel'] ?? $this->countyLabel());
+            $county = $this->countyLabel();
             $plotCount = (int) ($section['plotCount'] ?? 0);
             return '針對' . $county . '海拔500 m以下的' . ($plotCount > 0 ? $plotCount . '處' : '') . '平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
         }
@@ -491,6 +533,10 @@ class ResultsCharts extends Component
 
     private function countyLabel(): string
     {
+        $year = $this->thisCensusYear !== ''
+            ? $this->thisCensusYear . '年調查'
+            : '全部調查年度';
+
         $selectedCounties = PlotList2025::query()
             ->whereIn('plot', $this->selectedPlots)
             ->whereNotNull('county')
@@ -500,6 +546,7 @@ class ResultsCharts extends Component
             ->filter()
             ->values();
         $allCounties = PlotList2025::query()
+            ->when($this->thisCensusYear !== '', fn ($query) => $query->where('census_year', $this->thisCensusYear))
             ->whereNotNull('county')
             ->distinct()
             ->orderBy('county')
@@ -507,11 +554,11 @@ class ResultsCharts extends Component
             ->filter()
             ->values();
 
-        if ($allCounties->isNotEmpty() && $selectedCounties->all() === $allCounties->all()) {
-            return '全部縣市';
-        }
+        $county = $allCounties->isNotEmpty() && $selectedCounties->all() === $allCounties->all()
+            ? '全部縣市'
+            : ($selectedCounties->isNotEmpty() ? $selectedCounties->implode('、') : '未選擇縣市');
 
-        return $selectedCounties->isNotEmpty() ? $selectedCounties->implode('、') : '選取縣市';
+        return $year . '之' . $county;
     }
 
     public function render()

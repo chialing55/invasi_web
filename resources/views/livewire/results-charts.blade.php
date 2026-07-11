@@ -60,26 +60,62 @@
             </div>
 
             <div class="mt-4" x-show="mode === 'filter'" x-cloak>
-                <div class="flex flex-wrap items-center gap-2 mb-3">
-                    <button type="button" class="border rounded px-3 py-1 bg-white" wire:click="selectAllPlots(false)">全部取消</button>
-                    <span class="text-sm text-gray-600">勾選不會立即重算，請按「套用樣區」。</span>
+                @php
+                    $plotsByCounty = collect($availablePlots)->groupBy('county');
+                    $visiblePlots = collect($availablePlots)
+                        ->whereIn('county', $plotFilterCounties)
+                        ->values();
+                @endphp
+                <div class="mb-3 rounded border border-gray-300 bg-white p-3">
+                    <div class="mb-2 text-sm font-semibold text-forest">選擇要顯示的縣市</div>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($plotsByCounty as $county => $countyRows)
+                            @php
+                                $countyPlots = $countyRows->pluck('plot')->map(fn ($plot) => (string) $plot)->all();
+                                $countyVisible = in_array((string) $county, array_map('strval', $plotFilterCounties), true);
+                                $countySelectedCount = count(array_intersect(
+                                    $countyPlots,
+                                    array_map('strval', $draftSelectedPlots)
+                                ));
+                            @endphp
+                            <button type="button"
+                                wire:key="county-plots-{{ $plotSelectionRevision }}-{{ $county }}"
+                                wire:click="togglePlotFilterCounty(@js((string) $county), {{ $countyVisible ? 'false' : 'true' }})"
+                                class="rounded border px-3 py-1.5 text-sm {{ $countyVisible ? 'border-forest bg-forest text-white' : 'border-gray-300 bg-white text-gray-700' }}">
+                                {{ $county }}（{{ $countySelectedCount }}/{{ count($countyPlots) }}）
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
 
+                @if ($visiblePlots->isNotEmpty())
+                @php
+                    $visiblePlotIds = $visiblePlots->pluck('plot')->map(fn ($plot) => (string) $plot)->all();
+                    $allVisibleSelected = count($visiblePlotIds) > 0
+                        && count(array_intersect($visiblePlotIds, array_map('strval', $draftSelectedPlots))) === count($visiblePlotIds);
+                @endphp
                 <div class="max-h-72 overflow-y-auto border border-gray-300 bg-white"
                     wire:key="plot-options-{{ $plotSelectionRevision }}">
                     <table class="w-full text-sm">
                         <thead class="sticky top-0 bg-[#F9E7AC]">
                             <tr>
-                                <th class="border-b px-4 py-2 text-center">選取</th>
+                                <th class="border-b px-4 py-2 text-center">
+                                    <label class="inline-flex cursor-pointer items-center justify-center gap-2">
+                                        <span>選取</span>
+                                        <input type="checkbox" @checked($allVisibleSelected)
+                                            aria-label="目前顯示樣區全部選取"
+                                            wire:click="selectVisiblePlots($event.target.checked)">
+                                    </label>
+                                </th>
                                 <th class="border-b px-4 py-2 text-left">縣市</th>
                                 <th class="border-b px-4 py-2 text-left">樣區編號</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($availablePlots as $row)
+                            @foreach ($visiblePlots as $row)
                                 <tr class="hover:bg-amber-800/10" wire:key="result-plot-{{ $plotSelectionRevision }}-{{ $row['plot'] }}">
                                     <td class="border-b px-4 py-2 text-center">
-                                        <input type="checkbox" value="{{ $row['plot'] }}" wire:model="draftSelectedPlots">
+                                        <input type="checkbox" value="{{ $row['plot'] }}" wire:model.live="draftSelectedPlots">
                                     </td>
                                     <td class="border-b px-4 py-2">{{ $row['county'] }}</td>
                                     <td class="border-b px-4 py-2">{{ $row['plot'] }}</td>
@@ -88,9 +124,13 @@
                         </tbody>
                     </table>
                 </div>
+                @else
+                    <div class="rounded border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">請先在上方選擇縣市。</div>
+                @endif
 
-                <div class="mt-4 flex justify-end">
-                    <button type="button" class="btn-submit" wire:click="applyPlotSelection">套用樣區</button>
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm font-semibold text-amber-800">請完成所有縣市的樣區篩選後，再按「套用樣區篩選」。</p>
+                    <button type="button" class="btn-submit" wire:click="applyPlotSelection">套用樣區篩選</button>
                 </div>
             </div>
         </div>
@@ -138,7 +178,7 @@
                         wire:click="toggleSection('{{ $sectionMeta['displayKey'] }}')"
                         class="w-full flex items-center justify-between gap-4 px-4 py-3 text-left font-semibold text-forest bg-forest-mist hover:bg-forest-mist/70">
                         <span>{{ $section['displayTitle'] }}</span>
-                        <span>{{ $this->isOpen($sectionMeta['displayKey']) ? '收合' : '展開' }}</span>
+                        <span class="w-12 shrink-0 whitespace-nowrap text-center">{{ $this->isOpen($sectionMeta['displayKey']) ? '收合' : '展開' }}</span>
                     </button>
 
                     @if ($this->isOpen($sectionMeta['displayKey']))

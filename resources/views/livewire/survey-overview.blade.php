@@ -63,9 +63,9 @@
                     <div class="w-[60px] text-sm font-semibold">{{ $row['team'] }}</div>
 
                     {{-- 完成數 + 達標狀態（手機隱藏 emoji） --}}
-                    <div class="w-[110px] text-sm md:w-[240px]">
+                    <div class="w-[130px] text-sm md:w-[240px]">
                         <span
-                            class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} inline-block w-[110px]">
+                            class="{{ $reached ? 'text-green-700 font-semibold' : 'text-red-600' }} inline-block w-[130px] whitespace-nowrap">
                             {{ $plotDone }}<span class='text-gray-500'>+{{ $plotEntry }}</span> /
                             {{ $plotTotal }} ({{ $plotDonePercent }}%)
                         </span>

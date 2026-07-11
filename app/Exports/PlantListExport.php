@@ -9,6 +9,39 @@ use PhpOffice\PhpSpreadsheet\RichText\RichText;
 
 class PlantListExport
 {
+    public static function PlantListForWord(array $selectedPlots): array
+    {
+        if (empty($selectedPlots)) {
+            return ['headings' => [], 'rows' => []];
+        }
+
+        $headings = ['行號', '科名', '學名', '中文名', '原生', '特有', '外來', '栽培'];
+        $builder = self::baseQuery($selectedPlots)
+            ->groupBy('s.spcode')
+            ->selectRaw(self::listSelectSql('●'));
+        self::applyListOrder($builder);
+
+        $rows = $builder->toBase()->get()
+            ->map(function ($row, int $index) {
+                $row = self::formatScientificName((array) $row, 'txt');
+
+                return [
+                    '行號' => $index + 1,
+                    '科名' => $row['科名'] ?? '',
+                    '學名' => $row['學名'] ?? '',
+                    '中文名' => $row['中文名'] ?? '',
+                    '原生' => $row['原生種'] ?? '',
+                    '特有' => $row['特有種'] ?? '',
+                    '外來' => $row['歸化種'] ?? '',
+                    '栽培' => $row['栽培種'] ?? '',
+                ];
+            })
+            ->values()
+            ->all();
+
+        return ['headings' => $headings, 'rows' => $rows];
+    }
+
     public static function PlantListAll(array $selectedPlots, string $format = 'xlsx'): array
     {
         $teamMap = self::teamMap();

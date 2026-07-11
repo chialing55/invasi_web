@@ -46,9 +46,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('/entry/missingnote', 'page.entry-missingnote')->name('entry.missingnote');
     Route::view('/survey/overview', 'page.survey-overview')->name('survey.overview');
     Route::redirect('/survey/stats', '/results/species')->name('survey.stats');
-    Route::view('/results/species', 'page.survey-stats')->name('results.species');
+    Route::redirect('/results/species', '/results/charts')->name('results.species');
     Route::view('/results/charts', 'page.results-charts')->name('results.charts');
-    Route::view('/data/export', 'page.data-export')->name('data.export');
+    Route::redirect('/data/export', '/results/charts')->name('data.export');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

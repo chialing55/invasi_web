@@ -2,10 +2,15 @@
 
 namespace App\Livewire;
 
+use App\Exports\StatsChartsPdfExport;
+use App\Exports\StatsDocxExport;
+use App\Exports\StatsMultiSheetExport;
 use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Support\StatsTablesBuilder;
 use Livewire\Component;
+use Maatwebsite\Excel\Excel;
+use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 
 class ResultsCharts extends Component
 {
@@ -16,6 +21,10 @@ class ResultsCharts extends Component
     public string $thisTeam = '';
     public string $thisCounty = '';
     public array $selectedPlots = [];
+    public array $draftSelectedPlots = [];
+    public array $availablePlots = [];
+    public string $plotSelectionMode = 'all';
+    public int $plotSelectionRevision = 0;
     public array $sections = [];
     public array $loadedSections = [];
     public array $openSections = [];
@@ -29,7 +38,8 @@ class ResultsCharts extends Component
             ->pluck('census_year')
             ->toArray();
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->filter()->values()->toArray();
-        $this->thisCensusYear = (string) date('Y');
+        // 預設顯示最新的可用調查年度；使用者仍可從下拉選單切換成 All。
+        $this->thisCensusYear = isset($this->yearList[0]) ? (string) $this->yearList[0] : '';
         $this->loadCountyList('');
     }
 
@@ -39,12 +49,30 @@ class ResultsCharts extends Component
         $this->loadCountyList($this->thisTeam);
     }
 
+    public function updatedThisCensusYear($year): void
+    {
+        $this->loadYear($year);
+    }
+
+    public function updatedThisTeam($team): void
+    {
+        $this->loadCountyList($team);
+    }
+
+    public function updatedThisCounty($county): void
+    {
+        $this->loadResultsForCounty($county);
+    }
+
     public function loadCountyList($team): void
     {
         $team = $team === 'All' ? '' : (string) $team;
         $this->thisTeam = $team;
         $this->thisCounty = '';
         $this->selectedPlots = [];
+        $this->draftSelectedPlots = [];
+        $this->availablePlots = [];
+        $this->plotSelectionMode = 'all';
         $this->sections = [];
         $this->loadedSections = [];
         $this->openSections = [];
@@ -60,12 +88,18 @@ class ResultsCharts extends Component
             ->filter()
             ->values()
             ->toArray();
+
+        // 年度或團隊變更後，縣市維持 All 並立即更新全部符合的樣區。
+        $this->loadResultsForCounty('All');
     }
 
     public function loadResultsForCounty($county): void
     {
         $this->thisCounty = $county === 'All' ? '' : (string) $county;
-        $this->selectedPlots = $this->querySelectedPlots();
+        $this->availablePlots = $this->queryAvailablePlots();
+        $this->selectedPlots = array_column($this->availablePlots, 'plot');
+        $this->draftSelectedPlots = $this->selectedPlots;
+        $this->plotSelectionMode = 'all';
         $this->loadedSections = [];
         $this->openSections = [];
 
@@ -77,6 +111,96 @@ class ResultsCharts extends Component
 
         $this->sections = $this->sectionPlaceholders();
         $this->message = '';
+    }
+
+    public function updatedDraftSelectedPlots(): void
+    {
+        $allowed = array_column($this->availablePlots, 'plot');
+        $this->draftSelectedPlots = array_values(array_intersect(
+            array_map('strval', $this->draftSelectedPlots),
+            $allowed
+        ));
+    }
+
+    public function selectAllPlots(bool $selected): void
+    {
+        $this->draftSelectedPlots = $selected ? array_column($this->availablePlots, 'plot') : [];
+        $this->plotSelectionRevision++;
+    }
+
+    public function updatedPlotSelectionMode(string $mode): void
+    {
+        $this->plotSelectionMode = $mode === 'filter' ? 'filter' : 'all';
+        if ($this->plotSelectionMode !== 'all') return;
+
+        $this->selectedPlots = array_column($this->availablePlots, 'plot');
+        $this->draftSelectedPlots = $this->selectedPlots;
+        $this->loadedSections = [];
+        $this->openSections = [];
+        $this->sections = empty($this->selectedPlots) ? [] : $this->sectionPlaceholders();
+        $this->message = empty($this->selectedPlots) ? '尚未有調查資料。' : '';
+    }
+
+    public function applyPlotSelection(): void
+    {
+        $this->updatedDraftSelectedPlots();
+        $this->selectedPlots = $this->draftSelectedPlots;
+        $this->loadedSections = [];
+        $this->openSections = [];
+
+        if (empty($this->selectedPlots)) {
+            $this->sections = [];
+            $this->message = '請至少選擇一個樣區。';
+            return;
+        }
+
+        $this->sections = $this->sectionPlaceholders();
+        $this->message = '';
+    }
+
+    public function downloadStatsXlsx()
+    {
+        if (!$this->hasSelectedPlots()) return null;
+
+        return ExcelFacade::download(
+            new StatsMultiSheetExport($this->selectedPlots, 'xlsx'),
+            $this->exportPrefix() . '-statsTable.xlsx',
+            Excel::XLSX
+        );
+    }
+
+    public function downloadStatsDocx()
+    {
+        if (!$this->hasSelectedPlots()) return null;
+
+        return (new StatsDocxExport($this->selectedPlots))
+            ->download($this->exportPrefix() . '-statsTable.docx');
+    }
+
+    public function downloadStatsPdf(): void
+    {
+        if (!$this->hasSelectedPlots()) return;
+
+        $url = (new StatsChartsPdfExport($this->selectedPlots))
+            ->publicDownloadUrl($this->exportPrefix() . '-statsCharts.pdf');
+        $this->dispatch('download-generated-file', url: $url);
+    }
+
+    private function hasSelectedPlots(): bool
+    {
+        if (!empty($this->selectedPlots)) return true;
+
+        $this->message = '請先套用至少一個樣區，再下載成果。';
+        return false;
+    }
+
+    private function exportPrefix(): string
+    {
+        $scope = $this->thisCounty !== ''
+            ? $this->thisCounty
+            : ($this->thisTeam !== '' ? $this->thisTeam : '全部縣市');
+
+        return $scope . '_' . date('Ymd');
     }
 
     public function toggleSection(string $key): void
@@ -175,17 +299,20 @@ class ResultsCharts extends Component
         ];
     }
 
-    private function querySelectedPlots(): array
+    private function queryAvailablePlots(): array
     {
         return SubPlotEnv2025::query()
-            ->select('im_splotdata_2025.plot as plot')
+            ->select('im_splotdata_2025.plot as plot', 'plot_list.county')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
             ->when($this->thisCensusYear !== '', fn($q) => $q->where('plot_list.census_year', $this->thisCensusYear))
             ->when($this->thisTeam !== '', fn($q) => $q->where('plot_list.team', $this->thisTeam))
             ->when($this->thisCounty !== '', fn($q) => $q->where('plot_list.county', $this->thisCounty))
             ->distinct()
-            ->pluck('plot')
-            ->filter()
+            ->orderBy('plot_list.county')
+            ->orderBy('im_splotdata_2025.plot')
+            ->get()
+            ->map(fn ($row) => ['plot' => (string) $row->plot, 'county' => (string) $row->county])
+            ->unique('plot')
             ->values()
             ->toArray();
     }
@@ -356,7 +483,7 @@ class ResultsCharts extends Component
         if (str_ends_with($title, '低海拔IVI比較')) {
             $county = (string) ($section['countyLabel'] ?? $this->countyLabel());
             $plotCount = (int) ($section['plotCount'] ?? 0);
-            return '針對' . $county . '海拔500 m以下的' . ($plotCount > 0 ? $plotCount . '處' : '') . '平地樣區，比較本次與前次調查IVI佔比達1%以上物種的優勢度排序情形。';
+            return '針對' . $county . '海拔500 m以下的' . ($plotCount > 0 ? $plotCount . '處' : '') . '平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
         }
 
         return $title;
@@ -364,11 +491,27 @@ class ResultsCharts extends Component
 
     private function countyLabel(): string
     {
-        if ($this->thisCounty !== '') {
-            return $this->thisCounty;
+        $selectedCounties = PlotList2025::query()
+            ->whereIn('plot', $this->selectedPlots)
+            ->whereNotNull('county')
+            ->distinct()
+            ->orderBy('county')
+            ->pluck('county')
+            ->filter()
+            ->values();
+        $allCounties = PlotList2025::query()
+            ->whereNotNull('county')
+            ->distinct()
+            ->orderBy('county')
+            ->pluck('county')
+            ->filter()
+            ->values();
+
+        if ($allCounties->isNotEmpty() && $selectedCounties->all() === $allCounties->all()) {
+            return '全部縣市';
         }
 
-        return $this->thisTeam !== '' ? $this->thisTeam . '團隊全部縣市' : '全部縣市';
+        return $selectedCounties->isNotEmpty() ? $selectedCounties->implode('、') : '選取縣市';
     }
 
     public function render()

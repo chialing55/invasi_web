@@ -5,6 +5,7 @@ use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
 
 use App\Helpers\HabHelper;
+use App\Support\HabitatCode;
 
 class PlotHelper
 {
@@ -23,10 +24,9 @@ class PlotHelper
             ->values()
             ->toArray();
 
-        // 合併並補上 88/99
+        // 2025 新制配對由集中設定補上；2010 衍生規則另見下方 legacyPairs。
         $plotHabList = array_unique(array_merge($plotHab2010, $plotHab2025));
-        if (in_array('08', $plotHabList)) $plotHabList[] = '88';
-        if (in_array('09', $plotHabList)) $plotHabList[] = '99';
+        $plotHabList = HabitatCode::appendDerivedCodes($plotHabList);
 
         $habTypeOptions = HabHelper::habitatOptions($plotHabList);
 
@@ -41,17 +41,16 @@ class PlotHelper
             ->values()
             ->toArray();
 
-        // 加入 88/99 小樣方（衍生）
+        // 依 2010 專用配對設定加入衍生地被小樣方。
         $extra = [];
         foreach ($subPlotList2010 as $code) {
             $plotId = substr($code, 0, 6);
             $habType = substr($code, 6, 2);
             $subId = substr($code, 8);
 
-            if ($habType === '08') {
-                $extra[] = $plotId . '88' . $subId;
-            } elseif ($habType === '09') {
-                $extra[] = $plotId . '99' . $subId;
+            $understory = HabitatCode::legacyPairs()[$habType] ?? null;
+            if ($understory !== null) {
+                $extra[] = $plotId . $understory . $subId;
             }
         }
 

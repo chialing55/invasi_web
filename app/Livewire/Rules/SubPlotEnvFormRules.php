@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Rules;
 
+use App\Support\HabitatCode;
+use Illuminate\Validation\Rule;
+
 trait SubPlotEnvFormRules
 {
     protected function subPlotEnvRules(): array
@@ -14,7 +17,7 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.dd97_x' => 'required|numeric|between:118,123',
             'subPlotEnvForm.dd97_y' => 'required|numeric|between:20,27',
             'subPlotEnvForm.gps_error' => 'required|numeric|between:0,10',
-            'subPlotEnvForm.habitat_code' => 'required|string|max:2|in:01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,20,88,99',
+            'subPlotEnvForm.habitat_code' => ['required', 'string', 'max:2', Rule::in(HabitatCode::allowedCodes())],
             'subPlotEnvForm.subplot_id' => [
                 'required',
                 'string',
@@ -67,7 +70,7 @@ trait SubPlotEnvFormRules
             'subPlotEnvForm.habitat_code.required' => '請輸入生育地類型',
             'subPlotEnvForm.habitat_code.string' => '生育地類型格式錯誤',
             'subPlotEnvForm.habitat_code.max' => '生育地類型最多 2 碼',
-            'subPlotEnvForm.habitat_code.in' => '生育地類型必須是 01 至 20 之間，或 88 和 99，但不可為 19，',
+            'subPlotEnvForm.habitat_code.in' => '生育地類型代碼不在允許清單中。',
 
             'subPlotEnvForm.subplot_id.required' => '請輸入小樣方流水號',
             'subPlotEnvForm.subplot_id.string' => '流水號格式錯誤',

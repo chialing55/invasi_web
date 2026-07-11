@@ -8,6 +8,7 @@ use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
 use App\Models\TaiwanChecklist;
 use App\Support\PlantStatusHelper;
+use App\Support\HabitatCode;
 use Illuminate\Support\Facades\DB;
 
 class PlantListHelper
@@ -103,11 +104,11 @@ class PlantListHelper
         )->where('im_spvptdata_2010.PLOT_ID', $plot);
 
         if (isset($filter['hab_type'])) {
-            if (in_array($filter['hab_type'], ['08', '09'])) {
+            if (in_array($filter['hab_type'], HabitatCode::legacyMainCodes(), true)) {
                 $query2010->where('im_spvptdata_2010.HAB_TYPE', $filter['hab_type'])
                     ->where('im_spvptdata_2010.SUB_TYPE', '2');
-            } elseif (in_array($filter['hab_type'], ['88', '99'])) {
-                $originalHab = $filter['hab_type'] === '88' ? '08' : '09';
+            } elseif (in_array($filter['hab_type'], HabitatCode::legacyUnderstoryCodes(), true)) {
+                $originalHab = HabitatCode::legacyMainFor($filter['hab_type']);
                 $query2010->where('im_spvptdata_2010.HAB_TYPE', $originalHab)
                     ->where('im_spvptdata_2010.SUB_TYPE', '!=', '2');
             } else {

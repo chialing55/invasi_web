@@ -39,7 +39,7 @@ final class FloraIVISupport
      */
     public static function iviTable(
         array $selectedPlots,
-        string $habMode = 'herb',      // herb | wood | wood-08 | wood-09 | all
+        string $habMode = 'herb',      // herb | wood | wood-{code} | all
         bool $includeCultivated = false,
     ): array {
         $db = DB::connection('invasiflora');
@@ -58,14 +58,17 @@ final class FloraIVISupport
         //     }
         // });
 
-        // 草本/木本
-        match ($habMode) {
-            'herb'    => $base->whereNotIn('e.habitat_code', ['08','09']),
-            'wood'    => $base->whereIn('e.habitat_code',  ['08','09']),
-            'wood-08' => $base->where('e.habitat_code','08'),
-            'wood-09' => $base->where('e.habitat_code','09'),
-            default   => null,
-        };
+        // 草本/木本分類與成對代碼共用 HabitatCode 設定。
+        if ($habMode === 'herb') {
+            $base->whereNotIn('e.habitat_code', HabitatCode::woodCodes());
+        } elseif ($habMode === 'wood') {
+            $base->whereIn('e.habitat_code', HabitatCode::woodCodes());
+        } elseif (str_starts_with($habMode, 'wood-')) {
+            $woodCode = substr($habMode, 5);
+            if (HabitatCode::isWood($woodCode)) {
+                $base->where('e.habitat_code', $woodCode);
+            }
+        }
         // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
         $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
         $cultivatedExpr = TaiwanChecklistQuery::cultivatedExpr('s');

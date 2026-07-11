@@ -4,7 +4,78 @@
         class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
-    <h2 class="text-xl font-bold mb-4">資料匯出</h2>
+    @if ($embedded)
+        <div>
+            <p class="mb-4 text-sm text-gray-600">
+                依上方目前已套用的 {{ count($selectedPlots) }} 個樣區下載資料。
+            </p>
+            @php
+                $embeddedSections = [
+                    '前次調查' => [
+                        ['環境資料', 'env2010.xlsx', 'env2010.txt', null],
+                        ['植物資料', 'plant2010.xlsx', 'plant2010.txt', null],
+                        ['植物名錄', 'plantList2010.xlsx', 'plantList2010.txt', null],
+                    ],
+                    '本次調查' => [
+                        ['環境資料', 'env.xlsx', 'env.txt', null],
+                        ['植物資料', 'plant.xlsx', 'plant.txt', null],
+                        ['植物名錄', 'plantList.xlsx', 'plantList.txt', 'plantList.docx'],
+                        ['小樣方未調查原因', 'reasonsTable', null, null],
+                        ['全部植物名錄', 'allPlantList', null, null],
+                    ],
+                ];
+            @endphp
+            <div class="overflow-x-auto">
+                <table class="text-sm border border-gray-300 bg-white">
+                    <thead class="bg-[#F9E7AC]">
+                        <tr>
+                            <th class="border-b px-4 py-2 text-left">資料內容</th>
+                            <th class="border-b px-4 py-2 text-center">xlsx</th>
+                            <th class="border-b px-4 py-2 text-center">txt</th>
+                            <th class="border-b px-4 py-2 text-center">Word</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($embeddedSections as $title => $options)
+                            <tr class="bg-[#D9EAD3]">
+                                <td colspan="4" class="border-b px-4 py-2 font-semibold text-green-950">{{ $title }}</td>
+                            </tr>
+                            @foreach ($options as [$label, $xlsx, $txt, $docx])
+                                <tr>
+                                    <td class="border-b px-4 py-2">{{ $label }}</td>
+                                    <td class="border-b px-4 py-2 text-center">
+                                        <input type="radio" name="embeddedDataType" value="{{ $xlsx }}" wire:model="dataType">
+                                    </td>
+                                    <td class="border-b px-4 py-2 text-center">
+                                        @if ($txt)
+                                            <input type="radio" name="embeddedDataType" value="{{ $txt }}" wire:model="dataType">
+                                        @else
+                                            <span class="text-gray-300">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="border-b px-4 py-2 text-center">
+                                        @if ($docx)
+                                            <input type="radio" name="embeddedDataType" value="{{ $docx }}" wire:model="dataType">
+                                        @else
+                                            <span class="text-gray-300">—</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 text-right">
+                <button wire:click="downloadSelected" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
+            </div>
+        </div>
+    @else
+    <h2 class="text-xl font-bold mb-4">其他資料匯出</h2>
+    <p class="mb-4 text-sm text-gray-700">
+        統計表格與統計圖請至
+        <a href="{{ route('results.charts') }}" class="font-semibold text-forest underline hover:text-forest-dark">成果圖表與下載</a>；本頁提供環境、植物、名錄及未調查原因等資料。
+    </p>
     <div class="space-y-4">
         <div class="md:flex md:flex-row gap-4 mb-4">
             <!-- 選擇年分 -->
@@ -140,15 +211,13 @@
                                 'options' => [
                                     ['label' => '環境資料', 'formats' => ['xlsx' => 'env.xlsx', 'txt' => 'env.txt']],
                                     ['label' => '植物資料', 'formats' => ['xlsx' => 'plant.xlsx', 'txt' => 'plant.txt']],
-                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt']],
-                                    ['label' => '統計表格', 'formats' => ['xlsx' => 'statsTable', 'docx' => 'statsTable.docx']],
-                                    ['label' => '統計圖', 'formats' => ['pdf' => 'statsCharts.pdf']],
+                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt', 'docx' => 'plantList.docx']],
                                     ['label' => '小樣方未調查原因', 'formats' => ['xlsx' => 'reasonsTable']],
                                     ['label' => '全部植物名錄', 'formats' => ['xlsx' => 'allPlantList']],
                                 ],
                             ],
                         ];
-                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'docx', 'pdf' => 'pdf'];
+                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'Word'];
                     @endphp
 
                     <table class="text-sm border border-gray-300 bg-white">
@@ -204,16 +273,11 @@
         @endif
 
     </div>
+    @endif
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        window.addEventListener('download-generated-file', function(event) {
-            const url = event.detail?.url || event.detail?.[0]?.url;
-            if (url) {
-                window.location.href = url;
-            }
-        });
         //監聽的名稱, select的id
         listenAndResetSelect('thisCountyUpdated', 'county');
         // listenAndResetSelect('thisHabTypeUpdated', 'habType');

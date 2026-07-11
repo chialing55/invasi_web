@@ -28,11 +28,7 @@ class HabitatShannonIndex
 
         // 主要彙總：算到 (habitat, status, spcode) 的 x_i
 
-        $habExpr = "CASE
-            WHEN e.habitat_code IN ('88', 88) THEN '08'
-            WHEN e.habitat_code IN ('99', 99) THEN '09'
-            ELSE LPAD(CAST(e.habitat_code AS CHAR), 2, '0')
-            END";    
+        $habExpr = HabitatCode::normalizedSql('e.habitat_code');
 
         $statusExpr = TaiwanChecklistQuery::statusExpr('s');
         // 針對 unknown 建一個「物種鍵」避免被併群；查得到名錄的資料則用 current spcode。

@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\HabitatInfo;
+
 class StatsTablesBuilder
 {
     public static function sectionKeys(): array
@@ -256,24 +258,23 @@ class StatsTablesBuilder
 
     private static function woodIvi(array $selectedPlots): ?array
     {
-        $wood08 = FloraIVISupport::iviTable(
-            selectedPlots: $selectedPlots,
-            habMode: 'wood-08',
-            includeCultivated: false
-        );
-        $wood09 = FloraIVISupport::iviTable(
-            selectedPlots: $selectedPlots,
-            habMode: 'wood-09',
-            includeCultivated: false
-        );
         $woodRows = [];
-        if (!empty($wood08['rows'])) {
-            $woodRows[] = ['中文名' => '[天然林]'];
-            $woodRows = array_merge($woodRows, $wood08['rows']);
-        }
-        if (!empty($wood09['rows'])) {
-            $woodRows[] = ['中文名' => '[人工林]'];
-            $woodRows = array_merge($woodRows, $wood09['rows']);
+        $headings = [];
+        $labels = HabitatInfo::whereIn('habitat_code', HabitatCode::woodCodes())
+            ->pluck('habitat', 'habitat_code');
+
+        foreach (HabitatCode::woodCodes() as $code) {
+            $table = FloraIVISupport::iviTable(
+                selectedPlots: $selectedPlots,
+                habMode: "wood-{$code}",
+                includeCultivated: false
+            );
+
+            if (!empty($table['rows'])) {
+                $headings = $headings ?: $table['headings'];
+                $woodRows[] = ['中文名' => '[' . ($labels[$code] ?? $code) . ']'];
+                $woodRows = array_merge($woodRows, $table['rows']);
+            }
         }
         if (empty($woodRows)) {
             return null;
@@ -281,7 +282,7 @@ class StatsTablesBuilder
 
         return [
             'title' => '木本小樣方歸化物種重要數值表',
-            'headings' => $wood08['headings'] ?: $wood09['headings'],
+            'headings' => $headings,
             'rows' => $woodRows,
             'numberCols' => ['平均覆蓋度(%)' => 2, '相對覆蓋度(%)' => 2, '相對頻度(%)' => 2, 'IVI 重要值(%)' => 2],
             'fillEmptyWithZero' => false,
@@ -295,7 +296,7 @@ class StatsTablesBuilder
         $iviComparison = IviComparisonTable::build(
             selectedPlots: $selectedPlots,
             maxElevation: 500,
-            minCurrentIvi: 1
+            minCurrentIvi: 0
         );
         if (empty($iviComparison['rows'])) {
             return null;

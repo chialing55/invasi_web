@@ -13,6 +13,7 @@ use App\Helpers\HabHelper;
 use Illuminate\Support\Facades\DB;
 use App\Support\ScientificNameHelper;
 use App\Support\TaiwanChecklistQuery;
+use App\Support\HabitatCode;
 
 class SurveyStats extends Component
 {
@@ -25,9 +26,20 @@ class SurveyStats extends Component
     public $countyList = [];
     public $yearList = [];
     public $thisCensusYear;
+    public bool $embedded = false;
 
-    public function mount()
+    public function mount(array $selectedPlots = [], bool $embedded = false)
     {
+        $this->selectedPlots = array_values(array_map('strval', $selectedPlots));
+        $this->embedded = $embedded;
+
+        if ($this->embedded) {
+            // 上層已完成年度／團隊／縣市／樣區篩選；嵌入模式不得再套一次年度條件。
+            $this->thisCensusYear = '';
+            $this->habTypeOptions('');
+            return;
+        }
+
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
         $this->yearList = PlotList2025::where('census_year', '>=', 2025)
@@ -56,7 +68,14 @@ class SurveyStats extends Component
         if ($this->thisTeam == 'All'){
             $this->thisTeam = '';
         }
-        if ($thisCounty == '' &&  $this->thisTeam == ''){
+        if ($this->embedded) {
+            $plotHab2025 = SubPlotEnv2025::query()
+                ->whereIn('plot', $this->selectedPlots)
+                ->pluck('habitat_code')
+                ->unique()
+                ->values()
+                ->toArray();
+        } elseif ($thisCounty == '' &&  $this->thisTeam == ''){
             $plotHab2025 = SubPlotEnv2025::select('habitat_code')
                 ->pluck('habitat_code')            
                 ->unique()
@@ -78,9 +97,7 @@ class SurveyStats extends Component
             ->distinct()->pluck('habitat_code')->toArray();
         }
 
-            $plotHabList = $plotHab2025;
-            if (in_array('08', $plotHabList)) $plotHabList[] = '88';
-            if (in_array('09', $plotHabList)) $plotHabList[] = '99';
+            $plotHabList = HabitatCode::appendDerivedCodes($plotHab2025);
 
             $this->habTypeOptions = HabHelper::habitatOptions($plotHabList);        
     }
@@ -195,6 +212,9 @@ class SurveyStats extends Component
         $base = SubPlotPlant2025::from('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025', 'p.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->when($this->embedded, fn($q) =>
+                $q->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
+            )
             ->when(!blank($this->thisTeam), fn($q) => 
                 $q->where('plot_list.team',  $this->thisTeam) // 單一值 where
             )

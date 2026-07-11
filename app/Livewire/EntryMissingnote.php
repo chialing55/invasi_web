@@ -15,6 +15,7 @@ use App\Services\DataSyncService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
+use App\Support\HabitatCode;
 
 class EntryMissingnote extends Component
 {
@@ -244,7 +245,7 @@ class EntryMissingnote extends Component
         // 2025 的所有樣區編號（去重）
         $s2025 = DB::connection('invasiflora')->table('im_splotdata_2025 as s')
             ->selectRaw('DISTINCT s.plot_full_id AS k_2025');
-            // ->whereNotIn('s.habitat_code', [88, 99]); // 若需排除 88/99，取消註解
+            // 若需排除衍生地被，應使用 HabitatCode::understoryCodes()。
 
         // 2010 該 plot 的組合 k，去重；過濾掉 2025 已存在的
         $rows = DB::connection('invasiflora')->table('im_splotdata_2010 as t')
@@ -283,8 +284,8 @@ class EntryMissingnote extends Component
                 $target = (string)$alterMap[$k2010];          // 目標 plot_full_id
                 // 取第 7–8 位（1-based）；PHP substr 0-based → 從 6 開始取 2 碼
                 $hab78  = (strlen($target) >= 8) ? substr($target, 6, 2) : null;
-                // 88/89 → description = '1'，否則 = 目標 ID
-                $reason  = in_array($hab78, ['88','99'], true) ? '1' : '5-2-1';
+                // 衍生地被樣區 → description = '1'，否則 = 目標 ID
+                $reason  = HabitatCode::isUnderstory($hab78) ? '1' : '5-2-1';
                 $desc = $target;
             }
 

@@ -4,9 +4,12 @@
         class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
-    <h2 class="text-xl font-bold mb-4">物種數</h2>
+    @unless ($embedded)
+        <h2 class="text-xl font-bold mb-4">物種數</h2>
+    @endunless
     <div class="md:flex md:flex-row md:items-center gap-4 mb-4 md:mb-0">
 
+        @unless ($embedded)
         <div class="md:flex md:flex-row md:items-center">
             <label class="block font-semibold md:mr-2">選擇計畫年度：</label>
             <select id="year" wire:model="thisCensusYear" class="border rounded p-2 w-[100px]">
@@ -42,6 +45,7 @@
                 @endforeach
             </select>
         </div>
+        @endunless
         <div class="md:flex md:flex-row md:items-center mb-4 md:mb-0">
             <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
             <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
@@ -56,7 +60,10 @@
     </div>
     @if ($stats != [])
         <div class="gray-card w-fit mt-6">
-            <h3>{{ $thisTeam }} {{ $thisCounty }} {{ $habTypeName }} 生育地類型物種數</h3>
+            <h3>
+                @if ($embedded)已選 {{ count($selectedPlots) }} 個樣區@endif
+                {{ $thisTeam }} {{ $thisCounty }} {{ $habTypeName }} 生育地類型物種數
+            </h3>
             <div class="mb-6">
                 <p>{{ $habTypeName }}生育地類型，共記錄到 {{ $stats['total_species'] }} 種植物，分屬 {{ $stats['total_families'] }}
                     科、{{ $stats['total_genera'] }} 屬。</p>

@@ -10,6 +10,7 @@ use App\Models\SubPlotEnv2025;
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
 use App\Exports\PlantListTableExport;
+use App\Exports\PlantListDocxExport;
 use App\Exports\PlotExport;
 use App\Exports\PlotExport2010;
 use App\Exports\MissingPlotExport;
@@ -17,9 +18,6 @@ use App\Exports\PlantDataExport;
 use App\Exports\PlantDataExport2010;
 use App\Exports\PlantListExport;
 use App\Exports\PlantListExport2010;
-use App\Exports\StatsMultiSheetExport;
-use App\Exports\StatsDocxExport;
-use App\Exports\StatsChartsPdfExport;
 use App\Exports\PlantListMultiSheetExport;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 use Maatwebsite\Excel\Excel;
@@ -34,12 +32,30 @@ class DataExport extends Component
     public $thisTeam ='';
     public $yearList = [];
     public $thisCensusYear = null;
-    public function mount()
+    public bool $embedded = false;
+
+    public function mount(
+        array $selectedPlots = [],
+        bool $embedded = false,
+        string $thisTeam = '',
+        string $thisCounty = '',
+        string $thisCensusYear = ''
+    )
     {
         $user = Auth::user(); // 取代 auth()->user()
 
         if (!$user) {
             return redirect('/'); // ⬅️ 若未登入，退回首頁
+        }
+
+        $this->embedded = $embedded;
+        if ($this->embedded) {
+            $this->selectedPlots = array_values(array_map('strval', $selectedPlots));
+            $this->allPlotIds = $this->selectedPlots;
+            $this->thisTeam = $thisTeam;
+            $this->thisCounty = $thisCounty;
+            $this->thisCensusYear = $thisCensusYear;
+            return;
         }
 
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
@@ -215,15 +231,6 @@ class DataExport extends Component
 
         $dataType = $this->dataType;
         switch ($this->dataType) {
-            case 'statsTable':
-                $this->downloadFormat = 'xlsx';
-                break;
-            case 'statsTable.docx':
-                $this->downloadFormat = 'docx';
-                break;
-            case 'statsCharts.pdf':
-                $this->downloadFormat = 'pdf';
-                break;
             case 'reasonsTable':
                 $this->downloadFormat = 'xlsx';
                 break;
@@ -256,6 +263,9 @@ class DataExport extends Component
             case 'allPlantList':
                 $this->downloadFormat = 'xlsx';
                 break;
+            case 'plantList.docx':
+                $this->downloadFormat = 'docx';
+                break;
             default:
                 $this->downloadFormat = 'xlsx';
                 break;
@@ -277,13 +287,12 @@ class DataExport extends Component
             $prefix = $this->thisTeam . '_';
         }
         $prefix .= ($this->thisCounty !== '' ? $this->thisCounty : '全部縣市') . '_' . date('Ymd');
-        if ($this->downloadFormat === 'docx' && $dataType === 'statsTable.docx') {
-            return (new StatsDocxExport($this->selectedPlots))->download("$prefix-statsTable.docx");
-        }
-        if ($this->downloadFormat === 'pdf' && $dataType === 'statsCharts.pdf') {
-            $url = (new StatsChartsPdfExport($this->selectedPlots))->publicDownloadUrl("$prefix-statsCharts.pdf");
-            $this->dispatch('download-generated-file', url: $url);
-            return null;
+
+        if ($this->downloadFormat === 'docx') {
+            $list = PlantListExport::PlantListForWord($this->selectedPlots);
+
+            return (new PlantListDocxExport($list['rows'], '植物名錄'))
+                ->download("{$prefix}-plantList.docx");
         }
 
         // 這一行會同時拿到對應的 Export 物件與檔名
@@ -305,10 +314,6 @@ class DataExport extends Component
             $fmt === 'xlsx' && $dataType === 'allPlantList' => [
                 new PlantListMultiSheetExport($this->selectedPlots, $fmt),
                 "allPlantList.xlsx",
-            ],
-            $fmt === 'xlsx' && $dataType === 'statsTable' => [
-                new StatsMultiSheetExport($this->selectedPlots, $fmt),
-                "$prefix-statsTable.xlsx",
             ],
             $fmt === 'xlsx' && $dataType === 'reasonsTable' => [
                 new MissingPlotExport($this->selectedPlots, $fmt, '小樣區未調查原因'),

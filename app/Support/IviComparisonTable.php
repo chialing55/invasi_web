@@ -7,7 +7,7 @@ use PhpOffice\PhpSpreadsheet\RichText\RichText;
 
 class IviComparisonTable
 {
-    public static function build(array $selectedPlots, ?string $county = null, float $maxElevation = 500.0, float $minCurrentIvi = 1.0): array
+    public static function build(array $selectedPlots, ?string $county = null, float $maxElevation = 500.0, float $minCurrentIvi = 0.0): array
     {
         $plots = self::eligiblePlots($selectedPlots, $county, $maxElevation);
         $countyLabel = self::countyLabel($plots, $selectedPlots);
@@ -90,9 +90,7 @@ class IviComparisonTable
 
     private static function countyLabel(array $eligiblePlots, array $selectedPlots): string
     {
-        $plots = !empty($eligiblePlots)
-            ? $eligiblePlots
-            : array_values(array_filter(array_map('strval', $selectedPlots), fn($plot) => $plot !== ''));
+        $plots = array_values(array_filter(array_map('strval', $selectedPlots), fn($plot) => $plot !== ''));
 
         if (empty($plots)) {
             return '選取縣市';
@@ -109,11 +107,21 @@ class IviComparisonTable
             ->values()
             ->all();
 
-        if (count($counties) === 1) {
-            return (string) $counties[0];
+        $allCounties = DB::connection('invasiflora')
+            ->table('plot_list')
+            ->whereNotNull('county')
+            ->distinct()
+            ->orderBy('county')
+            ->pluck('county')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (!empty($allCounties) && $counties === $allCounties) {
+            return '全部縣市';
         }
 
-        return count($counties) > 1 ? implode('、', $counties) : '選取縣市';
+        return !empty($counties) ? implode('、', $counties) : '選取縣市';
     }
 
     private static function rankedIvi(string $year, array $plots): array

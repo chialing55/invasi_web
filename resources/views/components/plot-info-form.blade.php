@@ -1,10 +1,7 @@
   <div class="md:flex md:flex-col gap-2 text-sm">
       <!-- 調查基本資訊 -->
       @php
-          if (
-              (isset($subPlotEnvForm) && $subPlotEnvForm['habitat_code'] == '88') ||
-              $subPlotEnvForm['habitat_code'] == '99'
-          ) {
+          if (isset($subPlotEnvForm) && \App\Support\HabitatCode::isUnderstory($subPlotEnvForm['habitat_code'] ?? null)) {
               $readonly = 'readonly';
               $addclass = 'bg-gray-100 text-gray-600';
           } else {
@@ -58,7 +55,7 @@
           <label for="habitat_code" class="w-24 text-right">生育地類型</label>
           <input id="habitat_code" name="habitat_code" type="text" wire:model.defer="subPlotEnvForm.habitat_code"
               class="border border-gray-300 px-2 py-1 w-28 {{ $addclass }}" maxlength="2"
-              placeholder="01-20(除了19)" {{ $readonly }}>
+              placeholder="01-20" {{ $readonly }}>
 
           <label for="subplot_id" class="w-32 text-right">小樣方流水號</label>
           <input id="subplot_id" name="subplot_id" type="text" wire:model.defer="subPlotEnvForm.subplot_id"

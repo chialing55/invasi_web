@@ -38,12 +38,8 @@ class HabitatIVIndex
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
 
-        // 統一生育地代碼：88=>08、99=>09，其餘補成兩位
-        $habExpr = "CASE
-            WHEN e.habitat_code IN ('88', 88) THEN '08'
-            WHEN e.habitat_code IN ('99', 99) THEN '09'
-            ELSE LPAD(CAST(e.habitat_code AS CHAR), 2, '0')
-        END";
+        // 地被代碼統一回主生育地，其餘補成兩位。
+        $habExpr = HabitatCode::normalizedSql('e.habitat_code');
 
         // 2) 分子集合：在 baseAll 基礎上加上外來條件（歸化／＋栽培）
         $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');

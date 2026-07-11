@@ -4,7 +4,6 @@ namespace App\Exports;
 
 use App\Models\PlotList2025;
 use App\Support\StatsTablesBuilder;
-use App\Support\FamilyChartImage;
 use Illuminate\Support\Facades\Response;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use ZipArchive;
@@ -67,16 +66,11 @@ class StatsDocxExport
         ));
         $lastIndex = count($sections) - 1;
         $tableNo = 1;
-        $figureNo = 1;
 
         foreach ($sections as $index => $section) {
             $orientation = $this->sectionOrientation($section);
 
-            if ($this->isChartSection($section)) {
-                $body[] = $this->chartFigure($section);
-                $body[] = $this->caption('圖 ' . $figureNo . ' ' . $this->figureTitle($section));
-                $figureNo++;
-            } elseif ($this->isHabitatIvSection($section)) {
+            if ($this->isHabitatIvSection($section)) {
                 $body[] = $this->caption('表 ' . $tableNo . ' ' . $this->sectionTitle($section, $tableNo));
                 $body[] = $this->habitatIvTable($section, 0, 7);
 
@@ -116,11 +110,6 @@ class StatsDocxExport
         return !empty($section['chartSpec']);
     }
 
-    private function isChartSection(array $section): bool
-    {
-        return !empty($section['chartSpec']);
-    }
-
     private function isHabitatIvSection(array $section): bool
     {
         return ($section['title'] ?? '') === '生育地歸化物種IV';
@@ -129,16 +118,6 @@ class StatsDocxExport
     private function sectionOrientation(array $section): string
     {
         return $this->isHabitatIvSection($section) ? 'landscape' : 'portrait';
-    }
-
-    private function figureTitle(array $section): string
-    {
-        $county = $this->countyLabel();
-        return match ((string) ($section['title'] ?? '')) {
-            '歸化物種優勢科 Top 10' => $county . '地區歸化物種優勢科前十名排名圖',
-            '低海拔外來植物優勢科比較圖' => '針對' . (string) ($section['countyLabel'] ?? $county) . '海拔500 m以下的' . ((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0) . '處' : '') . '平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
-            default => (string) ($section['title'] ?? ''),
-        };
     }
 
     private function sectionTitle(array $section, int $tableNo): string
@@ -163,7 +142,7 @@ class StatsDocxExport
             $county = (string) ($section['countyLabel'] ?? $this->countyLabel());
             $plotCount = (int) ($section['plotCount'] ?? 0);
             $countText = $plotCount > 0 ? $plotCount . '處' : '';
-            return '針對' . $county . '海拔500 m以下的' . $countText . '平地樣區，比較本次與前次調查IVI佔比達1%以上物種的優勢度排序情形。';
+            return '針對' . $county . '海拔500 m以下的' . $countText . '平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
         }
 
         return $title;
@@ -186,11 +165,20 @@ class StatsDocxExport
             ->values()
             ->all();
 
-        if (count($counties) === 1) {
-            return (string) $counties[0];
+        $allCounties = PlotList2025::query()
+            ->whereNotNull('county')
+            ->distinct()
+            ->orderBy('county')
+            ->pluck('county')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (!empty($allCounties) && $counties === $allCounties) {
+            return '全部縣市';
         }
 
-        return count($counties) > 1 ? implode('、', $counties) : '選取縣市';
+        return !empty($counties) ? implode('、', $counties) : '選取縣市';
     }
 
     private function sectionBreak(string $orientation): string
@@ -381,45 +369,6 @@ class StatsDocxExport
         return $xml . '</w:tbl>';
     }
 
-
-    private function chartFigure(array $section): string
-    {
-        $isComparisonChart = ($section['chartSpec']['type'] ?? null) === 'family-comparison';
-        $rows = array_values(array_filter($section['rows'] ?? [], function ($row) use ($isComparisonChart) {
-            $row = (array) $row;
-            if ($isComparisonChart) {
-                return ((int) ($row['前次調查'] ?? 0) > 0) || ((int) ($row['本次調查'] ?? 0) > 0);
-            }
-
-            return (int) ($row['物種數'] ?? 0) > 0;
-        }));
-        if (empty($rows)) {
-            return $this->paragraph('無資料', null, true);
-        }
-
-        $path = tempnam(sys_get_temp_dir(), 'family-chart-docx-') . '.png';
-        if (($section['chartSpec']['type'] ?? null) === 'family-comparison') {
-            FamilyChartImage::renderComparison($rows, $path);
-        } else {
-            FamilyChartImage::render($rows, $path);
-        }
-        $imageSize = getimagesize($path) ?: [588, 354];
-        $content = file_get_contents($path) ?: '';
-        @unlink($path);
-
-        if ($content === '') {
-            return $this->paragraph('無資料', null, true);
-        }
-
-        $rid = 'rIdImage' . (count($this->media) + 1);
-        $name = 'family-chart-' . (count($this->media) + 1) . '.png';
-        $this->media[] = ['rid' => $rid, 'name' => $name, 'content' => $content];
-
-        $widthEmu = 5270500;
-        $heightEmu = (int) round($widthEmu * ((int) ($imageSize[1] ?? 354)) / max(1, (int) ($imageSize[0] ?? 588)));
-
-        return $this->imageParagraph($rid, $widthEmu, $heightEmu);
-    }
 
     private function iviTable(?array $headings, array $rows): string
     {
@@ -675,8 +624,8 @@ class StatsDocxExport
     {
         return match ($heading) {
             '石松類植物' => "石松類\n植物",
-            '蕨類植物' => "蕨類植物",
-            '裸子植物' => "裸子植物",
+            '蕨類植物' => "蕨類\n植物",
+            '裸子植物' => "裸子\n植物",
             '雙子葉植物' => "雙子葉\n植物",
             '單子葉植物' => "單子葉\n植物",
             '合計' => "合\n計",

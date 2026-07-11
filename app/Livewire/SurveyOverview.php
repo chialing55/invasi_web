@@ -16,6 +16,7 @@ use App\Helpers\PlotHelper;
 use App\Helpers\PlotCompletedHelper;
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
+use App\Support\HabitatCode;
 
 class SurveyOverview extends Component
 {
@@ -159,14 +160,17 @@ class SurveyOverview extends Component
         $currentYear = date('Y');
         if (empty($this->subPlotTeam) && empty($this->subPlantTeam)) {
            
+            $herbCodes = HabitatCode::sqlList(HabitatCode::herbMainCodes());
+            $woodCodes = HabitatCode::sqlList(HabitatCode::woodCodes());
+
             $subPlot_team = SubPlotEnv2025::join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
                 ->select('plot_list.team', 
                     DB::raw('COUNT(DISTINCT im_splotdata_2025.plot) as total_plots',),
                     DB::raw('COUNT(DISTINCT im_splotdata_2025.plot_full_id) as total_subPlots',),
                     //草本樣方
-                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code REGEXP '^(0[1-7]|1[0-9]|20)$', im_splotdata_2025.plot_full_id, NULL)) AS herb_plots"), 
+                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code IN ({$herbCodes}), im_splotdata_2025.plot_full_id, NULL)) AS herb_plots"),
                     //木本樣方
-                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code REGEXP '^(08|09)$', im_splotdata_2025.plot_full_id, NULL)) AS woody_plots"),
+                    DB::raw("COUNT(DISTINCT IF(im_splotdata_2025.habitat_code IN ({$woodCodes}), im_splotdata_2025.plot_full_id, NULL)) AS woody_plots"),
                     )
                 ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')
@@ -178,8 +182,8 @@ class SurveyOverview extends Component
                 ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
                 ->select('plot_list.team', 
                     DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'),
-                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code REGEXP '^(0[1-7]|1[0-9]|20)$', 1, NULL)) AS herb_plants"),
-                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code REGEXP '^(08|09)$', 1, NULL)) AS woody_plants"),
+                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code IN ({$herbCodes}), 1, NULL)) AS herb_plants"),
+                    DB::raw("COUNT(IF(im_splotdata_2025.habitat_code IN ({$woodCodes}), 1, NULL)) AS woody_plants"),
                     )
                 ->where('plot_list.census_year', $currentYear)
                 ->groupBy('plot_list.team')

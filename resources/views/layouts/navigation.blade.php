@@ -41,18 +41,9 @@
                     </div>
                 </div>
 
-                <x-nav.dropdown
-                    label="調查成果"
-                    active="results.*"
-                    :routes="[
-                        ['label' => '物種數', 'route' => 'results.species'],
-                        ['label' => '成果圖表', 'route' => 'results.charts']
-                    ]"
-                />
-
                 <div class="relative">
                     <div class="btn-navigation-div">
-                        <button class="btn-navigation @navActive('data.export')"><a href="{{ route('data.export') }}">資料匯出</a></button>
+                        <button class="btn-navigation @navActive('results.*')"><a href="{{ route('results.charts') }}">調查成果</a></button>
                     </div>
                 </div>
             </div>
@@ -67,8 +58,6 @@
         <a href="{{ route('entry.notes') }}">資料輸入注意事項</a>
         <a href="{{ route('entry.entry') }}">資料輸入</a>
         <a href="{{ route('survey.overview') }}">調查進度</a>
-        <a href="{{ route('results.species') }}">物種數</a>
-        <a href="{{ route('results.charts') }}">成果圖表</a>
-        <a href="{{ route('data.export') }}">資料匯出</a>
+        <a href="{{ route('results.charts') }}">調查成果</a>
     </div>
 </nav>

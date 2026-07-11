@@ -214,7 +214,7 @@
                 <button id="submit-btn-plant" class="btn-submit" type="button">儲存植物調查資料</button>
             </div>
         </div>
-        @if (substr($thisSubPlot, 6, 2) !== '99' && substr($thisSubPlot, 6, 2) !== '88')
+        @if (!\App\Support\HabitatCode::isUnderstory(substr($thisSubPlot, 6, 2)))
             <div class="mt-8 gray-card md:flex md:flex-col mb-4">
                 <h3>{{ $thisSubPlot }} 小樣方照片上傳</h3>
                 <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">

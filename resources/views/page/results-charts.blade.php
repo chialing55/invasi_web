@@ -121,14 +121,16 @@
         window.addEventListener('results-chart-ready', function(event) {
             renderResultsChart(event.detail?.chart || event.detail?.[0]?.chart);
         });
+
+        window.addEventListener('download-generated-file', function(event) {
+            const url = event.detail?.url || event.detail?.[0]?.url;
+            if (url) window.location.href = url;
+        });
     </script>
 @endpush
 
 @section('content')
-    <h2 class="text-xl font-bold mb-4">成果圖表</h2>
-    <p class="mb-4 text-sm text-gray-700">
-        如需下載圖表，請至
-        <a href="{{ route('data.export') }}" class="font-semibold text-forest underline hover:text-forest-dark">資料匯出</a>。
-    </p>
+    <h2 class="text-xl font-bold mb-4">調查成果</h2>
+    <p class="mb-4 text-sm text-gray-700">選擇調查範圍與樣區後，可在同一頁查看並下載統計表格及統計圖。</p>
     <livewire:results-charts />
 @endsection

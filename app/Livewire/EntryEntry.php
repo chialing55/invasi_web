@@ -27,6 +27,7 @@ use App\Helpers\DateHelper;
 use App\Models\SpcodeIndex;
 use App\Models\SubPlotEnv2010;
 use App\Support\TaiwanChecklistQuery;
+use App\Support\HabitatCode;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -177,24 +178,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         // ➤ 1. 原始選擇
         $selected = $this->selectedHabitatCodes;
 
-        // ➤ 2. 自動加入對應的 88/99
-        if (in_array('08', $selected)) {
-            $selected[] = '88';
-        }
-        if (in_array('09', $selected)) {
-            $selected[] = '99';
-        }
-
-        // ➤ 3. 沒有 08/09 則移除 88/99
-        if (!in_array('08', $selected)) {
-            $selected = array_diff($selected, ['88']);
-        }
-        if (!in_array('09', $selected)) {
-            $selected = array_diff($selected, ['99']);
-        }
-
-        // ➤ 4. 整理為乾淨陣列
-        $selected = array_values(array_unique($selected));
+        // 自動同步主生育地與對應地被代碼。
+        $selected = HabitatCode::syncSelectedCodes($selected);
         $this->selectedHabitatCodes = $selected;
 
         // ➤ 5. 清空舊資料
@@ -528,18 +513,12 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                         'modified_at' => now(),
                     ]);
                 }
-                //3. 如果新生育地類型是08或09
-                //3.1  如果已有原本相對應的88和89，一起更改編號
+                // 若新生育地是木本主類型，一併更改對應地被編號。
                 $msg = '已更新『' . $this->thisSubPlot . '』樣區編號為『' . $subPlotEnvForm['plot_full_id'] . '』。';
 
-                if (in_array($subPlotEnvForm['habitat_code'], ['08', '09'])) {
-                        // 08 對應 88，09 對應 99
-                    $extraHabitat_o = match ($o_habitat_code) {
-                        '08' => '88',
-                        '09' => '99',
-                        default => '00',
-                    };
-                    $extraHabitat_n = $subPlotEnvForm['habitat_code'] === '08' ? '88' : '99';
+                if (HabitatCode::isWood($subPlotEnvForm['habitat_code'])) {
+                    $extraHabitat_o = HabitatCode::understoryFor($o_habitat_code) ?? '00';
+                    $extraHabitat_n = HabitatCode::understoryFor($subPlotEnvForm['habitat_code']);
 
                     $related_full_id_o = $plot . $extraHabitat_o . $o_subplot_id;
                     $related_full_id_n = $plot . $extraHabitat_n . $subPlotEnvForm['subplot_id'];
@@ -596,8 +575,8 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                     $plotFullIds[] = $related_full_id_n;
                     
                 }
-                if (in_array($o_habitat_code, ['08', '09']) && !in_array($subPlotEnvForm['habitat_code'], ['08', '09']) && $o_habitat_code != $subPlotEnvForm['habitat_code']){
-                    $extraHabitat = $o_habitat_code === '08' ? '88' : '99';
+                if (HabitatCode::isWood($o_habitat_code) && !HabitatCode::isWood($subPlotEnvForm['habitat_code']) && $o_habitat_code != $subPlotEnvForm['habitat_code']){
+                    $extraHabitat = HabitatCode::understoryFor($o_habitat_code);
                     $related_full_id_o = $plot . $extraHabitat . $o_subplot_id;
                     session()->flash('saveMsg2', '保留原有 『' . $related_full_id_o . '』環境、植物資料，如需刪除請洽管理員。');
                     
@@ -691,10 +670,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function addUnderstoryPlot($subPlotEnvForm){
                 // ✅ 根據 habitat_code 判斷是否要額外新增對應筆
-        $autoCopyMap = [
-            '08' => '88',
-            '09' => '99',
-        ];
+        $autoCopyMap = HabitatCode::pairs();
 
         $newdata = [];
 
@@ -939,9 +915,9 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 throw new \RuntimeException("找不到小樣方資料：{$basename}");
             }
 
-            // 6) 若 08/09，鏡像到 88/99（檔名也要改成對應小樣區 ID）
-            if ($hab === '08' || $hab === '09') {
-                $mirrorHab      = $hab === '08' ? '88' : '99';
+            // 6) 木本主生育地照片鏡像到對應地被（檔名也改成對應小樣區 ID）
+            if (HabitatCode::isWood($hab)) {
+                $mirrorHab      = HabitatCode::understoryFor($hab);
                 $mirrorSubPlot  = substr($basename, 0, 6) . $mirrorHab . substr($basename, 8);
                 $mirrorDir      = $this->photoRelativeDir($mirrorHab);
                 $mirrorFilename = "{$mirrorSubPlot}.{$ext}";
@@ -961,7 +937,7 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
                 // 複製並改檔名（同 disk copy）
                 $disk->copy($targetPath, $mirrorPath);
 
-                // 更新鏡像小樣區 DB；若 88/99 資料不存在，不阻斷主照片上傳。
+                // 更新鏡像小樣區 DB；若地被資料不存在，不阻斷主照片上傳。
                 SubPlotEnv2025::where('plot_full_id', $mirrorSubPlot)->update([
                     'file_uploaded_at' => now(),
                     'file_uploaded_by' => $this->creatorCode,

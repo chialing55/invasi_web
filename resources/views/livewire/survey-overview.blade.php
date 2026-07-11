@@ -325,7 +325,7 @@
                                                     <a href="{{ $row['plotFile'] }}" target="_blank"
                                                         onclick="event.stopPropagation()"
                                                         class="text-blue-500 underline">
-                                                        {{ basename($row['plotFile']) }}
+                                                        {{ basename(parse_url($row['plotFile'], PHP_URL_PATH)) }}
                                                     </a>
                                                 @else
                                                     <span class="text-xs text-gray-400">-</span>

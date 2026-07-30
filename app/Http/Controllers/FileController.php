@@ -10,7 +10,7 @@ class FileController extends Controller
     {
         $fullPath = $this->resolveAllowedPublicPath($path);
 
-        return response()->download($fullPath)->withHeaders($this->noCacheHeaders());
+        return response()->download($fullPath, null, $this->noCacheHeaders());
     }
 
     public function view($path)

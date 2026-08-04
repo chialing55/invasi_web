@@ -38,6 +38,7 @@ Route::get('/email-verified', function () {
 // });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::view('/profile', 'page.profile')->name('profile.edit');
     Route::view('/docs', 'page.docs')->name('index');
     Route::view('/query/plant', 'page.query-plant')->name('query.plant');
     Route::view('/query/plot', 'page.query-plot')->name('query.plot');
@@ -49,6 +50,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('/results/species', '/results/charts')->name('results.species');
     Route::view('/results/charts', 'page.results-charts')->name('results.charts');
     Route::redirect('/data/export', '/results/charts')->name('data.export');
+});
+
+Route::middleware(['auth', 'verified', 'can:manage-users'])->group(function () {
+    Route::view('/admin/users', 'page.user-management')->name('admin.users');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

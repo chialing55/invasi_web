@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SubPlotEnv2025 extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     protected $table = "im_splotdata_2025";
     protected $connection = 'invasiflora';
 
@@ -42,6 +43,7 @@ class SubPlotEnv2025 extends Model
         'created_by',
         'updated_by',
         'file_uploaded_by',
+        'deleted_by',
     ];
 
 

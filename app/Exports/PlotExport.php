@@ -19,7 +19,8 @@ class PlotExport implements FromQuery, WithMapping, WithHeadings, WithCustomCsvS
         protected string   $title  = '環境資料',
         protected array    $excluded = [
             'island_category','plot_env','validation_message','created_by','created_at',
-            'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error'
+            'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error',
+            'deleted_at','deleted_by'
         ],
         protected ?array   $headings = null // 若想固定表頭，可在建構子直接給
     ) {}

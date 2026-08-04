@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::define('manage-users', fn (User $user) => $user->role === 'admin' && !$user->trashed());
+
         Blade::directive('navActive', function ($pattern) {
             return "<?php echo Route::is($pattern) ? 'bg-forest-mist text-forest font-bold' : ''; ?>";
         });

@@ -20,7 +20,8 @@ class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCusto
         protected string   $title  = '植物資料',
         protected array    $excluded = [
             'island_category','plot_env','validation_message','created_by','created_at',
-            'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error'
+            'updated_at','updated_by','file_uploaded_at','file_uploaded_by','data_error',
+            'deleted_at','deleted_by'
         ],
         protected ?array   $headings = null // 若想固定表頭，可在建構子直接給
     ) {}
@@ -29,9 +30,12 @@ class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCusto
     public function query(): Builder
     {
         $query = SubPlotPlant2025::query()
+            ->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class)
             ->from('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025', 'p.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->whereNull('p.deleted_at')
+            ->whereNull('im_splotdata_2025.deleted_at')
             ->whereIn('im_splotdata_2025.plot', $this->selectedPlots);
 
         TaiwanChecklistQuery::joinCurrent($query, 'p');
@@ -39,6 +43,7 @@ class PlantDataExport implements FromQuery, WithMapping, WithHeadings, WithCusto
         return $query
             ->select(
                 'p.*',
+                DB::raw(TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p') . ' AS spcode'),
                 's.family',
                 's.chfamily',
                 DB::raw('s.full_name as latinname'),

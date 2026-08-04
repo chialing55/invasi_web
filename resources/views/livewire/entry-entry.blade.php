@@ -151,6 +151,12 @@
         </div>
     @endif
 
+    @if (session('deleteMsg'))
+        <div class="mt-4 rounded border border-green-300 bg-green-50 px-4 py-3 text-green-800" role="status">
+            <p class="font-semibold">{{ session('deleteMsg') }}</p>
+        </div>
+    @endif
+
 
     @if ($showPlotEntryTable)
 
@@ -160,7 +166,41 @@
             $subplotNo = substr($thisSubPlot, 8, 2);
         @endphp -->
         <div class='mt-8 gray-card' wire:key="plot-entry-table-{{ $thisPlot }}-{{ now()->timestamp }}">
-            <h3> {{ $thisSubPlot }} 小樣方環境資料</h3>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h3>{{ $thisSubPlot }} 小樣方環境資料</h3>
+                @if ($thisSubPlot !== '' && !empty($subPlotEnvForm['id']))
+                    <button type="button"
+                        class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        wire:click="deleteSubPlot"
+                        wire:confirm="確定要刪除小樣方 {{ $thisSubPlot }} 嗎？此操作會同時刪除小樣方環境資料及其所有植物調查資料。"
+                        wire:loading.attr="disabled"
+                        wire:target="deleteSubPlot">
+                        <span wire:loading.remove wire:target="deleteSubPlot">刪除小樣方資料</span>
+                        <span wire:loading wire:target="deleteSubPlot">刪除中...</span>
+                    </button>
+                @endif
+            </div>
+
+            @if ($pendingRestorePlotFullId !== '')
+                <div class="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900" role="alert">
+                    <p class="font-semibold">小樣方 {{ $pendingRestorePlotFullId }} 曾被刪除。</p>
+                    <p class="mt-1 text-sm">是否還原舊有的小樣方環境資料及其全部植物調查資料？若不還原，請取消新增並修改小樣方編號。</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="btn-submit"
+                            wire:click="restoreDeletedSubPlot"
+                            wire:loading.attr="disabled"
+                            wire:target="restoreDeletedSubPlot">
+                            <span wire:loading.remove wire:target="restoreDeletedSubPlot">還原舊資料</span>
+                            <span wire:loading wire:target="restoreDeletedSubPlot">還原中...</span>
+                        </button>
+                        <button type="button"
+                            class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200"
+                            wire:click="cancelRestoreSubPlot">
+                            取消新增
+                        </button>
+                    </div>
+                </div>
+            @endif
 
             @if ($errors->any() && session('form') === 'env')
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

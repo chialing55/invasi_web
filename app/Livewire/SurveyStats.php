@@ -210,8 +210,11 @@ class SurveyStats extends Component
 
         $this->message = '';
         $base = SubPlotPlant2025::from('im_spvptdata_2025 as p')
+            ->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class)
             ->join('im_splotdata_2025', 'p.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+            ->whereNull('p.deleted_at')
+            ->whereNull('im_splotdata_2025.deleted_at')
             ->when($this->embedded, fn($q) =>
                 $q->whereIn('im_splotdata_2025.plot', $this->selectedPlots)
             )
@@ -274,7 +277,11 @@ class SurveyStats extends Component
         // 1. 科、屬、種
         $this->stats['total_species'] = $all->count();
         $this->stats['total_families'] = $all->pluck('family')->unique()->count();
-        $this->stats['total_genera'] = $all->pluck('latinname')->map(fn($n) => explode(' ', $n)[0])->unique()->count();
+        $this->stats['total_genera'] = $all->pluck('genus')
+            ->map(fn($genus) => trim((string) $genus))
+            ->filter()
+            ->unique()
+            ->count();
 
 
         // 2. 歸化與原生
@@ -302,7 +309,11 @@ class SurveyStats extends Component
 
         // 4. 歸化植物：科屬種 + growth_form 統計
         $this->stats['naturalized_families'] = $naturalized->pluck('family')->unique()->count();
-        $this->stats['naturalized_genera'] = $naturalized->pluck('latinname')->map(fn($n) => explode(' ', $n)[0])->unique()->count();
+        $this->stats['naturalized_genera'] = $naturalized->pluck('genus')
+            ->map(fn($genus) => trim((string) $genus))
+            ->filter()
+            ->unique()
+            ->count();
 
        $naturalizedGrowthCounts = $naturalized
             ->filter(fn($item) => !empty($item['growth_form'])) // 🔸 先排除 growth_form 為空字串

@@ -55,6 +55,7 @@ class EntryEntry extends Component
     public $plantList=[];
     public $subPlotEnvForm = [];
     public $subPlotPlantForm = [];
+    public $pendingRestorePlotFullId = '';
     public $userOrg;
     public $user;
     public $creatorCode;
@@ -297,6 +298,112 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
         $this->showPlantEntryTable = true;
     }
 
+    public function deleteSubPlot(): void
+    {
+        $plotFullId = (string) $this->thisSubPlot;
+
+        if ($plotFullId === '' || $this->thisPlot === '') {
+            session()->flash('deleteMsg', '找不到要刪除的小樣方資料。');
+            return;
+        }
+
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        if ($user->role === 'member') {
+            $canManagePlot = PlotList2025::where('plot', $this->thisPlot)
+                ->where('team', $this->userOrg)
+                ->exists();
+            abort_unless($canManagePlot, 403);
+        }
+
+        $deletedPlantCount = DB::connection('invasiflora')->transaction(function () use ($plotFullId) {
+            $subPlot = SubPlotEnv2025::where('plot_full_id', $plotFullId)
+                ->where('plot', $this->thisPlot)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $plants = SubPlotPlant2025::where('plot_full_id', $plotFullId);
+            $deletedPlantCount = (clone $plants)->count();
+
+            $plants->update(['deleted_by' => $this->creatorCode]);
+            SubPlotPlant2025::where('plot_full_id', $plotFullId)->delete();
+
+            $subPlot->deleted_by = $this->creatorCode;
+            $subPlot->save();
+            $subPlot->delete();
+
+            return $deletedPlantCount;
+        });
+
+        $this->thisSubPlot = '';
+        $this->subPlotEnvForm = [];
+        $this->subPlotPlantForm = [];
+        $this->showPlotEntryTable = false;
+        $this->showPlantEntryTable = false;
+        $this->dispatch('reset_plant_table');
+        $this->loadPlotInfo($this->thisPlot);
+
+        session()->flash(
+            'deleteMsg',
+            "已刪除小樣方 {$plotFullId}，並刪除 {$deletedPlantCount} 筆植物調查資料。"
+        );
+    }
+
+    public function restoreDeletedSubPlot(): void
+    {
+        $plotFullId = (string) $this->pendingRestorePlotFullId;
+
+        if ($plotFullId === '' || $this->thisPlot === '') {
+            session()->flash('deleteMsg', '找不到要還原的小樣方資料。');
+            return;
+        }
+
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        if ($user->role === 'member') {
+            $canManagePlot = PlotList2025::where('plot', $this->thisPlot)
+                ->where('team', $this->userOrg)
+                ->exists();
+            abort_unless($canManagePlot, 403);
+        }
+
+        $restoredPlantCount = DB::connection('invasiflora')->transaction(function () use ($plotFullId) {
+            $subPlot = SubPlotEnv2025::onlyTrashed()
+                ->where('plot_full_id', $plotFullId)
+                ->where('plot', $this->thisPlot)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $plants = SubPlotPlant2025::onlyTrashed()->where('plot_full_id', $plotFullId);
+            $restoredPlantCount = (clone $plants)->count();
+            $plants->update(['deleted_by' => null]);
+            SubPlotPlant2025::onlyTrashed()->where('plot_full_id', $plotFullId)->restore();
+
+            $subPlot->deleted_by = null;
+            $subPlot->restore();
+
+            return $restoredPlantCount;
+        });
+
+        $this->pendingRestorePlotFullId = '';
+        $this->loadPlotInfo($this->thisPlot);
+        $this->thisSubPlot = $plotFullId;
+        $this->updatedThisSubPlot($plotFullId);
+
+        session()->flash(
+            'deleteMsg',
+            "已還原小樣方 {$plotFullId}，並還原 {$restoredPlantCount} 筆植物調查資料。"
+        );
+    }
+
+    public function cancelRestoreSubPlot(): void
+    {
+        $this->pendingRestorePlotFullId = '';
+        $this->addError('小樣方流水號', '已取消新增，請修改小樣方編號後再儲存。');
+    }
+
     public function loadExistingPlantForm()
     {
         $emptyRow = $this->plantFormEmptyRow();
@@ -456,6 +563,11 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
   
         $this->subPlotEnvForm=$subPlotEnvForm;
         if ( $this->thisSubPlot=='') {  //新增小樣方
+            if (SubPlotEnv2025::onlyTrashed()->where('plot_full_id', $subPlotEnvForm['plot_full_id'])->exists()) {
+                $this->pendingRestorePlotFullId = $subPlotEnvForm['plot_full_id'];
+                return;
+            }
+
             $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
             $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
         } else {  // 修改小樣方資料

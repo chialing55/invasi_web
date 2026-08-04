@@ -29,8 +29,11 @@ class FloraGroupStats
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = SubPlotPlant2025::query()
+            ->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class)
             ->from((new SubPlotPlant2025)->getTable().' as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
         $base->whereNotNull('s.spcode');

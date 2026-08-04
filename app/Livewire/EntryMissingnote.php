@@ -244,6 +244,7 @@ class EntryMissingnote extends Component
 
         // 2025 的所有樣區編號（去重）
         $s2025 = DB::connection('invasiflora')->table('im_splotdata_2025 as s')
+            ->whereNull('s.deleted_at')
             ->selectRaw('DISTINCT s.plot_full_id AS k_2025');
             // 若需排除衍生地被，應使用 HabitatCode::understoryCodes()。
 

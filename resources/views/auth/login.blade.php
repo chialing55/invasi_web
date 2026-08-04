@@ -42,8 +42,11 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium">密碼</label>
-                        <input type="password" name="password" required
-                            class="w-full mt-1 px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-2 focus:ring-forest">
+                        <div class="relative mt-1">
+                            <input id="login_password" type="password" name="password" required autocomplete="current-password"
+                                class="w-full rounded border border-gray-300 px-3 py-2 pr-11 shadow-sm focus:ring-2 focus:ring-forest">
+                            <x-password-visibility-button target="login_password" />
+                        </div>
                     </div>
 
                     <div class="flex justify-between items-center mb-4">

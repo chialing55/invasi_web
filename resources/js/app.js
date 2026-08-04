@@ -1,5 +1,20 @@
 import './bootstrap';
 
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-password-toggle]');
+    if (!button) return;
+
+    const input = document.getElementById(button.dataset.passwordToggle);
+    if (!input) return;
+
+    const willShow = input.type === 'password';
+    input.type = willShow ? 'text' : 'password';
+    button.setAttribute('aria-label', willShow ? '隱藏密碼' : '顯示密碼');
+    button.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+    button.querySelector('[data-password-show]')?.classList.toggle('hidden', willShow);
+    button.querySelector('[data-password-hide]')?.classList.toggle('hidden', !willShow);
+});
+
 // resources/js/tabulatorHelpers.js
 
 window.initTabulator = function ({

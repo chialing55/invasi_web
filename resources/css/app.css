@@ -77,6 +77,10 @@
         @apply bg-white text-forest-canopy font-semibold px-4 py-1 rounded hover:bg-gray-200;
     }
 
+    .btn-footer {
+        @apply bg-gray-200 text-gray-700 font-semibold px-4 py-1 rounded no-underline hover:bg-gray-300 hover:no-underline focus:no-underline transition-colors;
+    }
+
     .btn-add {
         @apply bg-forest-soil text-white font-semibold px-4 py-1 rounded hover:bg-forest-bark;
     }

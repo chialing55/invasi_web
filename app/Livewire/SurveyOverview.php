@@ -180,6 +180,7 @@ class SurveyOverview extends Component
 
             $subPlant_team = SubPlotPlant2025::join('im_splotdata_2025', 'im_spvptdata_2025.plot_full_id', '=', 'im_splotdata_2025.plot_full_id')
                 ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
+                ->whereNull('im_splotdata_2025.deleted_at')
                 ->select('plot_list.team', 
                     DB::raw('COUNT(im_spvptdata_2025.id) as total_plants'),
                     DB::raw("COUNT(IF(im_splotdata_2025.habitat_code IN ({$herbCodes}), 1, NULL)) AS herb_plants"),

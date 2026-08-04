@@ -20,6 +20,8 @@ class FloraChartData
             ->leftJoin('taiwan_checklist as raw', 'p.spcode', '=', 'raw.spcode')
             ->leftJoin('taiwan_checklist as s', 's.spcode', '=', DB::raw(TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p')))
             ->whereIn('e.plot', $selectedPlots)
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
             ->whereNotNull('p.spcode')
             ->whereRaw("($statusExpr) = 'naturalized'")
             ->selectRaw("
@@ -98,6 +100,7 @@ class FloraChartData
         return DB::connection('invasiflora')
             ->table('im_splotdata_2025 as e')
             ->whereIn('e.plot', $selectedPlots)
+            ->whereNull('e.deleted_at')
             ->groupBy('e.plot')
             ->havingRaw('MAX(COALESCE(e.elevation, 99999)) <= ?', [$maxElevation])
             ->orderBy('e.plot')
@@ -117,6 +120,8 @@ class FloraChartData
             ->leftJoin('taiwan_checklist as raw', 'p.spcode', '=', 'raw.spcode')
             ->leftJoin('taiwan_checklist as s', 's.spcode', '=', DB::raw(TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p')))
             ->whereIn('e.plot', $plots)
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
             ->whereNotNull('p.spcode')
             ->whereRaw("($statusExpr) = 'naturalized'")
             ->selectRaw("COALESCE(NULLIF(s.chfamily,''), NULLIF(s.family,''), '(未註科)') AS family, NULLIF(TRIM(s.spcode),'') AS sp");

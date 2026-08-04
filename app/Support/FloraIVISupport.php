@@ -47,6 +47,8 @@ final class FloraIVISupport
         // 基礎
         $base = $db->table('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
 

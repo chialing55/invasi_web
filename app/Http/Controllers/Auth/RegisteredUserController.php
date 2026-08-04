@@ -32,6 +32,8 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'organization' => ['required', 'in:NIU,NTU,NCHU,NCYU,NSYSU,NPUST'],
+            'title' => ['required', 'in:計畫主持人,研究助理'],
             'password' => [
                 'required',
                 'confirmed',
@@ -49,18 +51,12 @@ class RegisteredUserController extends Controller
             'password.symbols' => '密碼必須包含符號（如 !@#$%^&* ）。',
         ]);
 
-        $role = match ($request->title) {
-            '計畫主持人' => 'admin',
-            '研究助理' => 'member',
-            default => 'member', // 預設
-        };
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'organization' => $request->organization,
             'title' => $request->title,
-            'role' => $role,
+            'role' => 'member',
             'password' => Hash::make($request->password),
         ]);
 

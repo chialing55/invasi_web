@@ -196,8 +196,11 @@ class PlantListExport
     private static function baseQuery(array $selectedPlots = [])
     {
         $query = SubPlotPlant2025::query()
+            ->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class)
             ->from('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
             ->whereNotNull('p.spcode');
 
         TaiwanChecklistQuery::joinCurrent($query, 'p');
@@ -228,7 +231,7 @@ class PlantListExport
             MAX(CASE WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `歸化種`,
             MAX(CASE WHEN " . TaiwanChecklistQuery::cultivatedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `栽培種`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
-            MAX(COALESCE(NULLIF(s.spcode_current, ''), s.spcode)) AS `spcode`,
+            MAX(" . TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p') . ") AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
         ";
     }
@@ -254,7 +257,7 @@ class PlantListExport
                 ELSE '原生'
             END) AS `{$statusColumn}`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
-            MAX(COALESCE(NULLIF(s.spcode_current, ''), s.spcode)) AS `spcode`,
+            MAX(" . TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p') . ") AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
         ";
     }

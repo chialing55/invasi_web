@@ -111,8 +111,14 @@
     </main>
 
     {{-- Footer --}}
-    <footer class="bg-forest text-white text-sm text-center p-6">
-        如有任何意見與問題，請至群組 @chialing lu
+    <footer class="grid items-center gap-3 bg-forest p-6 text-sm text-white md:grid-cols-[1fr_auto_1fr]">
+        <div class="text-center md:col-start-2">如有任何意見與問題，請至群組 @chialing lu</div>
+        <div class="flex flex-wrap justify-center gap-2 md:col-start-3 md:justify-self-end">
+            <a href="{{ route('profile.edit') }}" class="btn-footer">個人基本資料</a>
+            @can('manage-users')
+                <a href="{{ route('admin.users') }}" class="btn-footer">使用者管理</a>
+            @endcan
+        </div>
     </footer>
     @livewireScripts
     @stack('scripts')

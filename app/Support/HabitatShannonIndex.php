@@ -10,7 +10,7 @@ class HabitatShannonIndex
 {
     /**
      * 以 selectedPlots 為篩選，直接在 DB 做彙總，再計算每個 habitat 的 Shannon 指數。
-     * 含unknown
+     * 僅納入成功對應目前名錄，且來源屬性已分類的物種
      * @param array       $selectedPlots  例：['A01','A02',...]
      * @param bool        $weightByArea   true=用「面積×覆蓋率」作 abundance；false=用覆蓋率加總
      * @param string      $logBase        'e' | '2' | '10'
@@ -31,12 +31,7 @@ class HabitatShannonIndex
         $habExpr = HabitatCode::normalizedSql('e.habitat_code');
 
         $statusExpr = TaiwanChecklistQuery::statusExpr('s');
-        // 針對 unknown 建一個「物種鍵」避免被併群；查得到名錄的資料則用 current spcode。
-        $spKeyExpr = "
-        CASE
-        WHEN s.spcode IS NULL THEN CONCAT('UNK:', COALESCE(p.chname_index,''))
-        ELSE s.spcode
-        END";
+        $spKeyExpr = 's.spcode';
 
         // 🔹 取「唯一物種清單」作為母集合（避免重複計數）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
@@ -45,6 +40,7 @@ class HabitatShannonIndex
             ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
                 //{$spKeyExpr}      as sp,
         // 查詢：用 selectRaw + groupByRaw，把**表達式本身**放進群組
         $rows = (clone $base)

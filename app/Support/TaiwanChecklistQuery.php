@@ -56,4 +56,14 @@ class TaiwanChecklistQuery
             ELSE 'native'
         END";
     }
+
+    /**
+     * 限制統計只使用能對應目前名錄，且來源屬性已分類的物種。
+     */
+    public static function whereClassified($query, string $alias = 's')
+    {
+        return $query
+            ->whereNotNull("{$alias}.spcode")
+            ->whereRaw('(' . self::statusExpr($alias) . ") <> 'uncertain'");
+    }
 }

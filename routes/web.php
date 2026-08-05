@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('/survey/stats', '/results/species')->name('survey.stats');
     Route::redirect('/results/species', '/results/charts')->name('results.species');
     Route::view('/results/charts', 'page.results-charts')->name('results.charts');
+    Route::view('/results/guide', 'page.results-guide')->name('results.guide');
     Route::redirect('/data/export', '/results/charts')->name('data.export');
 });
 

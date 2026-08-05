@@ -36,7 +36,7 @@ class FloraGroupStats
             ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
-        $base->whereNotNull('s.spcode');
+        TaiwanChecklistQuery::whereClassified($base);
 
         // 僅外來模式：收歸化 +（可選）栽培
         if ($mode === 'alien-only') {

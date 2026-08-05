@@ -131,6 +131,12 @@
 
 @section('content')
     <h2 class="text-xl font-bold mb-4">調查成果</h2>
-    <p class="mb-4 text-sm text-gray-700">選擇調查範圍與樣區後，可在同一頁查看並下載統計表格及統計圖。</p>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-gray-700">選擇調查範圍與樣區後，可在同一頁查看並下載統計表格及統計圖。</p>
+        <a href="{{ route('results.guide') }}"
+            class="inline-flex items-center rounded border border-forest px-4 py-2 text-sm font-semibold text-forest no-underline hover:bg-forest-mist hover:no-underline">
+            查看資料與算法說明
+        </a>
+    </div>
     <livewire:results-charts />
 @endsection

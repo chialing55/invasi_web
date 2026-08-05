@@ -231,7 +231,7 @@ class SurveyStats extends Component
                 $q->where('census_year', $this->thisCensusYear)
         );
         TaiwanChecklistQuery::joinCurrent($base, 'p');
-        $base->whereNotNull('s.spcode');
+        TaiwanChecklistQuery::whereClassified($base);
             // ->where('s.growth_form', '!=', '')
         $plantListAll=(clone $base)->select(
                 's.spcode',

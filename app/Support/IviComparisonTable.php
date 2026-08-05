@@ -177,6 +177,7 @@ class IviComparisonTable
             ->whereIn('e.plot', $plots)
             ->whereNotNull('p.spcode');
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
 
@@ -199,6 +200,7 @@ class IviComparisonTable
             ->whereIn('p.PLOT_ID', $plots)
             ->whereNotNull('p.spcode');
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         $naturalizedExpr = TaiwanChecklistQuery::naturalizedExpr('s');
 
@@ -220,6 +222,7 @@ class IviComparisonTable
             ->whereIn('e.plot', $plots)
             ->whereNotNull('p.spcode');
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         $totalCov = (float) (clone $base)->sum('p.coverage');
         $totalFreq = (int) (clone $base)
@@ -243,6 +246,7 @@ class IviComparisonTable
             ->whereIn('p.PLOT_ID', $plots)
             ->whereNotNull('p.spcode');
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         $covExpr = "CASE WHEN p.COV REGEXP '^-?[0-9]+(\\\\.[0-9]+)?$' THEN CAST(p.COV AS DECIMAL(12,4)) ELSE 0 END";
         $totalCov = (float) (clone $base)->sum(DB::raw($covExpr));

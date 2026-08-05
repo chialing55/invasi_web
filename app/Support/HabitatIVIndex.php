@@ -11,7 +11,7 @@ class HabitatIVIndex
 {
     /**
      * 各生育地「歸化物種重要值」Top N（IV = RC + RF）
-     * 含unknown
+     * 僅納入成功對應目前名錄，且來源屬性已分類的物種
      * - RC: 100 * cov_i / sum_cov_hab
      * - RF: 100 * freq_i / n_subplots_hab
      *
@@ -39,6 +39,7 @@ class HabitatIVIndex
             ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         // 地被代碼統一回主生育地，其餘補成兩位。
         $habExpr = HabitatCode::normalizedSql('e.habitat_code');
@@ -75,7 +76,7 @@ class HabitatIVIndex
             ->pluck('cov_sum_hab', 'hab');
 
         // 2) 所有物種在各生育地的「頻度總和」分母（⚠️ 用物種別 DISTINCT 再相加）
-        $speciesKeyExpr = "COALESCE(s.spcode, p.spcode)";
+        $speciesKeyExpr = 's.spcode';
         $sumFreqByHab = (clone $base)
             ->selectRaw("{$habExpr} as hab, {$speciesKeyExpr} as sp, COUNT(DISTINCT p.plot_full_id) as n")
             ->groupByRaw("{$habExpr}, {$speciesKeyExpr}")

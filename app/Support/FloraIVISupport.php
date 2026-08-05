@@ -35,7 +35,7 @@ final class FloraIVISupport
 
     /**
      * 依條件產生「歸化物種 IVI 表」：學名為簡化版（無作者），僅拉丁詞斜體
-     * 含unknown
+     * 僅納入成功對應目前名錄，且來源屬性已分類的物種
      */
     public static function iviTable(
         array $selectedPlots,
@@ -51,6 +51,7 @@ final class FloraIVISupport
             ->whereNull('e.deleted_at')
             ->whereIn('e.plot', $selectedPlots);
         TaiwanChecklistQuery::joinCurrent($base, 'p');
+        TaiwanChecklistQuery::whereClassified($base);
 
         // 外來條件
         // $base->where(function ($q) use ($includeCultivated) {
@@ -103,7 +104,7 @@ final class FloraIVISupport
 
         // 4c) 所有物種之「頻度總和」分母（= 各物種在不同小樣方出現數的加總）
         //     不能用單純 DISTINCT 小樣方數，要「先依物種算 distinct，再把各物種相加」
-        $speciesKeyExpr = "COALESCE(s.spcode, p.spcode)";
+        $speciesKeyExpr = 's.spcode';
         $totalFreq = (int) (clone $base)
             ->selectRaw("{$speciesKeyExpr} as sp")
             ->selectRaw('COUNT(DISTINCT p.plot_full_id) as n')

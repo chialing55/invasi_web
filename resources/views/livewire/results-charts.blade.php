@@ -164,11 +164,18 @@
                         <h3 class="font-semibold">下載統計成果</h3>
                         <p class="text-sm text-gray-600">依目前已套用的 {{ count($selectedPlots) }} 個樣區產生統計表格與統計圖。</p>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button type="button" class="btn-submit" wire:click="downloadStatsXlsx">統計表 xlsx</button>
-                        <button type="button" class="btn-submit" wire:click="downloadStatsDocx">統計表 docx</button>
-                        <button type="button" class="btn-submit" wire:click="downloadStatsPdf">統計圖 PDF</button>
-                    </div>
+                    <form method="POST" action="{{ route('downloads.stats') }}" class="flex flex-wrap gap-2">
+                        @csrf
+                        <input type="hidden" name="team" value="{{ $thisTeam }}">
+                        <input type="hidden" name="county" value="{{ $thisCounty }}">
+                        <input type="hidden" name="censusYear" value="{{ $thisCensusYear }}">
+                        @foreach ($selectedPlots as $plot)
+                            <input type="hidden" name="selectedPlots[]" value="{{ $plot }}">
+                        @endforeach
+                        <button type="submit" name="format" value="xlsx" class="btn-submit">統計表 xlsx</button>
+                        <button type="submit" name="format" value="docx" class="btn-submit">統計表 docx</button>
+                        <button type="submit" name="format" value="pdf" class="btn-submit">統計圖 PDF</button>
+                    </form>
                 </div>
             </div>
             @foreach ($sections as $sectionMeta)

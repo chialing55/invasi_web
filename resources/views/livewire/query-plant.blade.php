@@ -21,6 +21,10 @@
                         data-spcode="{{ $item['spcode'] }}"></option>
                 @endforeach
             </datalist>
+
+            @if ($searchMessage !== '')
+                <p class="mt-2 text-sm text-red-700" role="alert">{{ $searchMessage }}</p>
+            @endif
         </div>
     </div>
     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">

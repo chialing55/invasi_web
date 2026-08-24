@@ -2,15 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Exports\StatsChartsPdfExport;
-use App\Exports\StatsDocxExport;
-use App\Exports\StatsMultiSheetExport;
 use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Support\StatsTablesBuilder;
 use Livewire\Component;
-use Maatwebsite\Excel\Excel;
-use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
 
 class ResultsCharts extends Component
 {
@@ -198,51 +193,6 @@ class ResultsCharts extends Component
 
         $this->sections = $this->sectionPlaceholders();
         $this->message = '';
-    }
-
-    public function downloadStatsXlsx()
-    {
-        if (!$this->hasSelectedPlots()) return null;
-
-        return ExcelFacade::download(
-            new StatsMultiSheetExport($this->selectedPlots, 'xlsx'),
-            $this->exportPrefix() . '-statsTable.xlsx',
-            Excel::XLSX
-        );
-    }
-
-    public function downloadStatsDocx()
-    {
-        if (!$this->hasSelectedPlots()) return null;
-
-        return (new StatsDocxExport($this->selectedPlots, $this->countyLabel()))
-            ->download($this->exportPrefix() . '-statsTable.docx');
-    }
-
-    public function downloadStatsPdf(): void
-    {
-        if (!$this->hasSelectedPlots()) return;
-
-        $url = (new StatsChartsPdfExport($this->selectedPlots))
-            ->publicDownloadUrl($this->exportPrefix() . '-statsCharts.pdf');
-        $this->dispatch('download-generated-file', url: $url);
-    }
-
-    private function hasSelectedPlots(): bool
-    {
-        if (!empty($this->selectedPlots)) return true;
-
-        $this->message = '請先套用至少一個樣區，再下載成果。';
-        return false;
-    }
-
-    private function exportPrefix(): string
-    {
-        $scope = $this->thisCounty !== ''
-            ? $this->thisCounty
-            : ($this->thisTeam !== '' ? $this->thisTeam : '全部縣市');
-
-        return $scope . '_' . date('Ymd');
     }
 
     public function toggleSection(string $key): void

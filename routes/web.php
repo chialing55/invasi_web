@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GoogleBindingController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\DataDownloadController;
 use Illuminate\Support\Facades\Auth;
 
 
@@ -38,6 +39,9 @@ Route::get('/email-verified', function () {
 // });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/downloads/data', [DataDownloadController::class, 'raw'])->name('downloads.data');
+    Route::post('/downloads/stats', [DataDownloadController::class, 'stats'])->name('downloads.stats');
+
     Route::view('/profile', 'page.profile')->name('profile.edit');
     Route::view('/docs', 'page.docs')->name('index');
     Route::view('/query/plant', 'page.query-plant')->name('query.plant');

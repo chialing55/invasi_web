@@ -539,6 +539,8 @@
 
             let results = [];
             let selectedIndex = -1;
+            let requestSequence = 0;
+            let requestController = null;
 
             const showDropdown = () => {
                 const rect = input.getBoundingClientRect();
@@ -553,16 +555,28 @@
             };
 
             const fetchSuggestions = (q) => {
+                const sequence = ++requestSequence;
+                requestController?.abort();
+
                 if (!q.trim()) {
+                    requestController = null;
                     results = [];
                     dropdown.innerHTML = "";
                     hideDropdown();
                     return;
                 }
 
-                fetch(`${apiUrl}?q=${encodeURIComponent(q)}`)
+                requestController = new AbortController();
+
+                fetch(`${apiUrl}?q=${encodeURIComponent(q)}`, {
+                    signal: requestController.signal
+                })
                     .then((res) => res.json())
                     .then((data) => {
+                        if (sequence !== requestSequence || q !== input.value) {
+                            return;
+                        }
+
                         results = data;
                         dropdown.innerHTML = "";
                         selectedIndex = -1;
@@ -583,6 +597,11 @@
                         });
 
                         showDropdown();
+                    })
+                    .catch((error) => {
+                        if (error.name !== 'AbortError') {
+                            console.error('Failed to load plant suggestions:', error);
+                        }
                     });
             };
 
@@ -715,17 +734,18 @@
                         //     }
                         // }
                     }
-                } else {
-                    fetchSuggestions(input.value);
                 }
             };
 
 
             const cleanup = () => {
+                requestSequence++;
+                requestController?.abort();
                 dropdown.remove();
             };
 
             input.addEventListener("keydown", handleKey);
+            input.addEventListener("input", () => fetchSuggestions(input.value));
             input.addEventListener("blur", () => {
                 setTimeout(() => {
                     cleanup();

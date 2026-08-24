@@ -9,6 +9,13 @@ export default defineConfig({
         strictPort: true,     // 若 5173 被占用就直接錯誤，不自動換 port
         watch: {
             usePolling: true,   // 解決 Docker 中 Blade 改變不刷新問題
+            interval: 1000,
+            ignored: [
+                '**/node_modules/**',
+                '**/vendor/**',
+                '**/storage/**',
+                '**/public/invasi_files/**',
+            ],
         },
         origin: 'http://localhost:5173', // ✅ 告訴 Laravel 要輸出哪個網址
     },

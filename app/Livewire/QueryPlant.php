@@ -27,6 +27,7 @@ class QueryPlant extends Component
     public $test;
 
     public $suggestions = [];
+    public string $searchMessage = '';
     public $spnameInfo=[];
 
     public function mount(){
@@ -42,10 +43,14 @@ class QueryPlant extends Component
     // dd($this->chnameIndex);
         if ($value === '') {
             $this->suggestions = [];
+            $this->searchMessage = '';
             return;
         }
 
-        $this->suggestions = PlantSearchHelper::plantNameSearchHelper($this->plantName);
+        $this->suggestions = PlantSearchHelper::plantNameSearchHelper($value);
+        $this->searchMessage = $this->suggestions === []
+            ? "查無符合「{$value}」的植物名稱，請嘗試其他中名、學名、別名或科名。"
+            : '';
 
         // if($this->suggestions){
         //     // $this->plantInfo($this->plantCode);
@@ -95,6 +100,7 @@ class QueryPlant extends Component
         if (!$plant) {
             $this->spnameInfo = [];
             $this->suggestions = [];
+            $this->searchMessage = '查無此植物資料，請重新輸入植物名稱。';
             return;
         }
 
@@ -123,6 +129,7 @@ class QueryPlant extends Component
         ]);
         $this->plantName = $this->spnameInfo['chname'];
         $this->suggestions = []; // 清空建議即可
+        $this->searchMessage = '';
         
         $this->comparisonTable = PlantStatHelper::summarizeByCountyAndHabitat($relatedSpcodes);
         // dd($this->comparisonTable);

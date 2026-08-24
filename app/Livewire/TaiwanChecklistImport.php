@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\UnicodeNormalizer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -19,6 +20,13 @@ class TaiwanChecklistImport extends Component
 
     private string $connection = 'invasiflora';
     private string $table = 'taiwan_checklist';
+    private const NORMALIZED_NAME_COLUMNS = [
+        'chname',
+        'chfamily',
+        'canonical_name',
+        'full_name',
+        'family',
+    ];
 
     public function import(): void
     {
@@ -66,6 +74,11 @@ class TaiwanChecklistImport extends Component
 
                         foreach ($importColumns as $column) {
                             $value = $assoc[$column] ?? null;
+
+                            if (is_string($value) && in_array($column, self::NORMALIZED_NAME_COLUMNS, true)) {
+                                $value = UnicodeNormalizer::nfkc($value);
+                            }
+
                             $record[$column] = $value === '' ? null : $value;
                         }
 

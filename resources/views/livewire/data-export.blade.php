@@ -25,6 +25,13 @@
                     ],
                 ];
             @endphp
+            <form method="POST" action="{{ route('downloads.data') }}">
+                @csrf
+                <input type="hidden" name="team" value="{{ $thisTeam }}">
+                <input type="hidden" name="county" value="{{ $thisCounty }}">
+                @foreach ($selectedPlots as $plot)
+                    <input type="hidden" name="selectedPlots[]" value="{{ $plot }}">
+                @endforeach
             <div class="overflow-x-auto">
                 <table class="text-sm border border-gray-300 bg-white">
                     <thead class="bg-[#F9E7AC]">
@@ -44,18 +51,18 @@
                                 <tr>
                                     <td class="border-b px-4 py-2">{{ $label }}</td>
                                     <td class="border-b px-4 py-2 text-center">
-                                        <input type="radio" name="embeddedDataType" value="{{ $xlsx }}" wire:model="dataType">
+                                        <input type="radio" name="dataType" value="{{ $xlsx }}" wire:model="dataType">
                                     </td>
                                     <td class="border-b px-4 py-2 text-center">
                                         @if ($txt)
-                                            <input type="radio" name="embeddedDataType" value="{{ $txt }}" wire:model="dataType">
+                                            <input type="radio" name="dataType" value="{{ $txt }}" wire:model="dataType">
                                         @else
                                             <span class="text-gray-300">—</span>
                                         @endif
                                     </td>
                                     <td class="border-b px-4 py-2 text-center">
                                         @if ($docx)
-                                            <input type="radio" name="embeddedDataType" value="{{ $docx }}" wire:model="dataType">
+                                            <input type="radio" name="dataType" value="{{ $docx }}" wire:model="dataType">
                                         @else
                                             <span class="text-gray-300">—</span>
                                         @endif
@@ -67,8 +74,9 @@
                 </table>
             </div>
             <div class="mt-4 text-right">
-                <button wire:click="downloadSelected" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
+                <button type="submit" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
             </div>
+            </form>
         </div>
     @else
     <h2 class="text-xl font-bold mb-4">其他資料匯出</h2>
@@ -195,7 +203,13 @@
                     </table>
                 </div>
                 <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                <div class='ml-2 mt-3'>
+                <form method="POST" action="{{ route('downloads.data') }}" class='ml-2 mt-3'>
+                    @csrf
+                    <input type="hidden" name="team" value="{{ $thisTeam }}">
+                    <input type="hidden" name="county" value="{{ $thisCounty }}">
+                    @foreach ($selectedPlots as $plot)
+                        <input type="hidden" name="selectedPlots[]" value="{{ $plot }}">
+                    @endforeach
                     @php
                         $downloadSections = [
                             [
@@ -261,9 +275,9 @@
                     </table>
 
                     <div class="mt-4 text-right">
-                        <button wire:click="downloadSelected" class="btn-submit">下載選取資料</button>
+                        <button type="submit" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
                     </div>
-                </div>
+                </form>
             </div>
         @endif
         @if ($message)

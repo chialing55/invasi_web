@@ -122,10 +122,6 @@
             renderResultsChart(event.detail?.chart || event.detail?.[0]?.chart);
         });
 
-        window.addEventListener('download-generated-file', function(event) {
-            const url = event.detail?.url || event.detail?.[0]?.url;
-            if (url) window.location.href = url;
-        });
     </script>
 @endpush
 

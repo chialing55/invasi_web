@@ -7,9 +7,13 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
-# 2. 產生 APP Key
-echo "🔑 產生 APP Key..."
-php artisan key:generate || true
+# 2. 僅在尚未設定時產生 APP Key
+if ! grep -Eq '^APP_KEY=.+$' .env; then
+  echo "🔑 產生 APP Key..."
+  php artisan key:generate
+else
+  echo "🔑 APP Key 已存在，保留目前設定。"
+fi
 
 # echo "🎨 安裝 Breeze"
 # composer require laravel/breeze --dev

@@ -10,7 +10,7 @@
                 依上方目前已套用的 {{ count($selectedPlots) }} 個樣區下載資料。
             </p>
             <p class="-mt-2 mb-4 max-w-[600px] text-sm text-gray-600">
-                預估超過 10,000 筆時，XLSX 可能需數分鐘，建議下載 txt 檔。
+                預估資料超過 10,000 筆時，下載 xlsx 檔可能需數十秒至數分鐘，建議下載 txt 檔。
             </p>
             @php
                 $embeddedSections = [

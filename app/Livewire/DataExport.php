@@ -2,6 +2,13 @@
 
 namespace App\Livewire;
 
+use App\Exports\MissingPlotExport;
+use App\Exports\PlantDataExport;
+use App\Exports\PlantDataExport2010;
+use App\Exports\PlantListExport;
+use App\Exports\PlantListExport2010;
+use App\Exports\PlotExport;
+use App\Exports\PlotExport2010;
 use Livewire\Component;
 
 use App\Models\PlotList2025;
@@ -9,6 +16,7 @@ use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Helpers\PlotCompletedCheckHelper;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class DataExport extends Component
 {
@@ -216,6 +224,41 @@ class DataExport extends Component
 
     public function render()
     {
-        return view('livewire.data-export');
+        return view('livewire.data-export', [
+            'estimatedRowCounts' => $this->estimatedRowCounts(),
+        ]);
+    }
+
+    private function estimatedRowCounts(): array
+    {
+        $plots = array_values(array_unique(array_map('strval', $this->selectedPlots)));
+
+        if ($plots === []) {
+            return [];
+        }
+
+        sort($plots);
+        $cacheKey = 'data-export-row-counts-v1-' . sha1(implode('|', $plots));
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plots): array {
+            $plantList2010 = PlantListExport2010::PlantListDistinctForPlots($plots, 'txt');
+            $plantList = PlantListExport::PlantListDistinctForPlots($plots, 'txt');
+
+            return [
+                'env2010' => (new PlotExport2010($plots, 'txt'))->query()->reorder()->count(),
+                'plant2010' => (new PlantDataExport2010($plots, 'txt'))->query()->reorder()->count(),
+                'plantList2010' => count($plantList2010['rows']),
+                'env' => (new PlotExport($plots, 'txt'))->query()->reorder()->count(),
+                'plant' => (new PlantDataExport($plots, 'txt'))->query()->reorder()->count(),
+                'plantList' => count($plantList['rows']),
+                'reasonsTable' => (new MissingPlotExport($plots, 'txt'))->query()->count(),
+                'allPlantList' => Cache::remember('data-export-all-plant-list-row-count-v1', now()->addMinutes(10), function (): int {
+                    $all = PlantListExport::PlantListAll([], 'txt');
+                    $habitat = PlantListExport::PlantListHabitatPivotWithGroups([], 'txt', false);
+
+                    return count($all['rows']) + count($habitat['rows']);
+                }),
+            ];
+        });
     }
 }

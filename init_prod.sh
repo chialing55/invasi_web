@@ -2,7 +2,11 @@
 set -e
 
 
-php artisan key:generate || true
+if ! grep -Eq '^APP_KEY=.+$' .env; then
+  php artisan key:generate
+else
+  echo "🔑 APP Key 已存在，保留目前設定。"
+fi
 
 
 chmod -R 775 storage bootstrap/cache

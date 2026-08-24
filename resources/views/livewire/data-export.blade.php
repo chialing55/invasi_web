@@ -9,19 +9,22 @@
             <p class="mb-4 text-sm text-gray-600">
                 依上方目前已套用的 {{ count($selectedPlots) }} 個樣區下載資料。
             </p>
+            <p class="-mt-2 mb-4 max-w-[600px] text-sm text-gray-600">
+                預估超過 10,000 筆時，XLSX 可能需數分鐘，建議下載 txt 檔。
+            </p>
             @php
                 $embeddedSections = [
                     '前次調查' => [
-                        ['環境資料', 'env2010.xlsx', 'env2010.txt', null],
-                        ['植物資料', 'plant2010.xlsx', 'plant2010.txt', null],
-                        ['植物名錄', 'plantList2010.xlsx', 'plantList2010.txt', null],
+                        ['環境資料', 'env2010', 'env2010.xlsx', 'env2010.txt', null],
+                        ['植物資料', 'plant2010', 'plant2010.xlsx', 'plant2010.txt', null],
+                        ['植物名錄', 'plantList2010', 'plantList2010.xlsx', 'plantList2010.txt', null],
                     ],
                     '本次調查' => [
-                        ['環境資料', 'env.xlsx', 'env.txt', null],
-                        ['植物資料', 'plant.xlsx', 'plant.txt', null],
-                        ['植物名錄', 'plantList.xlsx', 'plantList.txt', 'plantList.docx'],
-                        ['小樣方未調查原因', 'reasonsTable', null, null],
-                        ['全部植物名錄', 'allPlantList', null, null],
+                        ['環境資料', 'env', 'env.xlsx', 'env.txt', null],
+                        ['植物資料', 'plant', 'plant.xlsx', 'plant.txt', null],
+                        ['植物名錄', 'plantList', 'plantList.xlsx', 'plantList.txt', 'plantList.docx'],
+                        ['小樣方未調查原因', 'reasonsTable', 'reasonsTable', null, null],
+                        ['全部植物名錄', 'allPlantList', 'allPlantList', null, null],
                     ],
                 ];
             @endphp
@@ -47,9 +50,12 @@
                             <tr class="bg-[#D9EAD3]">
                                 <td colspan="4" class="border-b px-4 py-2 font-semibold text-green-950">{{ $title }}</td>
                             </tr>
-                            @foreach ($options as [$label, $xlsx, $txt, $docx])
+                            @foreach ($options as [$label, $countKey, $xlsx, $txt, $docx])
                                 <tr>
-                                    <td class="border-b px-4 py-2">{{ $label }}</td>
+                                    <td class="border-b px-4 py-2">
+                                        {{ $label }}
+                                        <span class="text-xs text-gray-500">（預估資料筆數：{{ number_format($estimatedRowCounts[$countKey] ?? 0) }}）</span>
+                                    </td>
                                     <td class="border-b px-4 py-2 text-center">
                                         <input type="radio" name="dataType" value="{{ $xlsx }}" wire:model="dataType">
                                     </td>
@@ -215,19 +221,19 @@
                             [
                                 'title' => '前次調查',
                                 'options' => [
-                                    ['label' => '環境資料', 'formats' => ['xlsx' => 'env2010.xlsx', 'txt' => 'env2010.txt']],
-                                    ['label' => '植物資料', 'formats' => ['xlsx' => 'plant2010.xlsx', 'txt' => 'plant2010.txt']],
-                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList2010.xlsx', 'txt' => 'plantList2010.txt']],
+                                    ['label' => '環境資料', 'countKey' => 'env2010', 'formats' => ['xlsx' => 'env2010.xlsx', 'txt' => 'env2010.txt']],
+                                    ['label' => '植物資料', 'countKey' => 'plant2010', 'formats' => ['xlsx' => 'plant2010.xlsx', 'txt' => 'plant2010.txt']],
+                                    ['label' => '植物名錄', 'countKey' => 'plantList2010', 'formats' => ['xlsx' => 'plantList2010.xlsx', 'txt' => 'plantList2010.txt']],
                                 ],
                             ],
                             [
                                 'title' => '本次調查',
                                 'options' => [
-                                    ['label' => '環境資料', 'formats' => ['xlsx' => 'env.xlsx', 'txt' => 'env.txt']],
-                                    ['label' => '植物資料', 'formats' => ['xlsx' => 'plant.xlsx', 'txt' => 'plant.txt']],
-                                    ['label' => '植物名錄', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt', 'docx' => 'plantList.docx']],
-                                    ['label' => '小樣方未調查原因', 'formats' => ['xlsx' => 'reasonsTable']],
-                                    ['label' => '全部植物名錄', 'formats' => ['xlsx' => 'allPlantList']],
+                                    ['label' => '環境資料', 'countKey' => 'env', 'formats' => ['xlsx' => 'env.xlsx', 'txt' => 'env.txt']],
+                                    ['label' => '植物資料', 'countKey' => 'plant', 'formats' => ['xlsx' => 'plant.xlsx', 'txt' => 'plant.txt']],
+                                    ['label' => '植物名錄', 'countKey' => 'plantList', 'formats' => ['xlsx' => 'plantList.xlsx', 'txt' => 'plantList.txt', 'docx' => 'plantList.docx']],
+                                    ['label' => '小樣方未調查原因', 'countKey' => 'reasonsTable', 'formats' => ['xlsx' => 'reasonsTable']],
+                                    ['label' => '全部植物名錄', 'countKey' => 'allPlantList', 'formats' => ['xlsx' => 'allPlantList']],
                                 ],
                             ],
                         ];
@@ -252,7 +258,10 @@
                                 </tr>
                                 @foreach ($section['options'] as $option)
                                     <tr>
-                                        <td class="border-b px-4 py-2">{{ $option['label'] }}</td>
+                                        <td class="border-b px-4 py-2">
+                                            {{ $option['label'] }}
+                                            <span class="text-xs text-gray-500">（預估資料筆數：{{ number_format($estimatedRowCounts[$option['countKey']] ?? 0) }}）</span>
+                                        </td>
                                         @foreach ($formatLabels as $format => $label)
                                             <td class="border-b px-4 py-2 text-center">
                                                 @if (isset($option['formats'][$format]))

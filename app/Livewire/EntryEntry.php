@@ -541,6 +541,15 @@ public array $habTypeOptions = [];       // 全部 habitat_code => label
     {
         $this->hasUnderData = '';
         session()->flash('form', 'env');
+
+        // 接受單碼數字輸入，驗證及組合完整樣區編號前統一為兩碼文字。
+        foreach (['habitat_code', 'subplot_id'] as $field) {
+            $value = $this->subPlotEnvForm[$field] ?? null;
+            if ((is_string($value) || is_int($value)) && preg_match('/^[0-9]{1,2}$/D', (string) $value)) {
+                $this->subPlotEnvForm[$field] = str_pad((string) $value, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
         $this->validate(
             $this->subPlotEnvRules(),
             $this->subPlotEnvMessages()

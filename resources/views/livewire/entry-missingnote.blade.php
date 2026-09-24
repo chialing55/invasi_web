@@ -7,10 +7,10 @@
     <div class="space-y-4">
         <div class='md:flex md:gap-4'>
             <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
-                <label class="block font-semibold">選擇調查年度：</label>
+                <label class="block font-semibold">選擇計畫年度：</label>
                 <select id="census_year" wire:model="thisCensusYear" class="border rounded p-2 w-40"
                     wire:change="loadThisCensusYearData($event.target.value)">
-                    <option value="all">-- All --</option>
+                    <option value="">-- All --</option>
                     @foreach ($censusYearList as $year)
                         <option value="{{ $year }}">{{ $year }}</option>
                     @endforeach
@@ -35,6 +35,7 @@
                         <option value="{{ $plot }}">{{ $plot }}</option>
                     @endforeach
                 </select>
+                @error('thisPlot') <span class="text-sm text-red-700">{{ $message }}</span> @enderror
             </div>
         </div>
         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6" role="alert">
@@ -42,6 +43,12 @@
             <ul class="list-disc pl-5 space-y-1 mt-2 text-sm">
                 <li>
                     在該樣區皆已輸入完成後，請至此填寫前次小樣方未調查之原因。
+                </li>
+                <li>
+                    頁面列出的「小樣方編號」，是該樣區前次調查（2010）原本存在，但本次調查資料中尚未找到相同小樣方編號的項目。
+                </li>
+                <li>
+                    選擇樣區時，系統會依目前資料自動重新比對前次與本次小樣方：新增目前仍缺少的項目，並移除已完成資料輸入的項目；仍在清單中的既有未調查原因不會被覆蓋。
                 </li>
                 <li>
                     未調查原因填寫說明：
@@ -52,20 +59,11 @@
                         <li>若更改小樣方編號，請在「其他說明」欄填寫新的小樣方編號。</li>
                     </ul>
                 </li>
-                <li>新增或刪除資料後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
+                <li>填寫或修改未調查原因後，<b>請務必按下儲存鈕</b>，否則切換樣區或離開頁面時，所填寫內容將會遺失。</li>
             </ul>
         </div>
     </div>
     @if ($thisPlot != '' && $plotInfo)
-        <div class="flex gap-4 items-center">
-            <button class="btn-add" type="button" wire:click="reCheckPlotInfo({{ $thisPlot }})">重新比對樣區</button>
-            @if (session()->has('missingnote_sync'))
-                <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 3000)" x-show="show" x-transition
-                    wire:key="sync-msg-{{ now()->format('YmdHisv') }}" id="sync-msg" class="text-red-800">
-                    {{ session('missingnote_sync') }}
-                </div>
-            @endif
-        </div>
         <div class="mt-8 gray-card md:flex md:flex-col mb-4">
             @if (session()->has('plotSaveMessage'))
                 <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 3000)" x-show="show" x-transition

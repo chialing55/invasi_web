@@ -139,7 +139,29 @@ final class HabitatCode
             $cases[] = "WHEN {$column} IN ('{$understory}', {$understory}) THEN '{$main}'";
         }
 
-        return 'CASE ' . implode(' ', $cases)
-            . " ELSE LPAD(CAST({$column} AS CHAR), 2, '0') END";
+        return 'CASE '.implode(' ', $cases)
+            ." ELSE LPAD(CAST({$column} AS CHAR), 2, '0') END";
+    }
+
+    /** 表 3、4 中成對森林的「合併」統計識別碼。 */
+    public static function combinedAnalysisCode(string $mainCode): string
+    {
+        return 'combined-'.$mainCode;
+    }
+
+    /** 表 3、4 顯示名稱：成對森林同時呈現合併、木本與地被。 */
+    public static function analysisLabel(string $code, array $habitatLabels): string
+    {
+        if (str_starts_with($code, 'combined-')) {
+            $mainCode = substr($code, strlen('combined-'));
+
+            return ($habitatLabels[$mainCode] ?? $mainCode).'-合併';
+        }
+
+        if (self::isWood($code)) {
+            return ($habitatLabels[$code] ?? $code).'-木本';
+        }
+
+        return $habitatLabels[$code] ?? $code;
     }
 }

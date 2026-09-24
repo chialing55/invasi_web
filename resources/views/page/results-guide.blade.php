@@ -70,7 +70,7 @@
                     </tr>
                     <tr>
                         <th class="border p-3 text-left align-top">表 3<br>各生育地物種統計與多樣性</th>
-                        <td class="border p-3 align-top">本次調查植物記錄、小樣方生育地與覆蓋度資料。成對的木本上層與林下層以主生育地合併統計。</td>
+                        <td class="border p-3 align-top">本次調查植物記錄、小樣方生育地與覆蓋度資料。天然林、人工林與野化果樹林各自提供木本、地被及木本＋地被合併三種統計。</td>
                         <td class="border p-3 align-top">
                             各生育地的原生、歸化、栽培物種數均以物種去重後計算。<br>
                             歸化種數比例＝歸化種數 ÷（原生＋歸化＋栽培種數）×100。<br>
@@ -79,12 +79,12 @@
                     </tr>
                     <tr class="bg-gray-50">
                         <th class="border p-3 text-left align-top">表 4<br>各生育地歸化物種 IV</th>
-                        <td class="border p-3 align-top">與表 3 相同。</td>
+                        <td class="border p-3 align-top">本次調查植物記錄、小樣方生育地與覆蓋度資料。天然林、人工林與野化果樹林各自提供木本、地被及木本＋地被合併三種統計。</td>
                         <td class="border p-3 align-top">先在各生育地中計算歸化物種的相對覆蓋度與相對頻度，IV＝相對覆蓋度＋相對頻度，再依 IV 由高至低列出前 10 名。公式與表 5 相同。</td>
                     </tr>
                     <tr>
                         <th class="border p-3 text-left align-top">表 5<br>草本小樣方歸化物種 IVI</th>
-                        <td class="border p-3 align-top">本次調查中，除木本生育地以外的植物記錄與覆蓋度資料。</td>
+                        <td class="border p-3 align-top">本次調查中，除木本主樣區以外的植物記錄與覆蓋度資料；包含天然林、人工林及野化果樹林的對應地被樣區（88、99、77）。</td>
                         <td class="border p-3 align-top">列出歸化物種，依 IVI 由高至低排序。平均覆蓋度、相對覆蓋度、相對頻度與 IVI 請見「公式說明」；分母使用同一範圍的全部已分類物種。</td>
                     </tr>
                     <tr class="bg-gray-50">

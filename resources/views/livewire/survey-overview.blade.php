@@ -13,7 +13,7 @@
             <li>樣區調查完成條件：
                 <ol class="list-inside list-decimal">
                     <li>無資料錯誤（覆蓋度為 0 或資料重複）。</li>
-                    <li>各生育地類型皆已完成 5 筆小樣方資料輸入（以選取的生育地類型為準）。</li>
+                    <li>各生育地類型原則上皆須完成 5 筆小樣方資料輸入；已登錄生育地完成例外者，以可調查數量作為核定門檻。</li>
                     <li>所有小樣方皆已上傳照片。</li>
                     <li>樣區資料已完成上傳。</li>
                 </ol>
@@ -312,7 +312,13 @@
 
                                         <td class="border-b px-4 py-2">{{ $row['hab_code'] }} {{ $row['hab_name'] }}
                                         </td>
-                                        <td class="border-b px-4 py-2 text-center">{{ $row['subplot_count_2025'] }}
+                                        <td class="border-b px-4 py-2 text-center">
+                                            @if (($row['required_subplot_count'] ?? 5) < 5)
+                                                {{ $row['subplot_count_2025'] }} / {{ $row['required_subplot_count'] }}
+                                                <div class="text-xs text-amber-700">核定門檻</div>
+                                            @else
+                                                {{ $row['subplot_count_2025'] }}
+                                            @endif
                                         </td>
                                         <td class="border-b px-4 py-2 text-center">{{ $row['unidentified_count'] }}
                                         </td>

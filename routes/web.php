@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('/entry/notes', 'page.entry-notes')->name('entry.notes');
     Route::view('/entry/entry', 'page.entry-entry')->name('entry.entry');
     Route::view('/entry/missingnote', 'page.entry-missingnote')->name('entry.missingnote');
+    Route::view('/entry/habitat-completion-exception', 'page.entry-habitat-completion-exception')
+        ->name('entry.habitat-completion-exception');
     Route::view('/survey/overview', 'page.survey-overview')->name('survey.overview');
     Route::redirect('/survey/stats', '/results/species')->name('survey.stats');
     Route::redirect('/results/species', '/results/charts')->name('results.species');

@@ -4,26 +4,42 @@ namespace App\Livewire;
 
 use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
+use App\Support\PlanYearPlotFilter;
 use App\Support\StatsTablesBuilder;
 use Livewire\Component;
 
 class ResultsCharts extends Component
 {
     public array $yearList = [];
+
     public array $teamList = [];
+
     public array $countyList = [];
+
     public string $thisCensusYear = '';
+
     public string $thisTeam = '';
+
     public string $thisCounty = '';
+
     public array $selectedPlots = [];
+
     public array $draftSelectedPlots = [];
+
     public array $availablePlots = [];
+
     public array $plotFilterCounties = [];
+
     public string $plotSelectionMode = 'all';
+
     public int $plotSelectionRevision = 0;
+
     public array $sections = [];
+
     public array $loadedSections = [];
+
     public array $openSections = [];
+
     public string $message = '';
 
     public function mount(): void
@@ -32,10 +48,11 @@ class ResultsCharts extends Component
             ->distinct()
             ->orderByDesc('census_year')
             ->pluck('census_year')
+            ->map(fn ($year) => (string) $year)
             ->toArray();
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->filter()->values()->toArray();
-        // 預設顯示最新的可用調查年度；使用者仍可從下拉選單切換成 All。
-        $this->thisCensusYear = isset($this->yearList[0]) ? (string) $this->yearList[0] : '';
+        // 優先今年；今年無資料時使用最新計畫年度，仍可切換成 All。
+        $this->thisCensusYear = PlanYearPlotFilter::defaultYear($this->yearList);
         $this->loadCountyList('');
     }
 
@@ -76,8 +93,8 @@ class ResultsCharts extends Component
         $this->message = '';
 
         $this->countyList = PlotList2025::query()
-            ->when($this->thisCensusYear !== '', fn($q) => $q->where('census_year', $this->thisCensusYear))
-            ->when($team !== '', fn($q) => $q->where('team', $team))
+            ->when($this->thisCensusYear !== '', fn ($q) => $q->where('census_year', $this->thisCensusYear))
+            ->when($team !== '', fn ($q) => $q->where('team', $team))
             ->select('county')
             ->distinct()
             ->orderBy('county')
@@ -104,6 +121,7 @@ class ResultsCharts extends Component
         if (empty($this->selectedPlots)) {
             $this->sections = [];
             $this->message = '尚未有調查資料。';
+
             return;
         }
 
@@ -168,7 +186,9 @@ class ResultsCharts extends Component
     public function updatedPlotSelectionMode(string $mode): void
     {
         $this->plotSelectionMode = $mode === 'filter' ? 'filter' : 'all';
-        if ($this->plotSelectionMode !== 'all') return;
+        if ($this->plotSelectionMode !== 'all') {
+            return;
+        }
 
         $this->selectedPlots = array_column($this->availablePlots, 'plot');
         $this->draftSelectedPlots = $this->selectedPlots;
@@ -188,6 +208,7 @@ class ResultsCharts extends Component
         if (empty($this->selectedPlots)) {
             $this->sections = [];
             $this->message = '請至少選擇一個樣區。';
+
             return;
         }
 
@@ -197,11 +218,12 @@ class ResultsCharts extends Component
 
     public function toggleSection(string $key): void
     {
-        $isOpen = !($this->openSections[$key] ?? false);
+        $isOpen = ! ($this->openSections[$key] ?? false);
         $this->openSections[$key] = $isOpen;
 
-        if ($isOpen && !isset($this->loadedSections[$key])) {
+        if ($isOpen && ! isset($this->loadedSections[$key])) {
             $this->loadSection($key);
+
             return;
         }
 
@@ -221,13 +243,13 @@ class ResultsCharts extends Component
     private function loadSection(string $displayKey): void
     {
         $meta = collect($this->sections)->firstWhere('displayKey', $displayKey);
-        if (!$meta || empty($this->selectedPlots)) {
+        if (! $meta || empty($this->selectedPlots)) {
             return;
         }
 
         $cacheKey = $this->sectionCacheKey((string) $meta['sourceKey']);
         $section = session()->get($cacheKey);
-        if (!is_array($section)) {
+        if (! is_array($section)) {
             $raw = StatsTablesBuilder::buildOne((string) $meta['sourceKey'], $this->selectedPlots);
             $section = $raw ? $this->decorateLoadedSection($raw, $meta) : $this->emptyLoadedSection($meta);
             session()->put($cacheKey, $section);
@@ -240,7 +262,7 @@ class ResultsCharts extends Component
     private function dispatchOpenCharts(): void
     {
         foreach ($this->loadedSections as $displayKey => $section) {
-            if (!($this->openSections[$displayKey] ?? false)) {
+            if (! ($this->openSections[$displayKey] ?? false)) {
                 continue;
             }
 
@@ -277,7 +299,7 @@ class ResultsCharts extends Component
         }
 
         return [
-            'id' => 'results-chart-' . $section['displayKey'],
+            'id' => 'results-chart-'.$section['displayKey'],
             'type' => $type,
             'labels' => $labels,
             'datasets' => $type === 'family-comparison'
@@ -296,9 +318,9 @@ class ResultsCharts extends Component
         return SubPlotEnv2025::query()
             ->select('im_splotdata_2025.plot as plot', 'plot_list.county')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->when($this->thisCensusYear !== '', fn($q) => $q->where('plot_list.census_year', $this->thisCensusYear))
-            ->when($this->thisTeam !== '', fn($q) => $q->where('plot_list.team', $this->thisTeam))
-            ->when($this->thisCounty !== '', fn($q) => $q->where('plot_list.county', $this->thisCounty))
+            ->when($this->thisCensusYear !== '', fn ($q) => $q->where('plot_list.census_year', $this->thisCensusYear))
+            ->when($this->thisTeam !== '', fn ($q) => $q->where('plot_list.team', $this->thisTeam))
+            ->when($this->thisCounty !== '', fn ($q) => $q->where('plot_list.county', $this->thisCounty))
             ->distinct()
             ->orderBy('plot_list.county')
             ->orderBy('im_splotdata_2025.plot')
@@ -337,11 +359,11 @@ class ResultsCharts extends Component
     {
         $section = $this->normalizeSection($section + ['rows' => [], 'headings' => [], 'numberCols' => [], 'layouts' => [], 'headerGroups' => []]);
         $section['sourceKey'] = $section['key'];
-        $section['displayKey'] = $type . '-' . $number;
+        $section['displayKey'] = $type.'-'.$number;
         $section['displayNo'] = $number;
         $section['isFigure'] = $type === 'figure';
         $section['isLoaded'] = false;
-        $section['displayTitle'] = ($type === 'figure' ? '圖 ' : '表 ') . $number . ' ' . ($type === 'figure' ? $this->figureTitle($section) : $this->tableTitle($section));
+        $section['displayTitle'] = ($type === 'figure' ? '圖 ' : '表 ').$number.' '.($type === 'figure' ? $this->figureTitle($section) : $this->tableTitle($section));
         $section['displayHeadings'] = [];
 
         return $section;
@@ -355,7 +377,7 @@ class ResultsCharts extends Component
         $section['displayNo'] = $meta['displayNo'];
         $section['isFigure'] = (bool) $meta['isFigure'];
         $section['isLoaded'] = true;
-        $section['displayTitle'] = ($section['isFigure'] ? '圖 ' : '表 ') . $section['displayNo'] . ' ' . ($section['isFigure'] ? $this->figureTitle($section) : $this->tableTitle($section));
+        $section['displayTitle'] = ($section['isFigure'] ? '圖 ' : '表 ').$section['displayNo'].' '.($section['isFigure'] ? $this->figureTitle($section) : $this->tableTitle($section));
         $section['displayHeadings'] = $this->headingsFor($section);
 
         return $section;
@@ -374,7 +396,7 @@ class ResultsCharts extends Component
 
     private function sectionCacheKey(string $sourceKey): string
     {
-        return 'results-charts.v3.' . md5(json_encode([
+        return 'results-charts.v3.'.md5(json_encode([
             'year' => $this->thisCensusYear,
             'team' => $this->thisTeam,
             'county' => $this->thisCounty,
@@ -388,7 +410,7 @@ class ResultsCharts extends Component
         $section['headings'] = isset($section['headings']) && is_array($section['headings'])
             ? array_values($section['headings'])
             : $section['headings'] ?? null;
-        $section['rows'] = array_map(fn($row) => $this->normalizeRow($row), $section['rows'] ?? []);
+        $section['rows'] = array_map(fn ($row) => $this->normalizeRow($row), $section['rows'] ?? []);
         $section['numberCols'] = $this->normalizeValue($section['numberCols'] ?? []);
         $section['layouts'] = $this->normalizeValue($section['layouts'] ?? []);
         $section['headerGroups'] = $this->normalizeValue($section['headerGroups'] ?? []);
@@ -420,6 +442,7 @@ class ResultsCharts extends Component
             foreach ($value as $key => $item) {
                 $normalized[$key] = $this->normalizeValue($item);
             }
+
             return $normalized;
         }
 
@@ -427,6 +450,7 @@ class ResultsCharts extends Component
             if (method_exists($value, '__toString')) {
                 return (string) $value;
             }
+
             return $this->normalizeValue((array) $value);
         }
 
@@ -435,11 +459,12 @@ class ResultsCharts extends Component
 
     private function headingsFor(array $section): array
     {
-        if (!empty($section['headings']) && is_array($section['headings'])) {
+        if (! empty($section['headings']) && is_array($section['headings'])) {
             return $section['headings'];
         }
 
         $first = (array) ($section['rows'][0] ?? []);
+
         return array_keys($first);
     }
 
@@ -448,12 +473,12 @@ class ResultsCharts extends Component
         $county = $this->countyLabel();
 
         return match ((string) ($section['title'] ?? '')) {
-            '類群×特性（全部）' => $county . '調查記錄之全部植物習性統計',
-            '類群×特性（歸化）' => $county . '調查記錄之歸化物種習性統計',
-            '生育地多樣性指數' => $county . '地區各生育地類型之原生、歸化物種各項統計一覽表',
-            '生育地歸化物種IV' => $county . '地區各生育地歸化物種（依重要值排序）',
-            '草本小樣方歸化物種重要數值表' => $county . '地區草本小樣方之歸化物種重要數值一覽表（依 IVI 重要值排序）',
-            '木本小樣方歸化物種重要數值表' => $county . '地區木本小樣方之歸化物種重要數值一覽表（依 IVI 重要值排序）',
+            '類群×特性（全部）' => $county.'調查記錄之全部植物習性統計',
+            '類群×特性（歸化）' => $county.'調查記錄之歸化物種習性統計',
+            '生育地多樣性指數' => $county.'地區各生育地類型之原生、歸化物種各項統計一覽表',
+            '生育地歸化物種IV' => $county.'地區各生育地歸化物種（依重要值排序）',
+            '草本小樣方歸化物種重要數值表' => $county.'地區草本小樣方之歸化物種重要數值一覽表（依 IVI 重要值排序）',
+            '木本小樣方歸化物種重要數值表' => $county.'地區木本小樣方之歸化物種重要數值一覽表（依 IVI 重要值排序）',
             default => $this->dynamicSectionTitle($section),
         };
     }
@@ -463,8 +488,8 @@ class ResultsCharts extends Component
         $county = $this->countyLabel();
 
         return match ((string) ($section['title'] ?? '')) {
-            '歸化物種優勢科 Top 10' => $county . '地區歸化物種優勢科前十名排名圖',
-            '低海拔外來植物優勢科比較圖' => '針對' . $county . '海拔500 m以下的' . ((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0) . '處' : '') . '平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
+            '歸化物種優勢科 Top 10' => $county.'地區歸化物種優勢科前十名排名圖',
+            '低海拔外來植物優勢科比較圖' => '針對'.$county.'海拔500 m以下的'.((int) ($section['plotCount'] ?? 0) > 0 ? (int) ($section['plotCount'] ?? 0).'處' : '').'平地樣區，比較前次與本次調查外來植物優勢科的排序與變化情形。',
             default => (string) ($section['title'] ?? ''),
         };
     }
@@ -475,7 +500,8 @@ class ResultsCharts extends Component
         if (str_ends_with($title, '低海拔IVI比較')) {
             $county = $this->countyLabel();
             $plotCount = (int) ($section['plotCount'] ?? 0);
-            return '針對' . $county . '海拔500 m以下的' . ($plotCount > 0 ? $plotCount . '處' : '') . '平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
+
+            return '針對'.$county.'海拔500 m以下的'.($plotCount > 0 ? $plotCount.'處' : '').'平地樣區，比較本次調查全部物種與前次調查的優勢度排序情形。';
         }
 
         return $title;
@@ -484,8 +510,8 @@ class ResultsCharts extends Component
     private function countyLabel(): string
     {
         $year = $this->thisCensusYear !== ''
-            ? $this->thisCensusYear . '年調查'
-            : '全部調查年度';
+            ? $this->thisCensusYear.'年調查'
+            : '全部計畫年度';
 
         $selectedCounties = PlotList2025::query()
             ->whereIn('plot', $this->selectedPlots)
@@ -508,7 +534,7 @@ class ResultsCharts extends Component
             ? '全部縣市'
             : ($selectedCounties->isNotEmpty() ? $selectedCounties->implode('、') : '未選擇縣市');
 
-        return $year . '之' . $county;
+        return $year.'之'.$county;
     }
 
     public function render()

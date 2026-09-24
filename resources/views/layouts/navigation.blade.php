@@ -32,7 +32,8 @@
                     :routes="[
                         ['label' => '資料輸入注意事項', 'route' => 'entry.notes'],
                         ['label' => '資料輸入', 'route' => 'entry.entry'],
-                        ['label' => '小樣方未調查原因', 'route' => 'entry.missingnote']
+                        ['label' => '小樣方未調查原因', 'route' => 'entry.missingnote'],
+                        ['label' => '生育地完成例外', 'route' => 'entry.habitat-completion-exception']
                     ]"
                 />
                 <div class="relative">
@@ -57,6 +58,8 @@
         <a href="{{ route('query.plot') }}">依樣區查詢</a>
         <a href="{{ route('entry.notes') }}">資料輸入注意事項</a>
         <a href="{{ route('entry.entry') }}">資料輸入</a>
+        <a href="{{ route('entry.missingnote') }}">小樣方未調查原因</a>
+        <a href="{{ route('entry.habitat-completion-exception') }}">生育地完成例外</a>
         <a href="{{ route('survey.overview') }}">調查進度</a>
         <a href="{{ route('results.charts') }}">調查成果</a>
     </div>

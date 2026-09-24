@@ -2,44 +2,52 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use App\Models\PlotList2025;
+use App\Models\Reasons;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotMissing;
-use App\Models\Reasons;
-use App\Models\FixLog;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Auth;
 use App\Services\DataSyncService;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Throwable;
 use App\Support\HabitatCode;
+use App\Support\PlanYearPlotFilter;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Livewire\Component;
 
 class EntryMissingnote extends Component
 {
     public $userOrg;
+
     public $user;
+
     public $creatorCode;
-    public $countyList=[];
+
+    public $countyList = [];
+
     public $thisCounty;
-    public $plotList=[];
-    public $subPlotList=[];
+
+    public $plotList = [];
+
+    public $subPlotList = [];
+
     public $noSubplotData = false;
+
     public $thisPlot;
+
     public $reasonForm = [];
 
-    public $plotInfo = [];   
+    public $plotInfo = [];
+
     public $thisCensusYear;
-    public $censusYearList=[];
-    public $reasonOptions=[];
+
+    public $censusYearList = [];
+
+    public $reasonOptions = [];
 
     public function mount()
     {
         $user = Auth::user(); // 取代 auth()->user()
 
-        if (!$user) {
+        if (! $user) {
             return redirect('/'); // ⬅️ 若未登入，退回首頁
         }
 
@@ -47,67 +55,63 @@ class EntryMissingnote extends Component
         $this->userOrg = $user->organization ?? '未知單位';
         $this->creatorCode = explode('@', $user->email)[0];
         $this->user = $user;
-        $currentYear = (int)date('Y');
-
-        if ($user->role == 'member') {
-            $this->countyList = PlotList2025::select('county')
-                ->where('census_year', $currentYear)
-                ->where('team', $this->userOrg)
-                ->distinct()
-                ->pluck('county')
-                ->toArray(); 
-        } else {
-            $this->countyList = PlotList2025::select('county')
-                ->where('census_year', $currentYear)
-                ->distinct()
-                ->pluck('county')
-                ->toArray();
-        }
-
-        $this->censusYearList = PlotList2025::where('census_year', '>=', 2025)
-            ->distinct()
-            ->orderByDesc('census_year')
-            ->pluck('census_year')
-            ->toArray(); 
-
+        $this->censusYearList = PlanYearPlotFilter::years($user);
         $this->thisPlot = '';
-        $this->thisCensusYear = date('Y');
+        $this->thisCensusYear = PlanYearPlotFilter::defaultYear($this->censusYearList);
+        $this->countyList = $this->thisCensusYear !== ''
+            ? PlanYearPlotFilter::counties($user, $this->thisCensusYear)
+            : [];
         $this->reasonOptions = $this->reasonOptions();
         $this->noMissingSubplotData = false;
     }
 
     public function loadPlots($county)
     {
-
-        $this->plotList = PlotList2025::where('county', $county)
-            ->select('plot')->distinct()->pluck('plot')->toArray();
+        $this->thisCounty = (string) $county;
+        $this->plotList = $this->thisCounty !== ''
+            ? PlanYearPlotFilter::plots($this->user, $this->thisCensusYear, $this->thisCounty)
+            : [];
         $this->thisPlot = '';
         $this->dispatch('reset_missingSubPlot_table');
         $this->dispatch('thisPlotUpdated');
         $this->noMissingSubplotData = false;
 
-       
     }
+
+    public function loadThisCensusYearData($value): void
+    {
+        $this->thisCensusYear = (string) $value;
+        $this->thisCounty = '';
+        $this->thisPlot = '';
+        $this->plotList = [];
+        $this->plotInfo = [];
+        $this->noMissingSubplotData = false;
+
+        $this->countyList = PlanYearPlotFilter::counties($this->user, $this->thisCensusYear);
+
+        $this->dispatch('reset_missingSubPlot_table');
+        $this->dispatch('thisPlotUpdated');
+    }
+
     public function loadPlotInfo($plot)
     {
         // $this->dispatch('reset_habitat');
         $this->thisPlot = $plot;
         $this->dispatch('reset_missingSubPlot_table');
         $this->noMissingSubplotData = false;
+        $this->plotInfo = [];
 
-        // 取得樣區資料
-        $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
-        if ($plotInfo->isEmpty()) {
-            $this->addPlotInfo($plot);
-        } else {
-            $this->plotInfo = $plotInfo->toArray();
-            // dd($this->plotInfo);
-            $this->dispatch('missingSubPlot_table', data: [
-                'data' => $this->plotInfo,
-                'thisPlot' =>$this->thisPlot,
-            ]);
+        if ($this->thisPlot === '') {
+            $this->plotInfo = [];
+
+            return;
         }
-// dd($this->selectedHabitatCodes);
+
+        $this->authorizeSelectedPlot();
+
+        // 選擇樣區時直接依目前資料同步清單，不需另外按重新比對。
+        $this->reCheckPlotInfo($plot, false);
+        // dd($this->selectedHabitatCodes);
     }
 
     public function reasonOptions(): array
@@ -118,16 +122,18 @@ class EntryMissingnote extends Component
             ->get();
 
         $byCode = $rows->keyBy('code');
-        
 
         $buildLabel = function ($code) use ($byCode) {
             $chain = [];
             $cur = $byCode[$code] ?? null;
             while ($cur) {
                 array_unshift($chain, $cur->title); // 往前塞，最後變成「父 / 子 / 孫」
-                if (empty($cur->parent_code)) break;
+                if (empty($cur->parent_code)) {
+                    break;
+                }
                 $cur = $byCode[$cur->parent_code] ?? null;
             }
+
             return implode(' / ', $chain);  // 例：「地被覆蓋度低 / 完全沒有地被」
         };
 
@@ -145,6 +151,7 @@ class EntryMissingnote extends Component
             // dd($label);
             $map[] = ['value' => $r->code, 'label' => $label];
         }
+
         // dd($map);
         return $map;
     }
@@ -153,9 +160,12 @@ class EntryMissingnote extends Component
 
     public function addPlotInfo($plot)
     {
+        $this->thisPlot = (string) $plot;
+        $this->authorizeSelectedPlot();
+
         $payload = $this->comparePlotInfo($plot);
 
-        if (!empty($payload)) {
+        if (! empty($payload)) {
             DB::transaction(function () use ($payload) {
                 SubPlotMissing::insert($payload);
             });
@@ -163,29 +173,29 @@ class EntryMissingnote extends Component
 
         $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
 
-        if($plotInfo->isEmpty()){
-            
+        if ($plotInfo->isEmpty()) {
+            $this->plotInfo = [];
             $this->noMissingSubplotData = true;
         } else {
             $this->plotInfo = $plotInfo->toArray();
             $this->noMissingSubplotData = false;
             $this->dispatch('missingSubPlot_table', data: [
                 'data' => $this->plotInfo,
-                'thisPlot' =>$this->thisPlot,
+                'thisPlot' => $this->thisPlot,
             ]);
         }
 
-             
-
     }
 
-
-    public function reCheckPlotInfo($plot)
+    public function reCheckPlotInfo($plot, bool $showMessage = true)
     {
+        $this->thisPlot = (string) $plot;
+        $this->authorizeSelectedPlot();
+
         $payload = $this->comparePlotInfo($plot);
-// dd($payload);
+        // dd($payload);
         // 2) 寫入（避免覆蓋既有資料）
-    // 既有 & 新計算的鍵集合
+        // 既有 & 新計算的鍵集合
         $existingKeys = SubPlotMissing::on('invasiflora')
             ->where('plot', $plot)
             ->pluck('plot_full_id_2010')
@@ -196,24 +206,24 @@ class EntryMissingnote extends Component
         // 準備差集
         $keysToDelete = array_values(array_diff($existingKeys, $newKeys));
         $rowsToInsert = array_values(array_filter($payload, function ($r) use ($existingKeys) {
-            return !in_array($r['plot_full_id_2010'], $existingKeys, true);
+            return ! in_array($r['plot_full_id_2010'], $existingKeys, true);
         }));
 
         // 交易：先刪後增
         DB::connection('invasiflora')->transaction(function () use ($plot, $keysToDelete, $rowsToInsert) {
-            if (!empty($keysToDelete)) {
+            if (! empty($keysToDelete)) {
                 SubPlotMissing::on('invasiflora')
                     ->where('plot', $plot)
                     ->whereIn('plot_full_id_2010', $keysToDelete)
                     ->delete();
             }
-            if (!empty($rowsToInsert)) {
+            if (! empty($rowsToInsert)) {
                 SubPlotMissing::on('invasiflora')->insert($rowsToInsert);
             }
         });
 
         // 訊息
-        $added   = count($rowsToInsert);
+        $added = count($rowsToInsert);
         $removed = count($keysToDelete);
         $msg = ($added === 0 && $removed === 0)
             ? '無需更新：清單一致。'
@@ -223,30 +233,33 @@ class EntryMissingnote extends Component
 
         $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
 
-        if($plotInfo->isEmpty()){
-            
+        if ($plotInfo->isEmpty()) {
+            $this->plotInfo = [];
             $this->noMissingSubplotData = true;
         } else {
             $this->plotInfo = $plotInfo->toArray();
             $this->noMissingSubplotData = false;
             $this->dispatch('missingSubPlot_table', data: [
                 'data' => $this->plotInfo,
-                'thisPlot' =>$this->thisPlot,
+                'thisPlot' => $this->thisPlot,
             ]);
         }
 
-        session()->flash('missingnote_sync', $msg);  
+        if ($showMessage) {
+            session()->flash('missingnote_sync', $msg);
+        }
     }
-    
+
     public function comparePlotInfo($plot)
     {
         $kExpr = "CONCAT(t.PLOT_ID, t.HAB_TYPE, LPAD(t.SUB_ID, 2, '0'))";
 
-        // 2025 的所有樣區編號（去重）
+        // 只取本次所選 plot 的樣區編號（去重），避免每次切換樣區掃描整張資料表。
         $s2025 = DB::connection('invasiflora')->table('im_splotdata_2025 as s')
             ->whereNull('s.deleted_at')
+            ->where('s.plot', $plot)
             ->selectRaw('DISTINCT s.plot_full_id AS k_2025');
-            // 若需排除衍生地被，應使用 HabitatCode::understoryCodes()。
+        // 若需排除衍生地被，應使用 HabitatCode::understoryCodes()。
 
         // 2010 該 plot 的組合 k，去重；過濾掉 2025 已存在的
         $rows = DB::connection('invasiflora')->table('im_splotdata_2010 as t')
@@ -261,12 +274,12 @@ class EntryMissingnote extends Component
             ->get();
 
         // 只保留需要的四個欄位
-        $plotInfo = $rows->map(fn($r) => [
-            'county'            => $this->thisCounty,  
-            'plot'              => (int) $r->plot,
+        $plotInfo = $rows->map(fn ($r) => [
+            'county' => $this->thisCounty,
+            'plot' => (int) $r->plot,
             'plot_full_id_2010' => (string) $r->k,
-            'not_done_reason_code'   => '',
-            'description'       => '',
+            'not_done_reason_code' => '',
+            'description' => '',
         ])->values()->all();        // 可以在這裡處理屬性更新後的邏輯
 
         $alterMap = $this->alterPlotID($plot);        // 例如：['8010010102' => '8010010201', ...]
@@ -274,32 +287,32 @@ class EntryMissingnote extends Component
         $alterMap = is_array($alterMap) ? $alterMap : ($alterMap?->all() ?? []);
 
         $payload = collect($plotInfo)->map(function ($r) use ($plot, $alterMap) {
-            $k2010 = (string)($r['plot_full_id_2010'] ?? '');
-            $hit   = isset($alterMap[$k2010]);
+            $k2010 = (string) ($r['plot_full_id_2010'] ?? '');
+            $hit = isset($alterMap[$k2010]);
 
             // 預設用原本資料
-            $desc   = (string)($r['description'] ?? '');
-            $reason = (string)($r['not_done_reason_code'] ?? '');
+            $desc = (string) ($r['description'] ?? '');
+            $reason = (string) ($r['not_done_reason_code'] ?? '');
 
             if ($hit) {
-                $target = (string)$alterMap[$k2010];          // 目標 plot_full_id
+                $target = (string) $alterMap[$k2010];          // 目標 plot_full_id
                 // 取第 7–8 位（1-based）；PHP substr 0-based → 從 6 開始取 2 碼
-                $hab78  = (strlen($target) >= 8) ? substr($target, 6, 2) : null;
+                $hab78 = (strlen($target) >= 8) ? substr($target, 6, 2) : null;
                 // 衍生地被樣區 → description = '1'，否則 = 目標 ID
-                $reason  = HabitatCode::isUnderstory($hab78) ? '1' : '5-2-1';
+                $reason = HabitatCode::isUnderstory($hab78) ? '1' : '5-2-1';
                 $desc = $target;
             }
 
             return [
-                'county'             => (string)($r['county'] ?? ''),
-                'plot'               => (int)$plot,
-                'plot_full_id_2010'  => $k2010,
-                'not_done_reason_code'    => $reason,
-                'description'        => $desc,
-                'created_at'         => now(),
-                'created_by'         => $this->creatorCode,
-                'updated_at'         => now(),
-                'updated_by'         => '',
+                'county' => (string) ($r['county'] ?? ''),
+                'plot' => (int) $plot,
+                'plot_full_id_2010' => $k2010,
+                'not_done_reason_code' => $reason,
+                'description' => $desc,
+                'created_at' => now(),
+                'created_by' => $this->creatorCode,
+                'updated_at' => now(),
+                'updated_by' => '',
             ];
         })->all();
 
@@ -311,46 +324,82 @@ class EntryMissingnote extends Component
         $rows = SubPlotEnv2025::where('plot', $plot)
             ->whereNotNull('original_plot_id')
             ->where('original_plot_id', '!=', '')
-            ->get(['original_plot_id','plot_full_id']);
+            ->get(['original_plot_id', 'plot_full_id']);
 
         $map = $rows->isNotEmpty()
-            ? $rows->mapWithKeys(fn($r) => [
-                (string)$plot . (string)$r->original_plot_id => (string)$r->plot_full_id
+            ? $rows->mapWithKeys(fn ($r) => [
+                (string) $plot.(string) $r->original_plot_id => (string) $r->plot_full_id,
             ])->all()
             : [];
+
         return $map;
-    }   
+    }
 
-    public function missingReasonSave(){
-        $newData = $this->reasonForm;
-        $originalData = $this->plotInfo;
-        $columns = Schema::connection('invasiflora')->getColumnListing('sub_plot_missing');
+    public function missingReasonSave()
+    {
+        $this->authorizeSelectedPlot();
 
-        $columns = array_diff($columns, [
-            'created_by', 'updated_by', 'created_at', 'updated_at'
-        ]);
+        // 公開 Livewire 屬性可被前端改寫，儲存前重新從 DB 取得本樣區清單，
+        // 並只接受「未調查原因」與「說明」兩個可編輯欄位。
+        $originalData = SubPlotMissing::query()
+            ->where('plot', $this->thisPlot)
+            ->orderBy('plot_full_id_2010')
+            ->get()
+            ->toArray();
+        $originalById = collect($originalData)->keyBy(fn ($row) => (string) $row['id']);
+        $submittedById = collect($this->reasonForm)->keyBy(fn ($row) => (string) ($row['id'] ?? ''));
+        $unknownIds = $submittedById->keys()->filter(fn ($id) => ! $originalById->has($id));
 
-        $columns = array_values($columns); // 儲存欄位順序
+        if ($unknownIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'reasonForm' => '送出資料與目前樣區清單不符，請重新選擇樣區後再試。',
+            ]);
+        }
+
+        $newData = $originalById->map(function ($original, $id) use ($submittedById) {
+            $submitted = $submittedById->get($id, []);
+
+            return array_merge($original, [
+                'not_done_reason_code' => (string) ($submitted['not_done_reason_code'] ?? $original['not_done_reason_code'] ?? ''),
+                'description' => (string) ($submitted['description'] ?? $original['description'] ?? ''),
+            ]);
+        })->values()->all();
+
         $changed = DataSyncService::syncById(
             modelClass: SubPlotMissing::class,
             originalData: $originalData,
             newData: $newData,
-            fields: $columns,
-            createExtra: ['created_by' => $this->creatorCode],
+            fields: ['not_done_reason_code', 'description'],
+            createExtra: [],
             updateExtra: ['updated_by' => $this->creatorCode],
             requiredFields: [],
             userCode: $this->creatorCode
-        );        
-        session()->flash('plotSaveMessage', $changed ? '資料已更新' : '無任何變更'); 
+        );
+        session()->flash('plotSaveMessage', $changed ? '資料已更新' : '無任何變更');
 
         $this->plotInfo = SubPlotMissing::where('plot', $this->thisPlot)->orderBy('plot_full_id_2010')->get()->toArray();
 
         $this->dispatch('missingSubPlot_table', data: [
             'data' => $this->plotInfo,
-            'thisPlot' =>$this->thisPlot,
-        ]);         
+            'thisPlot' => $this->thisPlot,
+        ]);
     }
 
+    private function authorizeSelectedPlot(): void
+    {
+        $accessible = $this->thisPlot !== ''
+            && PlanYearPlotFilter::query($this->user, $this->thisCensusYear)
+                ->where('plot', $this->thisPlot)
+                ->exists();
+
+        if (! $accessible) {
+            $this->thisPlot = '';
+            $this->plotInfo = [];
+            throw ValidationException::withMessages([
+                'thisPlot' => '無權限操作此樣區，或樣區不屬於所選計畫年度。',
+            ]);
+        }
+    }
 
     public function render()
     {

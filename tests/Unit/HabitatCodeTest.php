@@ -41,4 +41,28 @@ class HabitatCodeTest extends TestCase
         $this->assertStringContainsString("'99', 99) THEN '09'", $sql);
         $this->assertStringContainsString("'77', 77) THEN '19'", $sql);
     }
+
+    public function test_selected_codes_are_canonicalized_deduplicated_and_linked(): void
+    {
+        $this->assertSame(
+            ['01', '08', '88'],
+            HabitatCode::normalizeSelectedCodes([1, '08', '08', '88'])
+        );
+        $this->assertSame([], HabitatCode::normalizeSelectedCodes(['88']));
+    }
+
+    public function test_unknown_or_malformed_selected_codes_are_rejected(): void
+    {
+        foreach (['55', 'abc', '../08'] as $invalid) {
+            try {
+                HabitatCode::normalizeSelectedCodes([$invalid]);
+                $this->fail("Expected {$invalid} to be rejected.");
+            } catch (\InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+
+        $this->expectException(\InvalidArgumentException::class);
+        HabitatCode::normalizeSelectedCodes([['08']]);
+    }
 }

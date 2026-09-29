@@ -175,6 +175,11 @@
                 title: "其他說明",
                 field: "description",
                 editor: "input",
+                editorParams: {
+                    elementAttributes: {
+                        maxlength: "500",
+                    },
+                },
                 width: 200
             },
             {

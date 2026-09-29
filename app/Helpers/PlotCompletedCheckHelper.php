@@ -37,8 +37,8 @@ class PlotCompletedCheckHelper
         ])->all();
 
         if ($thisEnvData->isNotEmpty()) {
-            // 1. $dataCorrect：如果 $thisPlantData 有 data_error = 1 的資料
-            $dataCorrect = $thisPlantData->contains('data_error', 1) ? '0' : '1';
+            // 1. $dataCorrect：任何非 0 的 data_error 都代表資料尚未修正。
+            $dataCorrect = self::hasPlantDataError($thisPlantData) ? '0' : '1';
 
             // 2. $subPlotImage：檢查 $thisEnvData 中 file_uploaded_at 欄位是否全都有值
             $subPlotImage = $thisEnvData->every(function ($row) {
@@ -173,7 +173,7 @@ class PlotCompletedCheckHelper
         ])->all();
         // dd($thisEnvData->toArray(), $thisPlantData->toArray(), $thisPLotData->toArray(), $thisHabData->toArray());
         if ($thisEnvData->isNotEmpty()) {
-            $dataCorrect = $thisPlantData->contains('data_error', 1) ? '0' : '1';
+            $dataCorrect = self::hasPlantDataError($thisPlantData) ? '0' : '1';
 
             $subPlotImage = $thisEnvData->every(fn ($row) => ! empty($row->file_uploaded_at)) ? '1' : '0';
 
@@ -206,5 +206,16 @@ class PlotCompletedCheckHelper
             'plotFile', 'plotHabData', 'plotCompleted', 'plotHasData', 'plotCensusYear',
             'habitatThresholds'
         );
+    }
+
+    public static function hasPlantDataError(iterable $plantData): bool
+    {
+        foreach ($plantData as $row) {
+            if ((int) data_get($row, 'data_error', 0) !== 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

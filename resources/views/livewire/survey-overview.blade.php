@@ -223,7 +223,7 @@
                 <div class="mb-4 gap-4 md:flex md:flex-row">
                     <div class="mb-4 gap-2 md:mb-0 md:flex md:flex-row md:items-center"
                         wire:key="refresh-{{ $refreshKey }}">
-                        <label class="block font-semibold">選擇資料所屬年度：</label>
+                        <label class="block font-semibold">選擇計畫年度：</label>
                         <select id="census_year" wire:model="thisCensusYear" class="w-40 rounded border p-2"
                             wire:change="loadThisCensusYearData($event.target.value)">
                             <option value="all">-- All --</option>

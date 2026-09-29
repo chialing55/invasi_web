@@ -9,8 +9,11 @@ use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2025;
 use App\Support\HabitatCode;
+use App\Support\PlanYearPlotFilter;
+use App\Support\PlotFileAccess;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 class SurveyOverview extends Component
@@ -28,12 +31,12 @@ class SurveyOverview extends Component
     private function findSubPlotPhotoUrl(string $county, string $plot, string $plotFullID): ?string
     {
         $habitatCode = substr($plotFullID, 6, 2);
-        $baseDir = "invasi_files/subPlotPhoto/{$county}/{$plot}/{$habitatCode}";
+        $baseDir = "subPlotPhoto/{$county}/{$plot}/{$habitatCode}";
 
         foreach ($this->photoExts as $ext) {
             $relativePath = "{$baseDir}/{$plotFullID}.{$ext}";
-            if (file_exists(public_path($relativePath))) {
-                return asset($relativePath);
+            if (Storage::disk('invasi_files')->exists($relativePath)) {
+                return route('file.subplot-photo', ['plotFullId' => $plotFullID]);
             }
         }
 
@@ -230,8 +233,8 @@ class SurveyOverview extends Component
 
     public function loadThisCensusYearData($value)
     {
-        $this->thisCensusYear = $value;
-        $this->surveryedPlotInfo($this->thisCounty);
+        $this->thisCensusYear = $value === 'all' ? '' : (string) $value;
+        $this->loadCountyProgress((string) $this->thisCounty, true);
     }
 
     public function surveryedPlotInfo($thisCounty)
@@ -246,57 +249,80 @@ class SurveyOverview extends Component
             $this->thisCounty = '';
             $this->thisCensusYear = (int) date('Y');
         } else {
-            $this->showContyInfo = collect($this->allContyInfo)
-                ->filter(function ($row) use ($thisCounty) {
-                    return $row['county'] === $thisCounty;
-                })
-                ->values()
-                ->toArray();
-            $this->thisCounty = $thisCounty;
-            if ($this->thisCensusYear == 'all') {
-                $this->thisCensusYear = '';
-            }
-
-            // 取得樣區清單
-
-            $plotList = PlotList2025::query()
-                ->where('county', $thisCounty)
-                ->when(! blank($this->thisCensusYear), fn ($q) => $q->where('census_year', $this->thisCensusYear)
-                )
-                ->pluck('plot')
-                ->toArray();
-            if (empty($plotList)) {
-                $this->thisCensusYear = '';
-                $plotList = PlotList2025::where('county', $thisCounty)->pluck('plot')->toArray();
-            }
-
-            $this->censusYearList = PlotList2025::where('county', $thisCounty)
-                ->where('census_year', '>=', 2025)
-                ->distinct()
-                ->orderByDesc('census_year')
-                ->pluck('census_year')
-                ->toArray();
-
-            $this->plotList = $plotList;
-            $this->filteredSubPlotSummary = [];
-            $this->subPlotSummary = [];
-            $this->thisPlot = '';
-            $this->dispatch('thisPlotUpdated');
-            $this->thisPlotFile = null;
-
-            $this->loadAllPlotInfo($plotList);
+            $this->loadCountyProgress((string) $thisCounty, false);
         }
 
+    }
+
+    private function loadCountyProgress(string $county, bool $preserveYear): void
+    {
+        abort_unless(in_array($county, $this->countyList, true), 404);
+
+        $this->showContyInfo = collect($this->allContyInfo)
+            ->where('county', $county)
+            ->values()
+            ->all();
+        $this->thisCounty = $county;
+        $this->censusYearList = PlotList2025::where('county', $county)
+            ->where('census_year', '>=', 2025)
+            ->distinct()
+            ->orderByDesc('census_year')
+            ->pluck('census_year')
+            ->map(fn ($year) => (string) $year)
+            ->all();
+
+        if ($preserveYear) {
+            abort_unless(
+                $this->thisCensusYear === '' || in_array((string) $this->thisCensusYear, $this->censusYearList, true),
+                404
+            );
+        } else {
+            $this->thisCensusYear = PlanYearPlotFilter::defaultYear($this->censusYearList);
+        }
+
+        $plotList = PlotList2025::query()
+            ->where('county', $county)
+            ->when($this->thisCensusYear !== '', fn ($query) => $query->where('census_year', $this->thisCensusYear))
+            ->distinct()
+            ->orderBy('plot')
+            ->pluck('plot')
+            ->map(fn ($plot) => (string) $plot)
+            ->all();
+
+        if ($plotList === [] && $this->thisCensusYear !== '') {
+            $this->thisCensusYear = '';
+            $plotList = PlotList2025::where('county', $county)
+                ->distinct()
+                ->orderBy('plot')
+                ->pluck('plot')
+                ->map(fn ($plot) => (string) $plot)
+                ->all();
+        }
+
+        $this->plotList = $plotList;
+        $this->thisPlotWithStatus = PlotCompletedCheckHelper::getPlotCompletedInfoForPlots($plotList);
+        $this->filteredSubPlotSummary = [];
+        $this->subPlotSummary = [];
+        $this->thisPlot = '';
+        $this->dispatch('thisPlotUpdated');
+        $this->thisPlotFile = null;
+
+        $this->loadAllPlotInfo($plotList);
     }
 
     public $thisPlotFile = null;
 
     public function loadAllPlotInfo($plotList)
     {
-
         $summary = [];
-        foreach ($plotList as $plot) {
+        $plotRows = PlotList2025::whereIn('plot', $plotList)
+            ->when($this->thisCensusYear !== '', fn ($query) => $query->where('census_year', $this->thisCensusYear))
+            ->orderByDesc('census_year')
+            ->get()
+            ->unique('plot')
+            ->keyBy('plot');
 
+        foreach ($plotList as $plot) {
             $data = PlotCompletedHelper::plotCompleted($plot);
             // $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
             $status = collect($this->thisPlotWithStatus)->firstWhere('plot', $plot);
@@ -304,11 +330,13 @@ class SurveyOverview extends Component
             $plotHabList = $data['habTypeOptions'];
             // dd($plotHabList);
 
-            $relativePath = "invasi_files/plotData/{$this->thisCounty}/{$plot}.pdf";
-            $fullPath = public_path($relativePath);
+            $plotRow = $plotRows->get($plot);
+            $canViewFiles = PlotFileAccess::allows(Auth::user(), $plotRow?->team);
+            $relativePath = "plotData/{$plotRow?->county}/{$plot}.pdf";
+            $disk = Storage::disk('invasi_files');
 
-            if (file_exists($fullPath)) {
-                $thisPlotFile = route('file.view', ['path' => $relativePath]).'?v='.filemtime($fullPath);
+            if ($canViewFiles && $plotRow && $disk->exists($relativePath)) {
+                $thisPlotFile = route('file.plot', ['plot' => $plot]).'?v='.$disk->lastModified($relativePath);
             } else {
                 $thisPlotFile = null;
             }
@@ -406,9 +434,11 @@ class SurveyOverview extends Component
             $this->thisPlotFile = $index !== false ? $this->allPlotInfo[$index]['plotFile'] : null;
         }
 
-        $thisPlotTeam = PlotList2025::where('plot', $value)
-            ->pluck('team')
+        $plotRow = PlotList2025::where('plot', $value)
+            ->orderByDesc('census_year')
             ->first();
+        $thisPlotTeam = $plotRow?->team;
+        $canViewFiles = PlotFileAccess::allows(Auth::user(), $thisPlotTeam);
 
         $this->filteredSubPlotSummary = [];
         if ($value == '') {
@@ -467,7 +497,7 @@ class SurveyOverview extends Component
                 $plotQuery = optional($plotQueries->get($plotFullID))->toArray();
                 $plantStat = $plantStats->get($plotFullID);
 
-                if (($plotQuery['file_uploaded_at'] ?? null) != null) {
+                if ($canViewFiles && ($plotQuery['file_uploaded_at'] ?? null) != null) {
                     $photopath = $this->findSubPlotPhotoUrl($this->thisCounty, $this->thisPlot, $plotFullID);
                 }
 

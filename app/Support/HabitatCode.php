@@ -131,6 +131,27 @@ final class HabitatCode
         return array_values(array_unique($codes));
     }
 
+    public static function normalizeSelectedCodes(array $codes): array
+    {
+        $normalized = [];
+
+        foreach ($codes as $code) {
+            if ((! is_string($code) && ! is_int($code))
+                || preg_match('/^[0-9]{1,2}$/D', (string) $code) !== 1) {
+                throw new \InvalidArgumentException('生育地類型包含不合法的代碼。');
+            }
+
+            $code = str_pad((string) $code, 2, '0', STR_PAD_LEFT);
+            if (! in_array($code, self::allowedCodes(), true)) {
+                throw new \InvalidArgumentException("生育地類型代碼 {$code} 不在允許清單中。");
+            }
+
+            $normalized[] = $code;
+        }
+
+        return self::syncSelectedCodes(array_values(array_unique($normalized)));
+    }
+
     /** 將地被代碼合併回主生育地，供 Shannon／IV 等 SQL 共用。 */
     public static function normalizedSql(string $column): string
     {

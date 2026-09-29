@@ -8,6 +8,7 @@ use App\Models\SubPlotMissing;
 use App\Services\DataSyncService;
 use App\Support\HabitatCode;
 use App\Support\PlanYearPlotFilter;
+use App\Support\RecordStateGuard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,8 @@ class EntryMissingnote extends Component
 
     public $reasonOptions = [];
 
+    public string $stateToken = '';
+
     public function mount()
     {
         $user = Auth::user(); // 取代 auth()->user()
@@ -72,6 +75,7 @@ class EntryMissingnote extends Component
             ? PlanYearPlotFilter::plots($this->user, $this->thisCensusYear, $this->thisCounty)
             : [];
         $this->thisPlot = '';
+        $this->stateToken = '';
         $this->dispatch('reset_missingSubPlot_table');
         $this->dispatch('thisPlotUpdated');
         $this->noMissingSubplotData = false;
@@ -83,6 +87,7 @@ class EntryMissingnote extends Component
         $this->thisCensusYear = (string) $value;
         $this->thisCounty = '';
         $this->thisPlot = '';
+        $this->stateToken = '';
         $this->plotList = [];
         $this->plotInfo = [];
         $this->noMissingSubplotData = false;
@@ -97,6 +102,7 @@ class EntryMissingnote extends Component
     {
         // $this->dispatch('reset_habitat');
         $this->thisPlot = $plot;
+        $this->stateToken = '';
         $this->dispatch('reset_missingSubPlot_table');
         $this->noMissingSubplotData = false;
         $this->plotInfo = [];
@@ -172,6 +178,7 @@ class EntryMissingnote extends Component
         }
 
         $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
+        $this->stateToken = $this->missingReasonStateToken($plotInfo);
 
         if ($plotInfo->isEmpty()) {
             $this->plotInfo = [];
@@ -232,6 +239,7 @@ class EntryMissingnote extends Component
         // 重新載入 & 回傳前端
 
         $plotInfo = SubPlotMissing::where('plot', $plot)->orderBy('plot_full_id_2010')->get();
+        $this->stateToken = $this->missingReasonStateToken($plotInfo);
 
         if ($plotInfo->isEmpty()) {
             $this->plotInfo = [];
@@ -339,50 +347,120 @@ class EntryMissingnote extends Component
     {
         $this->authorizeSelectedPlot();
 
-        // 公開 Livewire 屬性可被前端改寫，儲存前重新從 DB 取得本樣區清單，
-        // 並只接受「未調查原因」與「說明」兩個可編輯欄位。
-        $originalData = SubPlotMissing::query()
-            ->where('plot', $this->thisPlot)
-            ->orderBy('plot_full_id_2010')
-            ->get()
-            ->toArray();
-        $originalById = collect($originalData)->keyBy(fn ($row) => (string) $row['id']);
-        $submittedById = collect($this->reasonForm)->keyBy(fn ($row) => (string) ($row['id'] ?? ''));
-        $unknownIds = $submittedById->keys()->filter(fn ($id) => ! $originalById->has($id));
+        $changed = DB::connection('invasiflora')->transaction(function () {
+            $activeReasonCodes = Reasons::query()
+                ->where('active', 1)
+                ->pluck('code')
+                ->map(fn ($code) => (string) $code)
+                ->all();
+            $this->validateReasonForm($this->reasonForm, $activeReasonCodes);
 
-        if ($unknownIds->isNotEmpty()) {
-            throw ValidationException::withMessages([
-                'reasonForm' => '送出資料與目前樣區清單不符，請重新選擇樣區後再試。',
-            ]);
-        }
+            // 鎖定該樣區目前清單，避免版本檢查與更新之間又被另一個分頁修改。
+            $originalRecords = SubPlotMissing::query()
+                ->where('plot', $this->thisPlot)
+                ->orderBy('plot_full_id_2010')
+                ->lockForUpdate()
+                ->get();
+            RecordStateGuard::assertToken(
+                $this->stateToken,
+                'missing-reasons:'.$this->thisPlot,
+                $this->missingReasonState($originalRecords),
+                'reasonForm',
+                '小樣方清單或原因資料已變更，請重新選擇樣區後再儲存。'
+            );
+            $this->assertReasonFormVersions($originalRecords, $this->reasonForm);
 
-        $newData = $originalById->map(function ($original, $id) use ($submittedById) {
-            $submitted = $submittedById->get($id, []);
+            // 公開 Livewire 屬性可被前端改寫，只接受已核對資料列的兩個可編輯欄位。
+            $originalData = $originalRecords->toArray();
+            $originalById = collect($originalData)->keyBy(fn ($row) => (string) $row['id']);
+            $submittedById = collect($this->reasonForm)->keyBy(fn ($row) => (string) $row['id']);
+            $newData = $originalById->map(function ($original, $id) use ($submittedById) {
+                $submitted = $submittedById->get($id);
 
-            return array_merge($original, [
-                'not_done_reason_code' => (string) ($submitted['not_done_reason_code'] ?? $original['not_done_reason_code'] ?? ''),
-                'description' => (string) ($submitted['description'] ?? $original['description'] ?? ''),
-            ]);
-        })->values()->all();
+                return array_merge($original, [
+                    'not_done_reason_code' => (string) ($submitted['not_done_reason_code'] ?? ''),
+                    'description' => (string) ($submitted['description'] ?? ''),
+                ]);
+            })->values()->all();
 
-        $changed = DataSyncService::syncById(
-            modelClass: SubPlotMissing::class,
-            originalData: $originalData,
-            newData: $newData,
-            fields: ['not_done_reason_code', 'description'],
-            createExtra: [],
-            updateExtra: ['updated_by' => $this->creatorCode],
-            requiredFields: [],
-            userCode: $this->creatorCode
-        );
+            return DataSyncService::syncById(
+                modelClass: SubPlotMissing::class,
+                originalData: $originalData,
+                newData: $newData,
+                fields: ['not_done_reason_code', 'description'],
+                createExtra: [],
+                updateExtra: ['updated_by' => $this->creatorCode],
+                requiredFields: [],
+                userCode: $this->creatorCode
+            );
+        });
         session()->flash('plotSaveMessage', $changed ? '資料已更新' : '無任何變更');
 
-        $this->plotInfo = SubPlotMissing::where('plot', $this->thisPlot)->orderBy('plot_full_id_2010')->get()->toArray();
+        $savedRecords = SubPlotMissing::where('plot', $this->thisPlot)->orderBy('plot_full_id_2010')->get();
+        $this->plotInfo = $savedRecords->toArray();
+        $this->stateToken = $this->missingReasonStateToken($savedRecords);
 
         $this->dispatch('missingSubPlot_table', data: [
             'data' => $this->plotInfo,
             'thisPlot' => $this->thisPlot,
         ]);
+    }
+
+    /**
+     * @param  array<int, mixed>  $rows
+     * @param  array<int, string>  $activeReasonCodes
+     */
+    private function validateReasonForm(array $rows, array $activeReasonCodes): void
+    {
+        $activeReasons = array_fill_keys($activeReasonCodes, true);
+
+        foreach ($rows as $index => $row) {
+            if (! is_array($row)) {
+                throw ValidationException::withMessages([
+                    "reasonForm.{$index}" => '未調查原因資料格式不正確，請重新選擇樣區後再試。',
+                ]);
+            }
+
+            $reason = $row['not_done_reason_code'] ?? '';
+            if ((! is_string($reason) && ! is_int($reason))
+                || ((string) $reason !== '' && ! isset($activeReasons[(string) $reason]))) {
+                throw ValidationException::withMessages([
+                    "reasonForm.{$index}.not_done_reason_code" => '請選擇有效的未調查原因。',
+                ]);
+            }
+
+            $description = $row['description'] ?? '';
+            if ((! is_string($description) && ! is_int($description) && ! is_float($description))
+                || mb_strlen((string) $description) > 500) {
+                throw ValidationException::withMessages([
+                    "reasonForm.{$index}.description" => '說明不得超過 500 字。',
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, SubPlotMissing>  $records
+     * @param  array<int, array<string, mixed>>  $submittedRows
+     */
+    private function assertReasonFormVersions($records, array $submittedRows): void
+    {
+        RecordStateGuard::assertSubmittedVersions($records, $submittedRows, 'reasonForm');
+    }
+
+    private function missingReasonStateToken($records): string
+    {
+        return RecordStateGuard::token('missing-reasons:'.$this->thisPlot, $this->missingReasonState($records));
+    }
+
+    private function missingReasonState($records): array
+    {
+        return [
+            'rows' => RecordStateGuard::snapshot(
+                $records,
+                ['plot_full_id_2010', 'not_done_reason_code', 'description']
+            ),
+        ];
     }
 
     private function authorizeSelectedPlot(): void

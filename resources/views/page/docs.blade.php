@@ -8,7 +8,7 @@
             <a href="https://hospitable-nickel-b27.notion.site/21ced0b14d7e80129b0dc115345a7da6?pvs=143}}" target="_blank">輸入網站說明</a>
         </li>
         <li>
-            <a href="{{ route('file.view', ['path' => 'invasi_files/files/survey-guide.pdf']) }}" target="_blank">
+            <a href="{{ route('file.document', ['document' => 'survey-guide']) }}" target="_blank">
                 調查手冊
             </a>
         </li>
@@ -16,17 +16,17 @@
     <hr class="hr-mist">
     <ul class="list-disc ml-6 space-y-2">
         <li>
-            <a href="{{ route('file.view', ['path' => 'invasi_files/files/生育地類型紀錄表.pdf']) }}" target="_blank">
+            <a href="{{ route('file.document', ['document' => 'habitat-record']) }}" target="_blank">
                 生育地類型紀錄表
             </a>
         </li>
         <li>
-            <a href="{{ route('file.view', ['path' => 'invasi_files/files/小樣方調查紀錄表.pdf']) }}" target="_blank">
+            <a href="{{ route('file.document', ['document' => 'subplot-record']) }}" target="_blank">
                 小樣方調查紀錄表
             </a>
         </li>
         <li>
-            <a href="{{ route('file.view', ['path' => 'invasi_files/files/植物調查空白紀錄表.pdf']) }}" target="_blank">
+            <a href="{{ route('file.document', ['document' => 'plant-record']) }}" target="_blank">
                 植物調查空白紀錄表
             </a>
         </li>

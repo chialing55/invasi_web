@@ -73,7 +73,6 @@ class StatsTableExport implements FromArray, WithHeadings, WithTitle, WithColumn
             return $out;
         }, $this->rows);
 
-        dd($this->rows);
     }
 
     private function buildNumberFormat(int $decimals): string

@@ -108,4 +108,29 @@
             <li>衍生地被樣區（77、88、99）無需另外上傳小樣方照片。</li>
         </ul>
     </div>
+
+    <div class="md:flex md:flex-row gap-2 mb-4 items-start">
+        <div class="flex-1 gray-card mb-4">
+            <h3 class="text-lg font-semibold mb-2">小樣方未調查原因</h3>
+            <ul class="list-disc pl-5 space-y-1">
+                <li>樣區資料輸入完成後，請至「<a href="{{ route('entry.missingnote') }}" class="underline">小樣方未調查原因</a>」填寫前次調查有、但本次尚未輸入的小樣方。</li>
+                <li>選擇樣區後，系統會自動比對前次與本次調查資料，列出本次尚無資料的小樣方編號。</li>
+                <li>請從選單選擇未調查原因；如選擇「其他」或小樣方編號已變更，請在「其他說明」補充。</li>
+                <li>若後續補齊小樣方資料，系統重新比對時會將該筆未調查項目移除。</li>
+                <li><b>填寫或修改後，請務必按下儲存鈕。</b></li>
+            </ul>
+        </div>
+
+        <div class="flex-1 gray-card mb-4">
+            <h3 class="text-lg font-semibold mb-2">生育地完成例外</h3>
+            <ul class="list-disc pl-5 space-y-1">
+                <li>原則上每個生育地類型須完成 5 個小樣方；若現地環境無法調查滿 5 個，請至「<a href="{{ route('entry.habitat-completion-exception') }}" class="underline">生育地完成例外</a>」設定。</li>
+                <li>生育地清單來自「資料輸入」頁已選擇並儲存的生育地類型。</li>
+                <li>請勾選需套用例外的生育地，填寫現地可調查的小樣方數量；此數量為核定完成門檻，不代表目前已全部完成調查。</li>
+                <li>天然林、人工林與野化果樹林的木本及對應地被樣區會連動設定。</li>
+                <li>例外只調整小樣方數量門檻；資料正確、照片及樣區檔案等其他完成條件仍須符合。</li>
+                <li><b>填寫或修改後，請務必按下儲存鈕。</b></li>
+            </ul>
+        </div>
+    </div>
 </div>

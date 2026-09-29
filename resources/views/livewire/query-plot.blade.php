@@ -7,6 +7,22 @@
     </div>
     <h2>樣區查詢</h2>
 
+    @error('thisCounty')
+        <div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>
+    @enderror
+    @error('thisPlot')
+        <div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>
+    @enderror
+    @error('thisHabType')
+        <div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>
+    @enderror
+    @error('thisSubPlot')
+        <div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>
+    @enderror
+    @error('sortField')
+        <div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>
+    @enderror
+
     <div class="space-y-4">
         <div class="md:flex md:flex-row gap-4 mb-4">
             <!-- 選擇縣市 -->

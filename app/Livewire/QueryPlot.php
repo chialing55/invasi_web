@@ -4,15 +4,11 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\PlotList2025;
-use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
-use App\Models\SubPlotPlant2010;
-use App\Models\SubPlotPlant2025;
-use App\Models\HabitatInfo;
-use Illuminate\Support\Facades\DB;
 use App\Helpers\PlantListHelper;
 use App\Helpers\PlotHelper;
 use App\Helpers\HabHelper;
+use Illuminate\Validation\ValidationException;
 
 class QueryPlot extends Component
 {
@@ -47,6 +43,14 @@ class QueryPlot extends Component
 
     public function loadPlots($county)
     {
+        $county = trim((string) $county);
+        if ($county !== '' && ! PlotList2025::where('county', $county)->exists()) {
+            throw ValidationException::withMessages([
+                'thisCounty' => '縣市選項不存在，請重新選擇。',
+            ]);
+        }
+
+        $this->thisCounty = $county;
         $this->plotList = [];
         $this->plotList = PlotList2025::where('county', $county)
             ->select('plot')->distinct()->pluck('plot')->toArray();
@@ -68,6 +72,22 @@ class QueryPlot extends Component
     // 樣區內所有生育地類型與全部植物名錄
     public function loadPlotInfo($plot)
     {
+        $plot = trim((string) $plot);
+        if ($plot === '') {
+            $this->resetPlotSelection();
+
+            return;
+        }
+
+        $plotExists = PlotList2025::where('county', (string) $this->thisCounty)
+            ->where('plot', $plot)
+            ->exists();
+        if (! $plotExists) {
+            throw ValidationException::withMessages([
+                'thisPlot' => '樣區不屬於目前選取的縣市，請重新選擇。',
+            ]);
+        }
+
         $this->thisPlot = $plot;
         $this->thisHabType = '';
         $this->thisListType = $plot;
@@ -77,10 +97,6 @@ class QueryPlot extends Component
         // $this->thisSubPlotInfo = []; // 清空樣區ID資料
         // $this->plotInfo2025 = []; // 清空樣區資料
 
-        // 取得樣區資料
-        if (empty($plot)) {
-            return;
-        }
         //取得生育地類型列表、小樣區清單
         $data = PlotHelper::getSubPlotInfo($plot);
         $this->habTypeOptions = $data['habTypeOptions'];
@@ -106,7 +122,9 @@ class QueryPlot extends Component
     //單一個生育地資料
     public function loadPlotHab($habType)
     {
-        $this->thisHabType = $habType; // 讓下拉選單同步更新
+        $this->assertCurrentPlot();
+        $habType = trim((string) $habType);
+        $options = PlotHelper::getSubPlotInfo((string) $this->thisPlot)['habTypeOptions'];
 
         if ($habType === '') {
             // 顯示全部樣區
@@ -117,7 +135,13 @@ class QueryPlot extends Component
             return;
         }
 
-
+        if (! array_key_exists($habType, $options)) {
+            throw ValidationException::withMessages([
+                'thisHabType' => '生育地類型不屬於目前樣區，請重新選擇。',
+            ]);
+        }
+        $this->thisHabType = $habType; // 讓下拉選單同步更新
+        $this->habTypeOptions = $options;
 
         // $this->dispatch('plotIDUpdated', plotID: '');
         // dd($plotPlant2025);
@@ -128,7 +152,7 @@ class QueryPlot extends Component
         // $this->plotplantListAll =  $this->plotplantList;
         // $this->dispatch('SubPlotIDUpdated', subPlotID: $subPlot);
         // dd($habType);
-        $this->thisListType = $this->thisPlot . " " . $this->habTypeOptions[$habType];
+        $this->thisListType = $this->thisPlot . ' ' . $options[$habType];
         $this->subPlotEnvForm = [];
 
         $this->dispatch('thisSubPlotUpdated');
@@ -139,7 +163,8 @@ class QueryPlot extends Component
 
     public function loadSubPlot($thisSubPlot)
     {
-        $this->thisSubPlot = $thisSubPlot; // 讓下拉選單同步更新
+        $this->assertCurrentPlot();
+        $thisSubPlot = trim((string) $thisSubPlot);
 
         if ($thisSubPlot === '') {
             // 顯示全部樣區
@@ -150,12 +175,22 @@ class QueryPlot extends Component
             return;
         }
 
+        $availableSubPlots = PlotHelper::getSubPlotInfo((string) $this->thisPlot)['subPlotList'];
+        if (! in_array($thisSubPlot, $availableSubPlots, true)) {
+            throw ValidationException::withMessages([
+                'thisSubPlot' => '小樣方不屬於目前樣區，請重新選擇。',
+            ]);
+        }
+        $this->thisSubPlot = $thisSubPlot; // 讓下拉選單同步更新
+
         $this->thisHabType = ''; // 讓下拉選單同步更新
         //  dd($thisSubPlot);
         $habType = substr($thisSubPlot, 6, 2);   // 第 7,8 位（index 從 0 開始）
         $sub_id  = substr($thisSubPlot, -2);     // 最後兩位
 
-        $data = SubPlotEnv2025::where('plot_full_id', $thisSubPlot)->first();
+        $data = SubPlotEnv2025::where('plot', (string) $this->thisPlot)
+            ->where('plot_full_id', $thisSubPlot)
+            ->first();
 
         if ($data) {
             $hab[] = $habType;
@@ -163,7 +198,7 @@ class QueryPlot extends Component
             // dd($habTypeOptions);
             $data->hab_type = $habTypeOptions[$habType] ?? '未知';
             $subPlotAreaMap = config('item_list.sub_plot_area');
-            $data->subplot_area_data = $subPlotAreaMap[$data->subplot_area];
+            $data->subplot_area_data = $subPlotAreaMap[$data->subplot_area] ?? $data->subplot_area;
 
             $this->subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
         } else {
@@ -204,6 +239,18 @@ class QueryPlot extends Component
 
     public function sortBy($field)
     {
+        $field = (string) $field;
+        $allowedFields = [
+            'chfamily', 'chname', 'nat_type',
+            'plot2010', 'sub2010', 'cov2010',
+            'plot2025', 'sub2025', 'cov2025',
+        ];
+        if (! in_array($field, $allowedFields, true)) {
+            throw ValidationException::withMessages([
+                'sortField' => '不支援此排序欄位。',
+            ]);
+        }
+
         if ($this->sortField === $field) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
@@ -211,10 +258,43 @@ class QueryPlot extends Component
             $this->sortDirection = 'asc';
         }
 
+        $sortKey = match ($this->sortField) {
+            'cov2010' => 'cov2010_sort',
+            'cov2025' => 'cov2025_sort',
+            default => $this->sortField,
+        };
         $this->plotplantList = collect($this->plotplantList)
-            ->sortBy($this->sortField, SORT_REGULAR, $this->sortDirection === 'desc')
+            ->sortBy($sortKey, SORT_REGULAR, $this->sortDirection === 'desc')
             ->values()
             ->toArray();
+    }
+
+    private function assertCurrentPlot(): void
+    {
+        $exists = filled($this->thisCounty)
+            && filled($this->thisPlot)
+            && PlotList2025::where('county', (string) $this->thisCounty)
+                ->where('plot', (string) $this->thisPlot)
+                ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'thisPlot' => '目前樣區選項已失效，請重新選擇縣市與樣區。',
+            ]);
+        }
+    }
+
+    private function resetPlotSelection(): void
+    {
+        $this->thisPlot = '';
+        $this->thisSubPlot = '';
+        $this->thisHabType = '';
+        $this->thisListType = '';
+        $this->habTypeOptions = [];
+        $this->subPlotList = [];
+        $this->plotplantList = [];
+        $this->plotplantListAll = [];
+        $this->subPlotEnvForm = [];
     }
     public $downloadFormat = 'csv'; // 預設為 .csv
 

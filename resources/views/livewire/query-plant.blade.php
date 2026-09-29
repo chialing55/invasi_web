@@ -89,6 +89,15 @@
                 @if (session()->has('chIndexMessage'))
                     <div class="mb-2 text-red-800">{{ session('chIndexMessage') }}</div>
                 @endif
+                @error('chnameIndex')
+                    <div class="mb-2 text-sm text-red-700" role="alert">{{ $message }}</div>
+                @enderror
+                @error('rows')
+                    <div class="mb-2 text-sm text-red-700" role="alert">{{ $message }}</div>
+                @enderror
+                @error('rows.*')
+                    <div class="mb-2 text-sm text-red-700" role="alert">{{ $message }}</div>
+                @enderror
 
                 <div id="chname-table-wrapper" class="{{ $showTable ? 'md:flex md:gap-4 md:items-end' : 'hidden' }} ">
                     <div id="tabulator-table" wire:ignore class="w-full md:w-[441.6px]"></div>
@@ -126,12 +135,12 @@
                             </div>
                             <!-- 生育地類型 -->
                             <div class="md:flex md:flex-row md:items-center gap-2 mb-4 md:mb-0">
-                                <label class="block font-semibold md:mr-2">或 選擇生育地類型：</label>
+                                <label class="block font-semibold md:mr-2">選擇生育地類型：</label>
                                 <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
                                     wire:change="reloadPlantInfoHab($event.target.value)">
                                     <option value="">-- All --</option>
-                                    @foreach ($habList as $label)
-                                        <option value="{{ $label }}">{{ $label }}</option>
+                                    @foreach ($habList as $code => $label)
+                                        <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -282,14 +291,6 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        //監聽的名稱, select的id
-        listenAndResetSelect('updateHabType', 'habType');
-        listenAndResetSelect('updateCounty', 'county');
-    });
-
-
-
     window.chnameIndexTable = null; // 全域變數，存放 Tabulator 實例
     // 監聽輸入框的變化
 

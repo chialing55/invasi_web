@@ -11,12 +11,14 @@ use App\Models\HabitatInfo;
 use App\Models\SpcodeIndex;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Services\DataSyncService;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use App\Helpers\PlantStatHelper;
 use App\Helpers\PlantSearchHelper;
-use App\Helpers\HabHelper;
 use App\Support\PlantStatusHelper;
+use App\Support\RecordStateGuard;
 use App\Support\ScientificNameHelper;
+use App\Models\FixLog;
 class QueryPlant extends Component
 {
 
@@ -65,7 +67,7 @@ class QueryPlant extends Component
 
     public $comparisonTable = [];
     public $chnameIndex = [];
-    public $chnameIndexOriginal = [];
+    public string $chnameIndexStateToken = '';
 
 
     public bool $showTable = false;
@@ -79,18 +81,21 @@ class QueryPlant extends Component
     }    
 
     public $countyList = [];
+    public $allCountyList = [];
     public $habList = [];
+    public $allHabList = [];
     public $thisCounty = '';
     public $thisHabType = '';
     public $filteredComparisonTable = [];
-    public $habTypeOptions = [];
 
     public function plantInfo($value)
     {
         
 // 植物資訊
         $this->countyList=[];
+        $this->allCountyList=[];
         $this->habList=[];
+        $this->allHabList=[];
         $this->thisCounty = '';
         $this->thisHabType = '';
  
@@ -137,20 +142,21 @@ class QueryPlant extends Component
         $this->showTable = true;
 
         // 取得所有縣市
-        $this->countyList = collect($this->comparisonTable)
+        $this->allCountyList = collect($this->comparisonTable)
             ->pluck('county')
             ->unique()
             ->sort()
             ->values()
             ->toArray();
+        $this->countyList = $this->allCountyList;
 
-        $this->habList = collect($this->comparisonTable)
-            ->pluck('habitat')
-            ->unique()
-            ->sort()
-            ->values()
-            ->toArray();
-        $this->habTypeOptions = HabHelper::habitatOptions($this->habList);
+        $this->allHabList = collect($this->comparisonTable)
+            ->filter(fn ($row) => filled($row['hab_code'] ?? null))
+            ->unique('hab_code')
+            ->sortBy('hab_code')
+            ->mapWithKeys(fn ($row) => [(string) $row['hab_code'] => $row['habitat']])
+            ->all();
+        $this->habList = $this->allHabList;
 
         $this->filteredComparisonTable = $this->comparisonTable; // 初始化為全部資料
 
@@ -165,52 +171,65 @@ class QueryPlant extends Component
     }    
 
 
-    public function reloadPlantInfoCounty($thisCounty) {
-
-        $this->filteredComparisonTable = collect($this->comparisonTable)
-            ->when($thisCounty !== '', fn($collection) => $collection->where('county', $thisCounty))
-            ->values()
-            ->toArray();
-        $this->dispatch('updateHabType'); 
-
+    public function reloadPlantInfoCounty($thisCounty)
+    {
+        $this->thisCounty = in_array($thisCounty, $this->countyList, true) ? $thisCounty : '';
+        $this->refreshFilterOptions();
+        $this->applyComparisonFilters();
     }
 
-    public function reloadPlantInfoHab($thisHabType) {
+    public function reloadPlantInfoHab($thisHabType)
+    {
+        $this->thisHabType = array_key_exists((string) $thisHabType, $this->habList)
+            ? (string) $thisHabType
+            : '';
+        $this->refreshFilterOptions();
+        $this->applyComparisonFilters();
+    }
 
+    private function applyComparisonFilters(): void
+    {
         $this->filteredComparisonTable = collect($this->comparisonTable)
-            ->when($thisHabType !== '', fn($collection) => $collection->where('habitat', $thisHabType))
+            ->when($this->thisCounty !== '', fn ($rows) => $rows->where('county', $this->thisCounty))
+            ->when($this->thisHabType !== '', fn ($rows) => $rows->where('hab_code', $this->thisHabType))
             ->values()
-            ->toArray();
-        $this->dispatch('updateCounty'); 
+            ->all();
+    }
+
+    private function refreshFilterOptions(): void
+    {
+        $this->countyList = collect($this->comparisonTable)
+            ->when($this->thisHabType !== '', fn ($rows) => $rows->where('hab_code', $this->thisHabType))
+            ->pluck('county')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($this->thisCounty !== '' && ! in_array($this->thisCounty, $this->countyList, true)) {
+            $this->thisCounty = '';
+        }
+
+        $this->habList = collect($this->comparisonTable)
+            ->when($this->thisCounty !== '', fn ($rows) => $rows->where('county', $this->thisCounty))
+            ->filter(fn ($row) => filled($row['hab_code'] ?? null))
+            ->unique('hab_code')
+            ->sortBy('hab_code')
+            ->mapWithKeys(fn ($row) => [(string) $row['hab_code'] => $row['habitat']])
+            ->all();
+
+        if ($this->thisHabType !== '' && ! array_key_exists($this->thisHabType, $this->habList)) {
+            $this->thisHabType = '';
+        }
     }
 
     public function searchChnameIndex($value)
     {
 // chnameIndex
 // dd($value);
-        $this->chnameIndex =[];
+        $this->loadChnameIndexRows((string) $value);
 
-        $chnameIndex = SpcodeIndex::where('spcode', $value)->get()
-            ->map(fn($row) => [
-                'spcode' => $row->spcode,
-                'chname_index' => $row->chname_index,
-                'note' => $row->note ?? '',
-                'id' => $row->id,
-            ])
-            ->toArray();
-
-        $this->chnameIndex = array_merge($chnameIndex,
-            array_fill(0, 2, [
-                'spcode' => $value,
-                'chname_index' => '',
-                'note' => '',
-                'id' => '',
-            ])
-        );
-        
-        $this->chnameIndexOriginal = $chnameIndex;
-
-        // dd($this->chnameIndexOriginal);
     }
 
     public function dispatchIndex($value)
@@ -224,42 +243,128 @@ class QueryPlant extends Component
 
     public function saveChnameIndex()
     {
-
         $user = Auth::user();
+        abort_unless($user, 403);
         $creatorCode = explode('@', $user->email)[0]; // 取出 email 前綴
+        $spcode = trim((string) $this->plantCode);
+        abort_if($spcode === '', 404);
 
-        //  dd($this->chnameIndex);
+        $plantExists = TaiwanChecklist::where('spcode', $spcode)
+            ->where('spcode_status', 'active')
+            ->exists();
+        abort_unless($plantExists, 404);
 
-        $changed = DataSyncService::syncById(
-            modelClass: SpcodeIndex::class,
-            originalData: $this->chnameIndexOriginal,
-            newData: $this->chnameIndex,
-            fields: ['spcode', 'chname_index', 'note'],
-            createExtra: ['created_by' => $creatorCode],
-            updateExtra: ['updated_by' => $creatorCode],
-            requiredFields: ['chname_index', 'spcode'], // ✅ 沒有 chname_index 就不新增
-            userCode: $creatorCode
-        );
+        $rows = collect($this->chnameIndex)
+            ->map(function ($row) use ($spcode) {
+                if (! is_array($row)) {
+                    throw ValidationException::withMessages([
+                        'chnameIndex' => '中文別名資料格式不正確，請重新載入後再試。',
+                    ]);
+                }
 
-        $this->chnameIndex = SpcodeIndex::where('spcode', $this->plantCode)->get()
-            ->map(fn($row) => [
-                'spcode' => $row->spcode,
-                'chname_index' => $row->chname_index,
-                'note' => $row->note ?? '',
-                'id' => $row->id,
-            ])
-            ->toArray();
-            
-        $this->chnameIndexOriginal = $this->chnameIndex;
-        $this->chnameIndex = array_merge($this->chnameIndex,
-            array_fill(0, 2, [
-                'spcode' => $this->plantCode,
-                'chname_index' => '',
-                'note' => '',
-                'id' => '',
-            ])
-        );
-       
+                return [
+                    'id' => ($row['id'] ?? '') === '' ? null : $row['id'],
+                    'spcode' => $spcode,
+                    'chname_index' => trim((string) ($row['chname_index'] ?? '')),
+                    'note' => trim((string) ($row['note'] ?? '')),
+                ];
+            })
+            ->filter(fn ($row) => $row['id'] !== null || $row['chname_index'] !== '')
+            ->values()
+            ->all();
+
+        Validator::make(['rows' => $rows], [
+            'rows' => ['array', 'max:100'],
+            'rows.*.id' => ['nullable', 'integer', 'distinct'],
+            'rows.*.spcode' => ['required', 'string', 'in:'.$spcode],
+            'rows.*.chname_index' => ['required', 'string', 'max:100', 'distinct:strict'],
+            'rows.*.note' => ['nullable', 'string', 'max:500'],
+        ], [
+            'rows.max' => '單一植物最多可維護 100 筆中文別名。',
+            'rows.*.id.integer' => '中文別名資料列編號不正確，請重新載入後再試。',
+            'rows.*.id.distinct' => '中文別名資料列重複，請重新載入後再試。',
+            'rows.*.chname_index.required' => '中文別名不可空白。',
+            'rows.*.chname_index.max' => '中文別名不可超過 100 個字元。',
+            'rows.*.chname_index.distinct' => '同一植物不可輸入重複的中文別名。',
+            'rows.*.note.max' => '備註不可超過 500 個字元。',
+        ])->validate();
+
+        $changed = DB::connection('invasiflora')->transaction(function () use ($rows, $spcode, $creatorCode) {
+            $current = SpcodeIndex::where('spcode', $spcode)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            $state = RecordStateGuard::snapshot($current, ['spcode', 'chname_index', 'note']);
+            RecordStateGuard::assertToken(
+                $this->chnameIndexStateToken,
+                $this->chnameIndexScope($spcode),
+                $state,
+                'chnameIndex',
+                '中文別名已由其他分頁更新，請重新載入植物後再儲存。'
+            );
+
+            $currentById = $current->keyBy(fn ($record) => (string) $record->getKey());
+            $submittedIds = collect($rows)->pluck('id')->filter()->map(fn ($id) => (string) $id);
+            if ($submittedIds->diff($currentById->keys())->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'chnameIndex' => '送出的中文別名資料列不屬於目前植物，請重新載入後再試。',
+                ]);
+            }
+
+            $changed = false;
+            foreach ($current as $record) {
+                if (! $submittedIds->contains((string) $record->getKey())) {
+                    $this->logChnameIndexChange($record, [
+                        '_deleted' => [
+                            'spcode' => $record->spcode,
+                            'chname_index' => $record->chname_index,
+                            'note' => $record->note,
+                        ],
+                    ], $creatorCode);
+                    $record->delete();
+                    $changed = true;
+                }
+            }
+
+            foreach ($rows as $row) {
+                if ($row['id'] === null) {
+                    $record = SpcodeIndex::create([
+                        'spcode' => $spcode,
+                        'chname_index' => $row['chname_index'],
+                        'note' => $row['note'],
+                        'created_by' => $creatorCode,
+                    ]);
+                    $this->logChnameIndexChange($record, [
+                        '_created' => [
+                            'spcode' => $spcode,
+                            'chname_index' => $row['chname_index'],
+                            'note' => $row['note'],
+                        ],
+                    ], $creatorCode);
+                    $changed = true;
+                    continue;
+                }
+
+                $record = $currentById->get((string) $row['id']);
+                $newData = [
+                    'chname_index' => $row['chname_index'],
+                    'note' => $row['note'],
+                ];
+                $changes = collect($newData)
+                    ->filter(fn ($value, $field) => (string) $record->{$field} !== (string) $value)
+                    ->map(fn ($value, $field) => ['old' => $record->{$field}, 'new' => $value])
+                    ->all();
+                if ($changes !== []) {
+                    $this->logChnameIndexChange($record, $changes, $creatorCode);
+                    $record->update($newData + ['updated_by' => $creatorCode]);
+                    $changed = true;
+                }
+            }
+
+            return $changed;
+        });
+
+        $this->loadChnameIndexRows($spcode);
 
         if ($changed) {
             session()->flash('chIndexMessage', '中文別名已更新！');
@@ -271,6 +376,43 @@ class QueryPlant extends Component
         }
         
  
+    }
+
+    private function loadChnameIndexRows(string $spcode): void
+    {
+        $records = SpcodeIndex::where('spcode', $spcode)->orderBy('id')->get();
+        $this->chnameIndexStateToken = RecordStateGuard::token(
+            $this->chnameIndexScope($spcode),
+            RecordStateGuard::snapshot($records, ['spcode', 'chname_index', 'note'])
+        );
+        $rows = $records->map(fn ($row) => [
+            'spcode' => $row->spcode,
+            'chname_index' => $row->chname_index,
+            'note' => $row->note ?? '',
+            'id' => $row->id,
+        ])->all();
+        $this->chnameIndex = array_merge($rows, array_fill(0, 2, [
+            'spcode' => $spcode,
+            'chname_index' => '',
+            'note' => '',
+            'id' => '',
+        ]));
+    }
+
+    private function chnameIndexScope(string $spcode): string
+    {
+        return 'query-plant:chname-index:'.$spcode;
+    }
+
+    private function logChnameIndexChange(SpcodeIndex $record, array $changes, string $creatorCode): void
+    {
+        FixLog::create([
+            'table_name' => $record->getTable(),
+            'record_id' => $record->getKey(),
+            'changes' => $changes,
+            'modified_by' => $creatorCode,
+            'modified_at' => now(),
+        ]);
     }
 
 

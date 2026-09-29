@@ -153,7 +153,13 @@ class PlantListHelper
         $subQuery = SubPlotEnv2010::selectRaw("DISTINCT CONCAT(PLOT_ID, '.', HAB_TYPE, '.', SUB_ID) AS subkey")
             ->where('PLOT_ID', $plot)
             ->when(isset($filter['hab_type']), function ($query) use ($filter) {
-                return $query->where('HAB_TYPE', $filter['hab_type']);
+                $habitatCode = HabitatCode::legacyMainFor($filter['hab_type'])
+                    ?? $filter['hab_type'];
+
+                return $query->where('HAB_TYPE', $habitatCode);
+            })
+            ->when(isset($filter['sub_id']), function ($query) use ($filter) {
+                return $query->where('SUB_ID', $filter['sub_id']);
             });
 
         $totalPlots2010 = DB::connection('invasiflora')
@@ -163,7 +169,9 @@ class PlantListHelper
 
         $totalPlots2025Query = SubPlotEnv2025::whereRaw('LEFT(plot_full_id, 6) = ?', [$plot]);
 
-        if (isset($filter['hab_type'])) {
+        if (isset($filter['sub_plot'])) {
+            $totalPlots2025Query->where('plot_full_id', $filter['sub_plot']);
+        } elseif (isset($filter['hab_type'])) {
             $filterHab = $plot . $filter['hab_type'];
             $totalPlots2025Query->whereRaw('LEFT(plot_full_id, 8) = ?', [$filterHab]);
         }
@@ -171,11 +179,6 @@ class PlantListHelper
         $totalPlots2025 = $totalPlots2025Query
             ->distinct('plot_full_id')
             ->count('plot_full_id');
-
-        if (isset($filter['sub_id'])) {
-            $totalPlots2010 = 1;
-            $totalPlots2025 = 1;
-        }
 
         return self::mergeSpeciesLists($plotPlant2010, $plotPlant2025, $totalPlots2010, $totalPlots2025);
     }

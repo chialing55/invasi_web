@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SubPlotPlant2025 extends Model
 {
     use HasFactory, SoftDeletes;
-    protected $table = "im_spvptdata_2025";
+
+    protected $table = 'im_spvptdata_2025';
+
     protected $connection = 'invasiflora';
 
     protected $fillable = [
@@ -26,5 +28,6 @@ class SubPlotPlant2025 extends Model
         'created_by',
         'updated_by',
         'deleted_by',
+        'deletion_batch_id',
     ];
 }

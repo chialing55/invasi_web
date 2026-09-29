@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Support\FloraChartData;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -15,45 +16,48 @@ class StatsChartsPdfExport
     public function publicDownloadUrl(string $filename): string
     {
         $downloadName = $this->safeFilename($filename);
-        $relativePath = 'invasi_files/exports/' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '/' . $downloadName;
-        $pdfPath = public_path($relativePath);
+        $token = bin2hex(random_bytes(16));
+        $relativePath = "exports/{$token}-{$downloadName}";
+        $pdfPath = Storage::disk('invasi_files')->path($relativePath);
 
         $dir = dirname($pdfPath);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+        if (! is_dir($dir) && ! mkdir($dir, 0775, true) && ! is_dir($dir)) {
             throw new RuntimeException('統計圖 PDF 產生失敗：無法建立下載目錄。');
         }
 
         $this->buildPdf($pdfPath);
 
-        return route('file.download', ['path' => $relativePath]);
+        session()->put("file_exports.{$token}", $relativePath);
+
+        return route('file.export', ['token' => $token]);
     }
 
     private function buildPdf(string $pdfPath): string
     {
         $rscript = $this->findRscript();
         $script = resource_path('scripts/stats_charts.R');
-        if (!is_file($script)) {
+        if (! is_file($script)) {
             throw new RuntimeException('統計圖 PDF 產生失敗：找不到 R 繪圖腳本。');
         }
 
         $resourceFontDir = resource_path('fonts');
         $storageFontDir = storage_path('app/fonts');
         $chineseFont = $this->firstExistingFont([
-            $resourceFontDir . '/NotoSansCJK-Regular.ttc',
-            $resourceFontDir . '/NotoSerifCJK-Regular.ttc',
-            $storageFontDir . '/NotoSansCJK-Regular.ttc',
-            $storageFontDir . '/NotoSerifCJK-Regular.ttc',
-            $storageFontDir . '/kaiu.ttf',
+            $resourceFontDir.'/NotoSansCJK-Regular.ttc',
+            $resourceFontDir.'/NotoSerifCJK-Regular.ttc',
+            $storageFontDir.'/NotoSansCJK-Regular.ttc',
+            $storageFontDir.'/NotoSerifCJK-Regular.ttc',
+            $storageFontDir.'/kaiu.ttf',
             '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
             '/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc',
         ]);
         $times = $this->firstExistingFont([
-            $resourceFontDir . '/times.ttf',
-            $resourceFontDir . '/Times New Roman.ttf',
-            $resourceFontDir . '/Times_New_Roman.ttf',
-            $storageFontDir . '/times.ttf',
-            $storageFontDir . '/Times New Roman.ttf',
-            $storageFontDir . '/Times_New_Roman.ttf',
+            $resourceFontDir.'/times.ttf',
+            $resourceFontDir.'/Times New Roman.ttf',
+            $resourceFontDir.'/Times_New_Roman.ttf',
+            $storageFontDir.'/times.ttf',
+            $storageFontDir.'/Times New Roman.ttf',
+            $storageFontDir.'/Times_New_Roman.ttf',
         ]);
         if ($chineseFont === null || $times === null) {
             throw new RuntimeException('統計圖 PDF 產生失敗：缺少 resources/fonts/NotoSansCJK-Regular.ttc 或 times.ttf。');
@@ -76,8 +80,8 @@ class StatsChartsPdfExport
         $process->setTimeout(120);
         $process->run();
 
-        if (!$process->isSuccessful() || !is_file($pdfPath)) {
-            throw new RuntimeException('統計圖 PDF 產生失敗：' . trim($process->getErrorOutput() ?: $process->getOutput()));
+        if (! $process->isSuccessful() || ! is_file($pdfPath)) {
+            throw new RuntimeException('統計圖 PDF 產生失敗：'.trim($process->getErrorOutput() ?: $process->getOutput()));
         }
 
         $this->cleanup();
@@ -102,7 +106,7 @@ class StatsChartsPdfExport
         $filename = preg_replace('/[^\pL\pN._-]+/u', '-', $filename) ?: 'statsCharts.pdf';
         $filename = trim($filename, '-');
 
-        return str_ends_with(strtolower($filename), '.pdf') ? $filename : $filename . '.pdf';
+        return str_ends_with(strtolower($filename), '.pdf') ? $filename : $filename.'.pdf';
     }
 
     private function findRscript(): string
@@ -139,7 +143,7 @@ class StatsChartsPdfExport
         fputcsv($handle, $headings);
         foreach ($rows as $row) {
             $row = (array) $row;
-            fputcsv($handle, array_map(fn($heading) => $row[$heading] ?? '', $headings));
+            fputcsv($handle, array_map(fn ($heading) => $row[$heading] ?? '', $headings));
         }
         fclose($handle);
     }
@@ -151,11 +155,12 @@ class StatsChartsPdfExport
             throw new RuntimeException('統計圖 PDF 產生失敗：無法建立暫存檔。');
         }
 
-        $path = $base . $suffix;
+        $path = $base.$suffix;
         @rename($base, $path);
         if ($track) {
             $this->tempFiles[] = $path;
         }
+
         return $path;
     }
 
@@ -167,11 +172,12 @@ class StatsChartsPdfExport
         }
 
         @unlink($base);
-        if (!mkdir($base, 0775, true) && !is_dir($base)) {
+        if (! mkdir($base, 0775, true) && ! is_dir($base)) {
             throw new RuntimeException('統計圖 PDF 產生失敗：無法建立暫存目錄。');
         }
 
         $this->tempFiles[] = $base;
+
         return $base;
     }
 
@@ -187,10 +193,11 @@ class StatsChartsPdfExport
     {
         if (is_file($path)) {
             @unlink($path);
+
             return;
         }
 
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             return;
         }
 
@@ -199,7 +206,7 @@ class StatsChartsPdfExport
             if ($item === '.' || $item === '..') {
                 continue;
             }
-            $this->removePath($path . DIRECTORY_SEPARATOR . $item);
+            $this->removePath($path.DIRECTORY_SEPARATOR.$item);
         }
         @rmdir($path);
     }

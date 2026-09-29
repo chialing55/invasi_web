@@ -10,21 +10,27 @@ use App\Models\HabitatInfo;
 use App\Models\PlotHab;
 use App\Models\PlotHabitatCompletionException;
 use App\Models\PlotList2025;
-use App\Models\SpcodeIndex;
 use App\Models\SubPlotEnv2010;
 use App\Models\SubPlotEnv2025;
-use App\Models\SubPlotPlant2010;
 use App\Models\SubPlotPlant2025;
+use App\Models\User;
 use App\Services\DataSyncService;
 use App\Services\FormAuditService;
+use App\Services\PlantIdentityResolver;
 use App\Support\HabitatCode;
+use App\Support\PlanYearPlotFilter;
+use App\Support\RecordStateGuard;
 use App\Support\TaiwanChecklistQuery;
+use App\Support\UploadMime;
+use Illuminate\Database\QueryException;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 // use Illuminate\Http\Request;
@@ -34,6 +40,24 @@ class EntryEntry extends Component
 {
     use SubPlotEnvFormRules;
     use WithFileUploads;
+
+    private const ENV_EDITABLE_FIELDS = [
+        'date', 'investigator', 'recorder', 'dd97_x', 'dd97_y', 'gps_error',
+        'habitat_code', 'subplot_id', 'subplot_area', 'elevation', 'slope', 'aspect',
+        'photo_id', 'env_description', 'original_plot_id',
+    ];
+
+    private const ENV_SYSTEM_FIELDS = [
+        'team', 'plot', 'plot_full_id', 'year', 'month', 'day', 'tm2_x', 'tm2_y',
+    ];
+
+    private const PLANT_EDITABLE_FIELDS = [
+        'chname_index', 'spcode', 'coverage', 'flowering', 'fruiting', 'specimen_id', 'note',
+    ];
+
+    private const PLANT_SYSTEM_FIELDS = [
+        'plot_full_id', 'unidentified', 'data_error',
+    ];
 
     public $countyList = [];
 
@@ -59,7 +83,21 @@ class EntryEntry extends Component
 
     public $subPlotPlantForm = [];
 
+    public array $envRecordVersions = [];
+
+    public array $plantRecordVersions = [];
+
+    public string $envVersionToken = '';
+
+    public string $plantVersionToken = '';
+
+    public string $loadedPlotCensusYear = '';
+
+    public string $loadedPlotYearToken = '';
+
     public $pendingRestorePlotFullId = '';
+
+    public string $pendingRestoreToken = '';
 
     public $userOrg;
 
@@ -76,22 +114,14 @@ class EntryEntry extends Component
         }
 
         // 已登入情況
-        $this->userOrg = $user->organization ?? '未知單位';
-        $this->creatorCode = explode('@', $user->email)[0];
-        $this->user = $user;
-
-        if ($user->role == 'member') {
-            $this->countyList = PlotList2025::select('county')
-                ->where('team', $this->userOrg)
-                ->distinct()
-                ->pluck('county')
-                ->toArray();
-        } else {
-            $this->countyList = PlotList2025::select('county')
-                ->distinct()
-                ->pluck('county')
-                ->toArray();
-        }
+        $this->refreshActor($user);
+        $this->countyList = $this->accessiblePlotQuery($user)
+            ->distinct()
+            ->orderBy('county')
+            ->pluck('county')
+            ->filter()
+            ->values()
+            ->toArray();
 
         $this->showPlotEntryTable = false;
         $this->showPlantEntryTable = false;
@@ -116,12 +146,22 @@ class EntryEntry extends Component
 
     public function loadPlots($county)
     {
-
-        $this->plotList = PlotList2025::where('county', $county)
-            ->select('plot')->distinct()->pluck('plot')->toArray();
+        $this->thisCounty = (string) $county;
+        $this->plotList = $this->accessiblePlotQuery()
+            ->where('county', $this->thisCounty)
+            ->select('plot')
+            ->distinct()
+            ->orderBy('plot')
+            ->pluck('plot')
+            ->toArray();
         $this->showPlotEntryTable = false;
         $this->showPlantEntryTable = false;
         $this->thisPlot = '';
+        $this->loadedPlotCensusYear = '';
+        $this->clearPendingRestore();
+        $this->loadedPlotYearToken = '';
+        $this->plotHabToken = '';
+        $this->resetRecordVersions();
         $this->dispatch('reset_plant_table');
         $this->dispatch('thisPlotUpdated');
 
@@ -132,21 +172,47 @@ class EntryEntry extends Component
     // public array $selectedHabitatCodes = []; // 勾選的 habitat_code
     public array $selectedHabitatCodes = []; // 使用者勾選的 habitat_code 陣列
 
+    public string $plotHabToken = '';
+
     public array $refHabitatCodes = [];      // 2010 參考用代碼
 
     public array $habTypeOptions = [];       // 全部 habitat_code => label
 
     public function loadPlotInfo($plot)
     {
+        if ((string) $plot === '') {
+            $this->thisPlot = '';
+            $this->thisSubPlot = '';
+            $this->loadedPlotCensusYear = '';
+            $this->clearPendingRestore();
+            $this->loadedPlotYearToken = '';
+            $this->plotHabToken = '';
+            $this->resetRecordVersions();
+            $this->subPlotList = [];
+            $this->selectedHabitatCodes = [];
+            $this->showPlotEntryTable = false;
+            $this->showPlantEntryTable = false;
+            $this->dispatch('reset_plant_table');
+
+            return;
+        }
+
+        $plotRow = $this->authorizePlot((string) $plot);
+
         // $this->dispatch('reset_habitat');
-        $this->thisPlot = $plot;
+        $this->thisPlot = (string) $plotRow->plot;
+        $this->thisCounty = (string) $plotRow->county;
+        $this->loadedPlotCensusYear = (string) ($plotRow->getRawOriginal('census_year') ?? '');
+        $this->clearPendingRestore();
+        $this->loadedPlotYearToken = $this->plotYearToken($plotRow);
+        $this->plotHabToken = '';
         $this->thisSubPlot = ''; // 清空樣區ID
+        $this->resetRecordVersions();
         $this->showPlotEntryTable = false;
         $this->showPlantEntryTable = false;
         $this->dispatch('reset_plant_table');
         // 取得樣區資料
         $this->subPlotList = SubPlotEnv2025::where('plot', $plot)->orderBy('plot_full_id')->pluck('plot_full_id')->toArray();
-        // $this->plantList=$this->loadPlantList($plot); // 👈 預先跑名錄快取查詢
         $this->selectedHabitatCodes = [];
         $this->loadPlotHab($plot); // 載入生育地類型選項
         $this->loadFileInfo();
@@ -156,6 +222,8 @@ class EntryEntry extends Component
 
     public function loadPlotHab($plot)
     {
+        $this->authorizePlot((string) $plot);
+
         $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
 
         $this->habTypeOptions = collect($habTypeMap)
@@ -171,34 +239,71 @@ class EntryEntry extends Component
             ->toArray();
 
         // 若有既存選擇（例如 PlotHabRatio），可設定預選
-        $this->selectedHabitatCodes = PlotHab::where('plot', $plot)
+        $selectedRecords = PlotHab::where('plot', $plot)
+            ->orderBy('id')
+            ->get();
+        $this->selectedHabitatCodes = $selectedRecords
             ->pluck('habitat_code')
+            ->map(fn ($code) => str_pad((string) $code, 2, '0', STR_PAD_LEFT))
+            ->unique()
             ->values()
             ->toArray();
+        $this->plotHabToken = $this->plotHabStateToken((string) $plot, $selectedRecords);
 
     }
 
     public function saveHabitatSelection()
     {
-        $plot = $this->thisPlot;
+        $plotRow = $this->authorizePlot();
+        $plot = (string) $plotRow->plot;
 
-        // ➤ 1. 原始選擇
-        $selected = $this->selectedHabitatCodes;
+        try {
+            $selected = HabitatCode::normalizeSelectedCodes($this->selectedHabitatCodes);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'selectedHabitatCodes' => $e->getMessage(),
+            ]);
+        }
 
-        // 自動同步主生育地與對應地被代碼。
-        $selected = HabitatCode::syncSelectedCodes($selected);
         $this->selectedHabitatCodes = $selected;
 
-        DB::connection('invasiflora')->transaction(function () use ($plot, $selected) {
-            // ➤ 5. 清空舊資料
-            PlotHab::where('plot', $plot)->delete();
+        DB::connection('invasiflora')->transaction(function () use ($plot, $plotRow, $selected) {
+            // 生育地與完成例外都先鎖同一樣區列，避免兩頁交錯寫入。
+            $lockedPlot = $this->accessiblePlotQuery()
+                ->whereKey($plotRow->getKey())
+                ->where('plot', $plot)
+                ->lockForUpdate()
+                ->first();
+            if (! $lockedPlot) {
+                throw ValidationException::withMessages([
+                    'selectedHabitatCodes' => '樣區資料已變更，請重新選擇樣區後再儲存。',
+                ]);
+            }
 
-            // ➤ 6. 儲存新資料
-            foreach ($selected as $code) {
-                PlotHab::firstOrCreate(
-                    ['plot' => $plot, 'habitat_code' => $code],
-                    ['created_by' => $this->creatorCode]
-                );
+            $existingRecords = PlotHab::where('plot', $plot)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            RecordStateGuard::assertToken(
+                $this->plotHabToken,
+                'plot-habitats:'.$plot,
+                $this->plotHabState($existingRecords),
+                'selectedHabitatCodes',
+                '生育地類型已由其他分頁變更，請重新選擇樣區後再儲存。'
+            );
+
+            [$removedIds, $added] = $this->habitatSelectionChanges($existingRecords, $selected);
+
+            if ($removedIds !== []) {
+                PlotHab::where('plot', $plot)->whereIn('id', $removedIds)->delete();
+            }
+
+            foreach ($added as $code) {
+                PlotHab::create([
+                    'plot' => $plot,
+                    'habitat_code' => $code,
+                    'created_by' => $this->creatorCode,
+                ]);
             }
 
             // 已取消的生育地不應保留舊例外，避免日後重新勾選時意外套用舊門檻。
@@ -210,16 +315,52 @@ class EntryEntry extends Component
             }
         });
 
-        // ➤ 7. 成功提示
+        $this->loadPlotHab($plot);
         session()->flash('habSaveMessage', '生育地類型已儲存。');
+    }
+
+    private function plotHabStateToken(string $plot, Collection $records): string
+    {
+        return RecordStateGuard::token('plot-habitats:'.$plot, $this->plotHabState($records));
+    }
+
+    private function plotHabState(Collection $records): array
+    {
+        return ['rows' => RecordStateGuard::snapshot($records, ['habitat_code'])];
+    }
+
+    /** @return array{0: array<int, int>, 1: array<int, string>} */
+    private function habitatSelectionChanges(Collection $existingRecords, array $selected): array
+    {
+        $currentCodes = $existingRecords
+            ->pluck('habitat_code')
+            ->map(fn ($code) => str_pad((string) $code, 2, '0', STR_PAD_LEFT))
+            ->unique()
+            ->all();
+        $removedIds = $existingRecords
+            ->filter(fn ($record) => ! in_array(
+                str_pad((string) $record->habitat_code, 2, '0', STR_PAD_LEFT),
+                $selected,
+                true
+            ))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        return [$removedIds, array_values(array_diff($selected, $currentCodes))];
     }
 
     public function updatedThisSubPlot($value)
     {
+        $this->clearPendingRestore();
         $this->dispatch('reset_plant_table');
         if ($value) {
+            $this->authorizeSubPlot((string) $value);
             $this->loadSubPlotEnv($value);
             $this->loadSubPlotPlant($value);
+        } else {
+            $this->resetRecordVersions();
         }
 
     }
@@ -230,7 +371,10 @@ class EntryEntry extends Component
 
     public function loadEmptyEnvForm()
     {
+        $plotRow = $this->authorizePlot();
         $this->thisSubPlot = ''; // 清空樣區ID
+        $this->clearPendingRestore();
+        $this->resetRecordVersions();
 
         $columns = Schema::connection('invasiflora')->getColumnListing('im_splotdata_2025');
 
@@ -243,7 +387,7 @@ class EntryEntry extends Component
             $this->subPlotEnvForm[$col] = '';
         }
         $this->subPlotEnvForm['plot'] = $this->thisPlot;
-        $this->subPlotEnvForm['census_year'] = date('Y');
+        $this->subPlotEnvForm['census_year'] = $this->plotFormYear($plotRow);
         // dd($this->subPlotEnvForm);
         $this->showPlotEntryTable = true;
         $this->showPlantEntryTable = false;
@@ -253,11 +397,12 @@ class EntryEntry extends Component
 
     public function loadSubPlotEnv($subPlot)
     {
-        $this->thisSubPlot = $subPlot;
+        $data = $this->authorizeSubPlot((string) $subPlot);
+        $this->thisSubPlot = (string) $data->plot_full_id;
         $subPlotEnvForm = [];
 
-        $data = SubPlotEnv2025::where('plot_full_id', $subPlot)->first();
-        $census_year = PlotList2025::where('plot', $this->thisPlot)->value('census_year');
+        $plotRow = $this->authorizePlot((string) $this->thisPlot);
+        $census_year = $this->plotFormYear($plotRow);
 
         if ($data) {
             $subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
@@ -272,6 +417,19 @@ class EntryEntry extends Component
         //  $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
         //   $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
         $this->subPlotEnvForm = $subPlotEnvForm;
+        $this->envRecordVersions = [(string) $data->id => $this->recordVersion($data)];
+
+        $habitat = (string) $data->habitat_code;
+        if (HabitatCode::isWood($habitat)) {
+            $understoryId = substr((string) $data->plot_full_id, 0, 6)
+                .HabitatCode::understoryFor($habitat)
+                .substr((string) $data->plot_full_id, 8);
+            $understory = SubPlotEnv2025::where('plot_full_id', $understoryId)->first();
+            if ($understory) {
+                $this->envRecordVersions[(string) $understory->id] = $this->recordVersion($understory);
+            }
+        }
+        $this->envVersionToken = $this->recordVersionToken('environment', $this->envRecordVersions);
 
         $this->showPlotEntryTable = true; // 顯示表單
 
@@ -279,11 +437,9 @@ class EntryEntry extends Component
 
     public function loadSubPlotPlant($subPlot)
     {
+        $authorizedSubPlot = $this->authorizeSubPlot((string) $subPlot);
+        $this->thisSubPlot = (string) $authorizedSubPlot->plot_full_id;
 
-        // if (empty($this->plantList)) {
-        //      $this->plantList=$this->loadPlantList($this->thisPlot);
-        // }
-        // dd($this->plantList);
         // $data = SubPlotPlant2025::where('plot_full_id', $subPlot)->get();
         $data = SubPlotPlant2025::query()
             ->where('plot_full_id', $subPlot);
@@ -322,38 +478,15 @@ class EntryEntry extends Component
             return;
         }
 
-        $user = Auth::user();
-        abort_unless($user, 403);
+        $this->authorizeSubPlot($plotFullId);
 
-        if ($user->role === 'member') {
-            $canManagePlot = PlotList2025::where('plot', $this->thisPlot)
-                ->where('team', $this->userOrg)
-                ->exists();
-            abort_unless($canManagePlot, 403);
-        }
-
-        $deletedPlantCount = DB::connection('invasiflora')->transaction(function () use ($plotFullId) {
-            $subPlot = SubPlotEnv2025::where('plot_full_id', $plotFullId)
-                ->where('plot', $this->thisPlot)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $plants = SubPlotPlant2025::where('plot_full_id', $plotFullId);
-            $deletedPlantCount = (clone $plants)->count();
-
-            $plants->update(['deleted_by' => $this->creatorCode]);
-            SubPlotPlant2025::where('plot_full_id', $plotFullId)->delete();
-
-            $subPlot->deleted_by = $this->creatorCode;
-            $subPlot->save();
-            $subPlot->delete();
-
-            return $deletedPlantCount;
-        });
+        $deletedPlantCount = DB::connection('invasiflora')
+            ->transaction(fn () => $this->deleteSubPlotBatch($plotFullId));
 
         $this->thisSubPlot = '';
         $this->subPlotEnvForm = [];
         $this->subPlotPlantForm = [];
+        $this->resetRecordVersions();
         $this->showPlotEntryTable = false;
         $this->showPlantEntryTable = false;
         $this->dispatch('reset_plant_table');
@@ -365,45 +498,54 @@ class EntryEntry extends Component
         );
     }
 
+    private function deleteSubPlotBatch(string $plotFullId): int
+    {
+        $subPlot = SubPlotEnv2025::where('plot_full_id', $plotFullId)
+            ->where('plot', $this->thisPlot)
+            ->lockForUpdate()
+            ->firstOrFail();
+        $this->assertRecordVersionToken('environment', $this->envRecordVersions, $this->envVersionToken, '小樣方環境資料');
+        $this->assertRecordVersion($subPlot, $this->envRecordVersions, '小樣方環境資料');
+
+        $plantRecords = SubPlotPlant2025::where('plot_full_id', $plotFullId)
+            ->lockForUpdate()
+            ->get();
+        $this->assertRecordVersionToken('plants', $this->plantRecordVersions, $this->plantVersionToken, '植物調查資料');
+        $this->assertVersionSet($plantRecords, $this->plantRecordVersions, '植物調查資料');
+        $deletionBatchId = (string) Str::uuid();
+
+        SubPlotPlant2025::where('plot_full_id', $plotFullId)
+            ->update([
+                'deleted_by' => $this->creatorCode,
+                'deletion_batch_id' => $deletionBatchId,
+            ]);
+        SubPlotPlant2025::where('plot_full_id', $plotFullId)->delete();
+
+        $subPlot->deleted_by = $this->creatorCode;
+        $subPlot->deletion_batch_id = $deletionBatchId;
+        $subPlot->save();
+        $subPlot->delete();
+
+        return $plantRecords->count();
+    }
+
     public function restoreDeletedSubPlot(): void
     {
+        session()->flash('form', 'env');
         $plotFullId = (string) $this->pendingRestorePlotFullId;
 
-        if ($plotFullId === '' || $this->thisPlot === '') {
-            session()->flash('deleteMsg', '找不到要還原的小樣方資料。');
-
-            return;
+        if ($plotFullId === '' || $this->thisPlot === '' || $this->pendingRestoreToken === '') {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '找不到可安全還原的小樣方資料，請重新輸入小樣方編號。',
+            ]);
         }
 
-        $user = Auth::user();
-        abort_unless($user, 403);
+        $this->authorizeSubPlot($plotFullId, true);
 
-        if ($user->role === 'member') {
-            $canManagePlot = PlotList2025::where('plot', $this->thisPlot)
-                ->where('team', $this->userOrg)
-                ->exists();
-            abort_unless($canManagePlot, 403);
-        }
+        $restoredPlantCount = DB::connection('invasiflora')
+            ->transaction(fn () => $this->restoreDeletedSubPlotBatch($plotFullId));
 
-        $restoredPlantCount = DB::connection('invasiflora')->transaction(function () use ($plotFullId) {
-            $subPlot = SubPlotEnv2025::onlyTrashed()
-                ->where('plot_full_id', $plotFullId)
-                ->where('plot', $this->thisPlot)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $plants = SubPlotPlant2025::onlyTrashed()->where('plot_full_id', $plotFullId);
-            $restoredPlantCount = (clone $plants)->count();
-            $plants->update(['deleted_by' => null]);
-            SubPlotPlant2025::onlyTrashed()->where('plot_full_id', $plotFullId)->restore();
-
-            $subPlot->deleted_by = null;
-            $subPlot->restore();
-
-            return $restoredPlantCount;
-        });
-
-        $this->pendingRestorePlotFullId = '';
+        $this->clearPendingRestore();
         $this->loadPlotInfo($this->thisPlot);
         $this->thisSubPlot = $plotFullId;
         $this->updatedThisSubPlot($plotFullId);
@@ -414,14 +556,88 @@ class EntryEntry extends Component
         );
     }
 
+    private function restoreDeletedSubPlotBatch(string $plotFullId): int
+    {
+        $subPlot = SubPlotEnv2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('plot', $this->thisPlot)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        $batchId = (string) ($subPlot->deletion_batch_id ?? '');
+        if (! Str::isUuid($batchId)) {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '此小樣方沒有刪除批次紀錄，無法安全自動還原。',
+            ]);
+        }
+
+        $plants = SubPlotPlant2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('deletion_batch_id', $batchId)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        RecordStateGuard::assertToken(
+            $this->pendingRestoreToken,
+            'entry-restore:'.$this->thisPlot.':'.$plotFullId,
+            $this->deletedSubPlotState($subPlot, $plants),
+            '小樣方流水號',
+            '待還原資料已變更，請重新輸入小樣方編號後再試。'
+        );
+
+        if (SubPlotEnv2025::where('plot_full_id', $plotFullId)->exists()) {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '小樣方編號已被使用，無法還原。',
+            ]);
+        }
+
+        $restoredPlantCount = $plants->count();
+        if ($restoredPlantCount > 0) {
+            SubPlotPlant2025::onlyTrashed()
+                ->whereIn('id', $plants->pluck('id')->all())
+                ->where('deletion_batch_id', $batchId)
+                ->update([
+                    'deleted_at' => null,
+                    'deleted_by' => null,
+                    'deletion_batch_id' => null,
+                ]);
+        }
+
+        $subPlot->deleted_by = null;
+        $subPlot->deletion_batch_id = null;
+        $subPlot->restore();
+
+        return $restoredPlantCount;
+    }
+
     public function cancelRestoreSubPlot(): void
     {
-        $this->pendingRestorePlotFullId = '';
+        session()->flash('form', 'env');
+        $this->clearPendingRestore();
         $this->addError('小樣方流水號', '已取消新增，請修改小樣方編號後再儲存。');
+    }
+
+    private function clearPendingRestore(): void
+    {
+        $this->pendingRestorePlotFullId = '';
+        $this->pendingRestoreToken = '';
+    }
+
+    private function deletedSubPlotState(SubPlotEnv2025 $subPlot, Collection $plants): array
+    {
+        return [
+            'environment' => RecordStateGuard::snapshot(collect([$subPlot]), [
+                'plot', 'plot_full_id', 'deleted_at', 'deletion_batch_id',
+            ]),
+            'plants' => RecordStateGuard::snapshot($plants, [
+                'plot_full_id', 'deleted_at', 'deletion_batch_id',
+            ]),
+        ];
     }
 
     public function loadExistingPlantForm()
     {
+        $this->authorizeSubPlot((string) $this->thisSubPlot);
         $emptyRow = $this->plantFormEmptyRow();
         $columns = $emptyRow['columns'];
         $empty = $emptyRow['empty'];
@@ -441,6 +657,10 @@ class EntryEntry extends Component
         $existingPlantForm = $data->map(function ($item) use ($columns) {
             return collect($item)->only($columns)->toArray();
         })->toArray();
+        $this->plantRecordVersions = $data
+            ->mapWithKeys(fn ($item) => [(string) $item->id => $this->recordVersion($item)])
+            ->all();
+        $this->plantVersionToken = $this->recordVersionToken('plants', $this->plantRecordVersions);
         // dd($existingPlantForm);
         for ($i = 0; $i < 15; $i++) {
             $row = $empty;
@@ -483,6 +703,9 @@ class EntryEntry extends Component
 
     public function loadEmptyPlantForm()
     {
+        $this->authorizeSubPlot((string) $this->thisSubPlot);
+        $this->plantRecordVersions = [];
+        $this->plantVersionToken = $this->recordVersionToken('plants', []);
 
         // dd($columns);
         $emptyRow = $this->plantFormEmptyRow();
@@ -494,10 +717,6 @@ class EntryEntry extends Component
             $row['plot_full_id'] = $this->thisSubPlot;
             $this->subPlotPlantForm[] = $row;
         }
-
-        // if (empty($this->plantList)) {
-        //     $this->plantList=$this->loadPlantList($this->thisPlot);
-        // }
 
         $this->dispatch('plant_table', data: [
             'data' => $this->subPlotPlantForm,
@@ -513,12 +732,13 @@ class EntryEntry extends Component
 
     public function loadFileInfo()
     {
+        $this->authorizePlot();
 
-        $relativePath = "invasi_files/plotData/{$this->thisCounty}/{$this->thisPlot}.pdf";
-        $fullPath = public_path($relativePath);
+        $relativePath = "plotData/{$this->thisCounty}/{$this->thisPlot}.pdf";
+        $disk = Storage::disk('invasi_files');
 
-        if (file_exists($fullPath)) {
-            $this->thisPlotFile = route('file.view', ['path' => $relativePath]).'?v='.filemtime($fullPath);
+        if ($disk->exists($relativePath)) {
+            $this->thisPlotFile = route('file.plot', ['plot' => $this->thisPlot]).'?v='.$disk->lastModified($relativePath);
         } else {
             $this->thisPlotFile = null;
         }
@@ -531,7 +751,7 @@ class EntryEntry extends Component
 
     private function photoRelativeDir(string $hab): string
     {
-        return "invasi_files/subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
+        return "subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$hab}";
     }
 
     private function findPhotoPath(string $subPlot): ?string
@@ -541,7 +761,7 @@ class EntryEntry extends Component
 
         foreach ($this->photoExts as $ext) {
             $path = "{$baseDir}/{$subPlot}.{$ext}";
-            if (Storage::disk('public')->exists($path)) {
+            if (Storage::disk('invasi_files')->exists($path)) {
                 return $path;
             }
         }
@@ -553,14 +773,29 @@ class EntryEntry extends Component
 
     public function loadPhotoInfo()
     {
+        $this->authorizeSubPlot((string) $this->thisSubPlot);
         $path = $this->findPhotoPath((string) $this->thisSubPlot);
-        $this->thisPhoto = $path ? asset($path) : null;
+        $this->thisPhoto = $path
+            ? route('file.subplot-photo', ['plotFullId' => $this->thisSubPlot])
+            : null;
     }
 
     public $hasUnderData = '';
 
     public function envInfoSave(FormAuditService $audit)
     {
+        $this->clearPendingRestore();
+        $plotRow = $this->authorizePlot();
+        $authorizedSubPlot = $this->thisSubPlot !== ''
+            ? $this->authorizeSubPlot((string) $this->thisSubPlot)
+            : null;
+        $this->subPlotEnvForm['plot'] = (string) $plotRow->plot;
+        if ($authorizedSubPlot) {
+            $this->subPlotEnvForm['id'] = $authorizedSubPlot->id;
+        } else {
+            unset($this->subPlotEnvForm['id']);
+        }
+
         $this->hasUnderData = '';
         session()->flash('form', 'env');
 
@@ -573,13 +808,27 @@ class EntryEntry extends Component
         }
 
         $this->validate(
-            $this->subPlotEnvRules(),
-            $this->subPlotEnvMessages()
+            array_merge($this->subPlotEnvRules(), [
+                'subPlotEnvForm.census_year' => 'required|integer|min:2025|max:'.(date('Y') + 1),
+            ]),
+            array_merge($this->subPlotEnvMessages(), [
+                'subPlotEnvForm.census_year.required' => '請填寫樣區計畫年度。',
+                'subPlotEnvForm.census_year.integer' => '樣區計畫年度必須為四位整數。',
+                'subPlotEnvForm.census_year.min' => '樣區計畫年度不得小於 2025 年。',
+                'subPlotEnvForm.census_year.max' => '樣區計畫年度最多可預做至下一年。',
+            ])
         );
         $msg = '';
-        $subPlotEnvForm = $this->subPlotEnvForm;
+        $censusYear = (int) $this->subPlotEnvForm['census_year'];
+        $subPlotEnvForm = collect($this->subPlotEnvForm)
+            ->only(self::ENV_EDITABLE_FIELDS)
+            ->toArray();
+        if ($authorizedSubPlot) {
+            $subPlotEnvForm['id'] = $authorizedSubPlot->id;
+        }
 
-        $subPlotEnvForm['team'] = $this->userOrg;
+        $subPlotEnvForm['team'] = (string) $plotRow->team;
+        $subPlotEnvForm['plot'] = (string) $plotRow->plot;
         $subPlotEnvForm['plot_full_id'] = $subPlotEnvForm['plot'].
             $subPlotEnvForm['habitat_code'].
             $subPlotEnvForm['subplot_id'];
@@ -589,219 +838,249 @@ class EntryEntry extends Component
             CoordinateHelper::toTm2($subPlotEnvForm['dd97_x'], $subPlotEnvForm['dd97_y']),
             DateHelper::splitYmd($subPlotEnvForm['date'])
         );
+        $subPlotEnvForm['census_year'] = $censusYear;
 
-        $newdata[] = $subPlotEnvForm;
+        if (! $this->environmentTargetsAvailable($subPlotEnvForm, $authorizedSubPlot)) {
+            return;
+        }
 
-        $this->subPlotEnvForm = $subPlotEnvForm;
-        if ($this->thisSubPlot == '') {  // 新增小樣方
-            if (SubPlotEnv2025::onlyTrashed()->where('plot_full_id', $subPlotEnvForm['plot_full_id'])->exists()) {
-                $this->pendingRestorePlotFullId = $subPlotEnvForm['plot_full_id'];
+        $connection = DB::connection('invasiflora');
+        $photoOperations = [];
+        $connection->beginTransaction();
 
-                return;
+        try {
+            $record = PlotList2025::whereKey($plotRow->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->assertPlotYearState($record);
+
+            if ($authorizedSubPlot) {
+                $this->assertRecordVersionToken('environment', $this->envRecordVersions, $this->envVersionToken, '小樣方環境資料');
+                $lockedEnvRecords = SubPlotEnv2025::whereIn(
+                    'id',
+                    array_map('intval', array_keys($this->envRecordVersions))
+                )
+                    ->lockForUpdate()
+                    ->get();
+                $this->assertVersionSet(
+                    $lockedEnvRecords,
+                    $this->envRecordVersions,
+                    '小樣方環境資料'
+                );
             }
 
-            $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
-            $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
-        } else {  // 修改小樣方資料
-            // 如果是更改樣區編號  1.更改生育地  2. 更改小樣方
-            // 先處理更改編號
-            $plot = $subPlotEnvForm['plot'];
-            $o_habitat_code = substr($this->thisSubPlot, 6, 2);
-            $o_subplot_id = substr($this->thisSubPlot, 8, 2);
-            $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
+            $newdata[] = $subPlotEnvForm;
 
-            if ($subPlotEnvForm['plot_full_id'] != $this->thisSubPlot) {
-                // 1. 檢查是否重號
-                $originalData = SubPlotEnv2025::where(['plot_full_id' => $subPlotEnvForm['plot_full_id']])->get()->toArray();
-                if (! empty($originalData)) {
-                    $this->addError('小樣方流水號', '小樣方流水號重複');
+            $this->subPlotEnvForm = $subPlotEnvForm;
+            if ($this->thisSubPlot == '') {  // 新增小樣方
 
-                    return;
-                }
+                $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
+                $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
+            } else {  // 修改小樣方資料
+                // 如果是更改樣區編號  1.更改生育地  2. 更改小樣方
+                // 先處理更改編號
+                $plot = $subPlotEnvForm['plot'];
+                $o_habitat_code = substr($this->thisSubPlot, 6, 2);
+                $o_subplot_id = substr($this->thisSubPlot, 8, 2);
+                $plotFullIds = (array) $subPlotEnvForm['plot_full_id'];
 
-                // 2. 更改小樣方編號
-                SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)
-                    ->update([
-                        'plot_full_id' => $subPlotEnvForm['plot_full_id'],
-                        'habitat_code' => $subPlotEnvForm['habitat_code'],
-                        'subplot_id' => $subPlotEnvForm['subplot_id'],
-                        'updated_by' => $this->creatorCode,
-                    ]);
-                $updatedCount = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)->update(['plot_full_id' => $subPlotEnvForm['plot_full_id'], 'updated_by' => $this->creatorCode]);
+                if ($subPlotEnvForm['plot_full_id'] != $this->thisSubPlot) {
+                    $photoOperations = $this->movePhotosForSubPlotRename(
+                        (string) $this->thisSubPlot,
+                        (string) $subPlotEnvForm['plot_full_id'],
+                        $o_habitat_code,
+                        (string) $subPlotEnvForm['habitat_code']
+                    );
 
-                $diff['plot_full_id'] = [
-                    'old' => $this->thisSubPlot,
-                    'new' => $subPlotEnvForm['plot_full_id'],
-                ];
-                $diff['habitat_code'] = [
-                    'old' => $o_habitat_code,
-                    'new' => $subPlotEnvForm['habitat_code'],
-                ];
-                $diff['subplot_id'] = [
-                    'old' => $o_subplot_id,
-                    'new' => $subPlotEnvForm['subplot_id'],
-                ];
+                    // 2. 更改小樣方編號
+                    SubPlotEnv2025::where('plot_full_id', $this->thisSubPlot)
+                        ->update([
+                            'plot_full_id' => $subPlotEnvForm['plot_full_id'],
+                            'habitat_code' => $subPlotEnvForm['habitat_code'],
+                            'subplot_id' => $subPlotEnvForm['subplot_id'],
+                            'updated_by' => $this->creatorCode,
+                        ]);
+                    $updatedCount = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)->update(['plot_full_id' => $subPlotEnvForm['plot_full_id'], 'updated_by' => $this->creatorCode]);
 
-                FixLog::create([
-                    'table_name' => 'im_splotdata_2025',
-                    'record_id' => $subPlotEnvForm['id'],
-                    'changes' => $diff,
-                    'modified_by' => $this->creatorCode,
-                    'modified_at' => now(),
-                ]);
-                if ($updatedCount > 1) {
+                    $diff['plot_full_id'] = [
+                        'old' => $this->thisSubPlot,
+                        'new' => $subPlotEnvForm['plot_full_id'],
+                    ];
+                    $diff['habitat_code'] = [
+                        'old' => $o_habitat_code,
+                        'new' => $subPlotEnvForm['habitat_code'],
+                    ];
+                    $diff['subplot_id'] = [
+                        'old' => $o_subplot_id,
+                        'new' => $subPlotEnvForm['subplot_id'],
+                    ];
+
                     FixLog::create([
-                        'table_name' => 'im_spvptdata_2025',
-                        'record_id' => 0,
-                        'changes' => $diff['plot_full_id'],
+                        'table_name' => 'im_splotdata_2025',
+                        'record_id' => $subPlotEnvForm['id'],
+                        'changes' => $diff,
                         'modified_by' => $this->creatorCode,
                         'modified_at' => now(),
                     ]);
-                }
-                // 若新生育地是木本主類型，一併更改對應地被編號。
-                $msg = '已更新『'.$this->thisSubPlot.'』樣區編號為『'.$subPlotEnvForm['plot_full_id'].'』。';
-
-                if (HabitatCode::isWood($subPlotEnvForm['habitat_code'])) {
-                    $extraHabitat_o = HabitatCode::understoryFor($o_habitat_code) ?? '00';
-                    $extraHabitat_n = HabitatCode::understoryFor($subPlotEnvForm['habitat_code']);
-
-                    $related_full_id_o = $plot.$extraHabitat_o.$o_subplot_id;
-                    $related_full_id_n = $plot.$extraHabitat_n.$subPlotEnvForm['subplot_id'];
-
-                    $exists = SubPlotEnv2025::where('plot_full_id', $related_full_id_o)->first();
-
-                    if ($exists) {
-                        // 若已存在，更新
-                        SubPlotEnv2025::where('plot_full_id', $related_full_id_o)
-                            ->update([
-                                'habitat_code' => $extraHabitat_n,
-                                'subplot_id' => $subPlotEnvForm['subplot_id'],
-                                'plot_full_id' => $related_full_id_n,
-                                'updated_by' => $this->creatorCode,
-                            ]);
-
-                        $updatedCount2 = SubPlotPlant2025::where('plot_full_id', $related_full_id_o)
-                            ->update(['plot_full_id' => $related_full_id_n, 'updated_by' => $this->creatorCode]);
-
-                        session()->flash('saveMsg2', '同時更新 『'.$related_full_id_o.'』樣區編號為 『'.$related_full_id_n.'』。');
-
-                        $diff['plot_full_id'] = [
-                            'old' => $related_full_id_o,
-                            'new' => $related_full_id_n,
-                        ];
-                        $diff['habitat_code'] = [
-                            'old' => $extraHabitat_o,
-                            'new' => $extraHabitat_n,
-                        ];
-                        $diff['subplot_id'] = [
-                            'old' => $o_subplot_id,
-                            'new' => $subPlotEnvForm['subplot_id'],
-                        ];
-
+                    if ($updatedCount > 1) {
                         FixLog::create([
-                            'table_name' => 'im_splotdata_2025',
-                            'record_id' => $exists->id,
-                            'changes' => $diff,
+                            'table_name' => 'im_spvptdata_2025',
+                            'record_id' => 0,
+                            'changes' => $diff['plot_full_id'],
                             'modified_by' => $this->creatorCode,
                             'modified_at' => now(),
                         ]);
-                        if ($updatedCount2 > 1) {
+                    }
+                    // 若新生育地是木本主類型，一併更改對應地被編號。
+                    $msg = '已更新『'.$this->thisSubPlot.'』樣區編號為『'.$subPlotEnvForm['plot_full_id'].'』。';
+
+                    if (HabitatCode::isWood($subPlotEnvForm['habitat_code'])) {
+                        $extraHabitat_o = HabitatCode::understoryFor($o_habitat_code) ?? '00';
+                        $extraHabitat_n = HabitatCode::understoryFor($subPlotEnvForm['habitat_code']);
+
+                        $related_full_id_o = $plot.$extraHabitat_o.$o_subplot_id;
+                        $related_full_id_n = $plot.$extraHabitat_n.$subPlotEnvForm['subplot_id'];
+
+                        $exists = SubPlotEnv2025::where('plot_full_id', $related_full_id_o)->first();
+
+                        if ($exists) {
+                            // 若已存在，更新
+                            SubPlotEnv2025::where('plot_full_id', $related_full_id_o)
+                                ->update([
+                                    'habitat_code' => $extraHabitat_n,
+                                    'subplot_id' => $subPlotEnvForm['subplot_id'],
+                                    'plot_full_id' => $related_full_id_n,
+                                    'updated_by' => $this->creatorCode,
+                                ]);
+
+                            $updatedCount2 = SubPlotPlant2025::where('plot_full_id', $related_full_id_o)
+                                ->update(['plot_full_id' => $related_full_id_n, 'updated_by' => $this->creatorCode]);
+
+                            session()->flash('saveMsg2', '同時更新 『'.$related_full_id_o.'』樣區編號為 『'.$related_full_id_n.'』。');
+
+                            $diff['plot_full_id'] = [
+                                'old' => $related_full_id_o,
+                                'new' => $related_full_id_n,
+                            ];
+                            $diff['habitat_code'] = [
+                                'old' => $extraHabitat_o,
+                                'new' => $extraHabitat_n,
+                            ];
+                            $diff['subplot_id'] = [
+                                'old' => $o_subplot_id,
+                                'new' => $subPlotEnvForm['subplot_id'],
+                            ];
+
                             FixLog::create([
-                                'table_name' => 'im_spvptdata_2025',
-                                'record_id' => 0,
-                                'changes' => $diff['plot_full_id'],
+                                'table_name' => 'im_splotdata_2025',
+                                'record_id' => $exists->id,
+                                'changes' => $diff,
                                 'modified_by' => $this->creatorCode,
                                 'modified_at' => now(),
                             ]);
+                            if ($updatedCount2 > 1) {
+                                FixLog::create([
+                                    'table_name' => 'im_spvptdata_2025',
+                                    'record_id' => 0,
+                                    'changes' => $diff['plot_full_id'],
+                                    'modified_by' => $this->creatorCode,
+                                    'modified_at' => now(),
+                                ]);
+                            }
+
                         }
+                        // $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
+                        $plotFullIds[] = $related_full_id_n;
 
                     }
-                    // $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
-                    $plotFullIds[] = $related_full_id_n;
+                    if (HabitatCode::isWood($o_habitat_code) && ! HabitatCode::isWood($subPlotEnvForm['habitat_code']) && $o_habitat_code != $subPlotEnvForm['habitat_code']) {
+                        $extraHabitat = HabitatCode::understoryFor($o_habitat_code);
+                        $related_full_id_o = $plot.$extraHabitat.$o_subplot_id;
+                        session()->flash('saveMsg2', '保留原有 『'.$related_full_id_o.'』環境、植物資料，如需刪除請洽管理員。');
+
+                    }
+
+                } else {
 
                 }
-                if (HabitatCode::isWood($o_habitat_code) && ! HabitatCode::isWood($subPlotEnvForm['habitat_code']) && $o_habitat_code != $subPlotEnvForm['habitat_code']) {
-                    $extraHabitat = HabitatCode::understoryFor($o_habitat_code);
-                    $related_full_id_o = $plot.$extraHabitat.$o_subplot_id;
-                    session()->flash('saveMsg2', '保留原有 『'.$related_full_id_o.'』環境、植物資料，如需刪除請洽管理員。');
+                $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
+            }
 
+            $originalData = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)->get()->toArray();
+
+            //   dd($originalData);
+
+            // dd($where);
+
+            // dd($subPlotEnvForm);
+            // dd($newdata);
+            $changed = DataSyncService::syncById(
+                modelClass: SubPlotEnv2025::class,
+                originalData: $originalData,
+                newData: $newdata,
+                fields: array_merge(self::ENV_EDITABLE_FIELDS, self::ENV_SYSTEM_FIELDS),
+                createExtra: ['created_by' => $this->creatorCode],
+                updateExtra: ['updated_by' => $this->creatorCode],
+                requiredFields: ['plot_full_id'],
+                userCode: $this->creatorCode
+            );
+
+            if ($changed) {
+                $msg .= '已更新/新增『'.$subPlotEnvForm['plot_full_id'].'』環境資料。';
+                if ($this->hasUnderData != '') {
+                    $msg .= '同時更新/新增『'.$this->hasUnderData.'』環境資料。';
                 }
-
             } else {
-
+                $msg .= '環境資料無任何變更。';
             }
-            $newdata = $this->addUnderstoryPlot($subPlotEnvForm);
-        }
 
-        $originalData = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)->get()->toArray();
+            // 更新調查年度
 
-        //   dd($originalData);
-
-        // dd($where);
-        if (! empty($originalData) && empty($subPlotEnvForm['id'])) {
-            $this->addError('小樣方流水號', '小樣方流水號重複');
-
-            return;
-        }
-
-        // dd($subPlotEnvForm);
-        // dd($newdata);
-        $changed = DataSyncService::syncById(
-            modelClass: SubPlotEnv2025::class,
-            originalData: $originalData,
-            newData: $newdata,
-            fields: array_keys($subPlotEnvForm),
-            createExtra: ['created_by' => $this->creatorCode],
-            updateExtra: ['updated_by' => $this->creatorCode],
-            requiredFields: ['plot_full_id'],
-            userCode: $this->creatorCode
-        );
-
-        if ($changed) {
-            $msg .= '已更新/新增『'.$subPlotEnvForm['plot_full_id'].'』環境資料。';
-            if ($this->hasUnderData != '') {
-                $msg .= '同時更新/新增『'.$this->hasUnderData.'』環境資料。';
-            }
-        } else {
-            $msg .= '環境資料無任何變更。';
-        }
-
-        // 更新調查年度
-
-        $upyear = $subPlotEnvForm['census_year'];
-        $record = PlotList2025::where('plot', $this->thisPlot)->first();
-
-        if ($record) {
+            $upyear = $censusYear;
             $originalCensusYear = $record->census_year;
             $recordId = $record->id;
-        } else {
-            $originalCensusYear = null; // 或預設值
-            $recordId = null;
-        }
 
-        if ($upyear < '2025') {
-            $msg .= ' 調查年度不得小於 2025 年。';
+            if ($upyear != $originalCensusYear) {
+                PlotList2025::whereKey($recordId)
+                    ->update(['census_year' => $upyear, 'updated_by' => $this->creatorCode]);
+                if ($originalCensusYear != '0') {
+                    $msg .= " 已將樣區調查年度更新為 {$upyear} 。";
 
-            return;
-        } elseif ($upyear != $originalCensusYear) {
-            PlotList2025::where('plot', $this->thisPlot)
-                ->update(['census_year' => $upyear, 'updated_by' => $this->creatorCode]);
-            if ($originalCensusYear != '0') {
-                $msg .= " 已將樣區調查年度更新為 {$upyear} 。";
+                    $yearDiff = [
+                        'census_year' => [
+                            'old' => $originalCensusYear,
+                            'new' => $upyear,
+                        ],
+                    ];
+                    FixLog::create([
+                        'table_name' => 'plot_list',
+                        'record_id' => $recordId,
+                        'changes' => $yearDiff,
+                        'modified_by' => $this->creatorCode,
+                        'modified_at' => now(),
+                    ]);
 
-                $diff['census_year'] = [
-                    'old' => $originalCensusYear,
-                    'new' => $upyear,
-                ];
-                FixLog::create([
-                    'table_name' => 'plot_list',
-                    'record_id' => $recordId,
-                    'changes' => $diff,
-                    'modified_by' => $this->creatorCode,
-                    'modified_at' => now(),
-                ]);
-
+                }
             }
+
+            $connection->commit();
+        } catch (QueryException $e) {
+            $connection->rollBack();
+            $this->rollbackPhotoOperations($photoOperations);
+
+            if (($e->errorInfo[1] ?? null) === 1062
+                && str_contains($e->getMessage(), 'im_splotdata_2025_plot_full_id_unique')) {
+                throw ValidationException::withMessages([
+                    '小樣方流水號' => '小樣方流水號重複，可能已由其他使用者新增，請重新載入後再試。',
+                ]);
+            }
+
+            throw $e;
+        } catch (Throwable $e) {
+            $connection->rollBack();
+            $this->rollbackPhotoOperations($photoOperations);
+
+            throw $e;
         }
 
         session()->flash('saveMsg', $msg);
@@ -812,7 +1091,79 @@ class EntryEntry extends Component
         // $this->loadSubPlotEnv($subPlotEnvForm['plot_full_id']);
     }
 
-    public function addUnderstoryPlot($subPlotEnvForm)
+    private function environmentTargetsAvailable(array $form, ?SubPlotEnv2025 $authorizedSubPlot): bool
+    {
+        $targetPlotFullId = (string) $form['plot_full_id'];
+        $targetConflict = SubPlotEnv2025::withTrashed()
+            ->where('plot_full_id', $targetPlotFullId)
+            ->when($authorizedSubPlot, fn ($query) => $query->where('id', '!=', $authorizedSubPlot->id))
+            ->first();
+
+        if ($targetConflict) {
+            if (! $authorizedSubPlot && $targetConflict->trashed()) {
+                $batchId = (string) ($targetConflict->deletion_batch_id ?? '');
+                if (! Str::isUuid($batchId)) {
+                    $this->addError(
+                        '小樣方流水號',
+                        '此編號屬於舊版刪除資料，無法安全自動還原，請洽管理員。'
+                    );
+
+                    return false;
+                }
+
+                $plants = SubPlotPlant2025::onlyTrashed()
+                    ->where('plot_full_id', $targetPlotFullId)
+                    ->where('deletion_batch_id', $batchId)
+                    ->orderBy('id')
+                    ->get();
+                $this->pendingRestorePlotFullId = $targetPlotFullId;
+                $this->pendingRestoreToken = RecordStateGuard::token(
+                    'entry-restore:'.$this->thisPlot.':'.$targetPlotFullId,
+                    $this->deletedSubPlotState($targetConflict, $plants)
+                );
+
+                return false;
+            }
+
+            $this->addError('小樣方流水號', '小樣方流水號重複。');
+
+            return false;
+        }
+
+        if (! HabitatCode::isWood((string) $form['habitat_code'])) {
+            return true;
+        }
+
+        $targetUnderstoryId = (string) $form['plot']
+            .HabitatCode::understoryFor((string) $form['habitat_code'])
+            .(string) $form['subplot_id'];
+        $oldUnderstoryRecord = null;
+
+        if ($authorizedSubPlot && HabitatCode::isWood((string) $authorizedSubPlot->habitat_code)) {
+            $oldUnderstoryId = (string) $form['plot']
+                .HabitatCode::understoryFor((string) $authorizedSubPlot->habitat_code)
+                .(string) $authorizedSubPlot->subplot_id;
+            $oldUnderstoryRecord = SubPlotEnv2025::where('plot_full_id', $oldUnderstoryId)->first();
+        }
+
+        $understoryConflict = SubPlotEnv2025::withTrashed()
+            ->where('plot_full_id', $targetUnderstoryId)
+            ->when($oldUnderstoryRecord, fn ($query) => $query->where('id', '!=', $oldUnderstoryRecord->id))
+            ->exists();
+
+        if ($understoryConflict) {
+            $this->addError(
+                '小樣方流水號',
+                "對應地被小樣方 {$targetUnderstoryId} 已存在，請更換流水號。"
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function addUnderstoryPlot($subPlotEnvForm)
     {
         // ✅ 根據 habitat_code 判斷是否要額外新增對應筆
         $autoCopyMap = HabitatCode::pairs();
@@ -851,9 +1202,29 @@ class EntryEntry extends Component
 
     public function plantDataSave()
     {
+        $this->authorizeSubPlot((string) $this->thisSubPlot);
+
+        $allowedIds = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id);
+        $submittedIds = collect($this->subPlotPlantForm)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (string) $id);
+
+        if ($submittedIds->diff($allowedIds)->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'subPlotPlantForm' => '送出的植物資料不屬於目前小樣方，請重新載入後再試。',
+            ]);
+        }
+
         $newData = collect($this->subPlotPlantForm)
             ->filter(fn ($row) => ! empty($row['chname_index'])) // 只處理有中文名的
             ->map(function ($row) {
+                $row = collect($row)
+                    ->only(array_merge(['id'], self::PLANT_EDITABLE_FIELDS))
+                    ->toArray();
+
                 // 比對中文名 → 取得 spcode
 
                 $row['unidentified'] = isset($row['spcode']) && $row['spcode'] !== '' ? 0 : 1;
@@ -875,29 +1246,38 @@ class EntryEntry extends Component
                 unset($row['hint']); // ❌ 移除 hint 欄位
 
                 return $row;
-            })->values()->toArray();
+            })->values();
+
+        $newData = PlantIdentityResolver::resolve($newData)->values()->all();
 
         //  dd($newData);
 
-        // 撈出該樣區原本資料
-        $originalData = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)
-            ->get()->toArray();
+        $changed = DB::connection('invasiflora')->transaction(function () use ($newData) {
+            $currentRecords = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)
+                ->lockForUpdate()
+                ->get();
+            $this->assertRecordVersionToken('plants', $this->plantRecordVersions, $this->plantVersionToken, '植物調查資料');
+            $this->assertVersionSet(
+                $currentRecords,
+                $this->plantRecordVersions,
+                '植物調查資料'
+            );
+            $originalData = $currentRecords->toArray();
 
-        $changed = DataSyncService::syncById(
-            modelClass: SubPlotPlant2025::class,
-            originalData: $originalData,
-            newData: $newData,
-            fields: $this->plantFormColumns,
-            createExtra: ['created_by' => $this->creatorCode],
-            updateExtra: ['updated_by' => $this->creatorCode],
-            requiredFields: ['chname_index'],
-            userCode: $this->creatorCode
-        );
+            $synced = DataSyncService::syncById(
+                modelClass: SubPlotPlant2025::class,
+                originalData: $originalData,
+                newData: $newData,
+                fields: array_merge(self::PLANT_EDITABLE_FIELDS, self::PLANT_SYSTEM_FIELDS),
+                createExtra: ['created_by' => $this->creatorCode],
+                updateExtra: ['updated_by' => $this->creatorCode],
+                requiredFields: ['chname_index'],
+                userCode: $this->creatorCode
+            );
 
-        $this->markDuplicateCovError($this->thisSubPlot);
+            return $this->recalculatePlantDataErrors($this->thisSubPlot) || $synced;
+        });
         $this->subPlotPlantForm = $this->loadExistingPlantForm();
-
-        // $this->plantList=$this->loadPlantList($this->thisPlot);
 
         $this->dispatch('plant_table', data: [
             'data' => $this->subPlotPlantForm,
@@ -909,192 +1289,260 @@ class EntryEntry extends Component
 
     }
 
-    // 已棄用
-    public function loadPlantList($plot)
+    private function recordVersion($model): string
     {
-        // cache()->forget('plant_list_all'); // ⬅️ 清掉之前那個只含一筆的快取
-        // $this->plantList = cache()->remember('plant_list_all', 86400, function () {
-        //     $plantList1 = Spinfo::select('spcode', 'chname')->get(); // Collection
-        //     $plantList2 = SpcodeIndex::select('spcode', 'chname_index as chname')->get(); // Collection
+        return (string) ($model->getRawOriginal('updated_at') ?? '');
+    }
 
-        //     return $plantList1
-        //         ->merge($plantList2)
-        //         ->sortBy('chname')           // ⬅️ 用 Collection 內建排序
-        //         ->values()                   // ⬅️ 重新索引（變成 0,1,2...）
-        //         ->toArray();                 // ⬅️ 若你前端要用 array，可加上
-        // });
-        // $this->plantList = cache()->remember('plant_list_all', 86400, function () {
+    private function plotYearToken(PlotList2025 $plotRow): string
+    {
+        return RecordStateGuard::token(
+            'entry-plot-year:'.$plotRow->getKey().':'.(string) $plotRow->plot,
+            ['year' => (string) ($plotRow->getRawOriginal('census_year') ?? '')]
+        );
+    }
 
-        $usedSpcodes1 = SubPlotPlant2010::distinct()->where('PLOT_ID', $plot)->pluck('spcode')->toArray();  // → Collection of used spcodes
+    private function assertPlotYearState(PlotList2025 $lockedPlot): void
+    {
+        $scope = 'entry-plot-year:'.$lockedPlot->getKey().':'.(string) $lockedPlot->plot;
+        RecordStateGuard::assertToken(
+            $this->loadedPlotYearToken,
+            $scope,
+            ['year' => $this->loadedPlotCensusYear],
+            'concurrentEdit',
+            '樣區計畫年度載入狀態已變更，請重新載入後再修改。'
+        );
 
-        $prefix = substr($plot, 0, 6);
+        if ((string) ($lockedPlot->getRawOriginal('census_year') ?? '') !== $this->loadedPlotCensusYear) {
+            throw ValidationException::withMessages([
+                'concurrentEdit' => '樣區計畫年度已由其他使用者更新，請重新載入後再修改。',
+            ]);
+        }
+    }
 
-        $usedSpcodes2 = SubPlotPlant2025::distinct()
-            ->whereRaw('LEFT(plot_full_id, 6) = ?', [$prefix])
-            ->pluck('spcode')
-            ->toArray();
+    private function resetRecordVersions(): void
+    {
+        $this->envRecordVersions = [];
+        $this->plantRecordVersions = [];
+        $this->envVersionToken = '';
+        $this->plantVersionToken = '';
+    }
 
-        $usedSpcodes = array_unique(array_merge($usedSpcodes1, $usedSpcodes2));
-        // 撈出對應中文名
+    private function recordVersionToken(string $kind, array $versions): string
+    {
+        ksort($versions, SORT_NATURAL);
 
-        // dd($usedSpcodes);
-        $list1 = Spinfo::whereIn('spcode', $usedSpcodes)
-            ->select('chname')
-            ->get();
-        // 加入全部這次給予的spcodeIndex，因為可能會有用
-        $fullChnameIndex = SpcodeIndex::select('chname_index as chname')
-            ->get();
+        return RecordStateGuard::token(
+            'entry:'.$kind.':'.(string) $this->thisSubPlot,
+            ['versions' => $versions]
+        );
+    }
 
-        return $list1
-            ->concat($fullChnameIndex)
-            ->sortBy('chname')
-            ->values()
-            ->toArray();
+    private function assertRecordVersionToken(string $kind, array $versions, string $token, string $label): void
+    {
+        ksort($versions, SORT_NATURAL);
+        RecordStateGuard::assertToken(
+            $token,
+            'entry:'.$kind.':'.(string) $this->thisSubPlot,
+            ['versions' => $versions],
+            'concurrentEdit',
+            "{$label}載入狀態已變更，請重新載入後再修改。"
+        );
+    }
 
-        // dd($this->plantList);
+    private function plotFormYear(PlotList2025 $plotRow): string
+    {
+        $year = trim((string) ($plotRow->census_year ?? ''));
+        if ($year !== '' && (int) $year >= 2025) {
+            return $year;
+        }
 
+        $user = Auth::user();
+        $default = $user
+            ? PlanYearPlotFilter::defaultYear(PlanYearPlotFilter::years($user))
+            : '';
+
+        return $default !== '' ? $default : date('Y');
+    }
+
+    private function assertRecordVersion($model, array $versions, string $label): void
+    {
+        $id = (string) $model->getKey();
+        if (! array_key_exists($id, $versions) || $versions[$id] !== $this->recordVersion($model)) {
+            throw ValidationException::withMessages([
+                'concurrentEdit' => "{$label}已由其他使用者更新，請重新載入後再修改。",
+            ]);
+        }
+    }
+
+    private function assertVersionSet(Collection $records, array $versions, string $label): void
+    {
+        $currentIds = $records->pluck('id')->map(fn ($id) => (string) $id)->sort()->values()->all();
+        $loadedIds = collect(array_keys($versions))->map(fn ($id) => (string) $id)->sort()->values()->all();
+
+        if ($currentIds !== $loadedIds) {
+            throw ValidationException::withMessages([
+                'concurrentEdit' => "{$label}筆數已由其他使用者變更，請重新載入後再修改。",
+            ]);
+        }
+
+        foreach ($records as $record) {
+            $this->assertRecordVersion($record, $versions, $label);
+        }
     }
 
     public function markDuplicateCovError(string $plotFullId)
     {
-        // 取得該 plot_full_id 的所有資料
-        $records = SubPlotPlant2025::where('plot_full_id', $plotFullId)->get();
+        $this->authorizeSubPlot($plotFullId);
 
-        $duplicates = [
-            'chname_index' => [],
-            'spcode' => [],
-        ];
+        $this->recalculatePlantDataErrors($plotFullId);
+    }
 
-        $seenChname = [];
-        $seenSpcode = [];
+    private function recalculatePlantDataErrors(string $plotFullId): bool
+    {
+        $records = SubPlotPlant2025::where('plot_full_id', $plotFullId)
+            ->get(['id', 'chname_index', 'spcode', 'coverage', 'data_error']);
+        $nameCounts = $records
+            ->pluck('chname_index')
+            ->filter(fn ($name) => trim((string) $name) !== '')
+            ->countBy();
+        $spcodeCounts = $records
+            ->pluck('spcode')
+            ->filter(fn ($spcode) => trim((string) $spcode) !== '')
+            ->countBy();
+        $idsByError = [0 => [], 1 => [], 2 => []];
+        $changed = false;
 
-        // 找出重複的 chname_index 和 spcode
         foreach ($records as $record) {
-            // chname_index 重複檢查
-            if (isset($seenChname[$record->chname_index])) {
-                $duplicates['chname_index'][$record->chname_index] = true;
-            } else {
-                $seenChname[$record->chname_index] = true;
-            }
-
-            // spcode 重複檢查
-            if (! empty($record->spcode) && isset($seenSpcode[$record->spcode])) {
-                $duplicates['spcode'][$record->spcode] = true;
-            } elseif (! empty($record->spcode)) {
-                $seenSpcode[$record->spcode] = true;
+            $duplicateName = trim((string) $record->chname_index) !== ''
+                && ($nameCounts[$record->chname_index] ?? 0) > 1;
+            $duplicateSpcode = trim((string) $record->spcode) !== ''
+                && ($spcodeCounts[$record->spcode] ?? 0) > 1;
+            $invalidCoverage = ! is_numeric($record->coverage)
+                || (float) $record->coverage <= 0
+                || (float) $record->coverage > 100;
+            $error = ($duplicateName || $duplicateSpcode) ? 2 : ($invalidCoverage ? 1 : 0);
+            if ((int) $record->data_error !== $error) {
+                $idsByError[$error][] = $record->id;
+                $changed = true;
             }
         }
 
-        // 更新重複資料的 data_error = 2
-        foreach ($records as $record) {
-            if (
-                isset($duplicates['chname_index'][$record->chname_index]) ||
-                isset($duplicates['spcode'][$record->spcode])
-            ) {
-                if ($record->data_error != 2) {
-                    $record->data_error = 2;
-                    $record->save();
-                }
+        foreach ($idsByError as $error => $ids) {
+            if ($ids !== []) {
+                SubPlotPlant2025::whereIn('id', $ids)->update([
+                    'data_error' => $error,
+                    'updated_by' => $this->creatorCode,
+                ]);
             }
         }
+
+        return $changed;
     }
 
     public $photo;
 
     public function clickUploadPhoto()
     {
+        $this->authorizeSubPlot((string) $this->thisSubPlot);
         $this->resetErrorBag();
 
         // 1) 驗證（20MB、限定常見圖片格式）
         $this->validate([
-            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:20480',
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|mimetypes:image/jpeg,image/png,image/webp|max:20480',
         ], [
             'photo.required' => '請先選擇檔案',
             'photo.image' => '檔案必須是圖片格式',
             'photo.mimes' => '只接受 JPG、PNG 或 WEBP',
+            'photo.mimetypes' => '只接受 JPG、PNG 或 WEBP',
             'photo.max' => '檔案不可超過 20 MB',
         ]);
 
+        $ext = UploadMime::imageExtension($this->photo->getMimeType());
+        if ($ext === null) {
+            $this->addError('photo', '無法辨識圖片格式，只接受 JPG、PNG 或 WEBP。');
+
+            return;
+        }
+
         $hab = substr($this->thisSubPlot, 6, 2);
         $basename = $this->thisSubPlot; // 不含副檔名
-        $ext = strtolower($this->photo->getClientOriginalExtension() ?: $this->photo->extension() ?: 'jpg');
 
         $relativeDir = $this->photoRelativeDir($hab);
         $filename = "{$basename}.{$ext}";
         $targetPath = "{$relativeDir}/{$filename}";
 
-        $disk = Storage::disk('public'); // config/filesystems.php 目前指向 public_path()
-        $allExts = $this->photoExts;
+        $disk = Storage::disk('invasi_files');
+        $connection = DB::connection('invasiflora');
+        $backups = [];
+        $createdPaths = [];
+        $tmpPaths = [];
 
         try {
-            DB::beginTransaction();
+            $connection->beginTransaction();
+            $this->ensureDirectory($disk, $relativeDir);
 
-            // 2) 確保目錄存在（同一個 disk）
-            $disk->makeDirectory($relativeDir);
-
-            // 3) 先寫暫存檔，成功後才刪舊檔，避免失敗時舊照片消失。
             $tmpName = $filename.'.tmp_'.Str::random(8);
             $tmpPath = "{$relativeDir}/{$tmpName}";
-            $disk->putFileAs($relativeDir, $this->photo, $tmpName);
-
-            // 4) 清掉「同名不同副檔名」舊檔，避免殘留多份。
-            foreach ($allExts as $oldExt) {
-                $old = "{$relativeDir}/{$basename}.{$oldExt}";
-                if ($disk->exists($old)) {
-                    $disk->delete($old);
-                }
+            $tmpPaths[] = $tmpPath;
+            if ($disk->putFileAs($relativeDir, $this->photo, $tmpName) === false) {
+                throw new \RuntimeException('無法寫入照片暫存檔。');
             }
 
-            $disk->move($tmpPath, $targetPath);
+            $existingPaths = array_map(
+                fn ($oldExt) => "{$relativeDir}/{$basename}.{$oldExt}",
+                $this->photoExts
+            );
+            $mirrorPath = null;
+            $mirrorSubPlot = null;
 
-            // 5) 更新 DB（成功寫檔後再更新）
-            $updated = SubPlotEnv2025::where('plot_full_id', $basename)->update([
-                'file_uploaded_at' => now(),
-                'file_uploaded_by' => $this->creatorCode,
-            ]);
-
-            if ($updated === 0) {
-                throw new \RuntimeException("找不到小樣方資料：{$basename}");
-            }
-
-            // 6) 木本主生育地照片鏡像到對應地被（檔名也改成對應小樣區 ID）
             if (HabitatCode::isWood($hab)) {
                 $mirrorHab = HabitatCode::understoryFor($hab);
                 $mirrorSubPlot = substr($basename, 0, 6).$mirrorHab.substr($basename, 8);
                 $mirrorDir = $this->photoRelativeDir($mirrorHab);
-                $mirrorFilename = "{$mirrorSubPlot}.{$ext}";
-                $mirrorPath = "{$mirrorDir}/{$mirrorFilename}";
+                $mirrorPath = "{$mirrorDir}/{$mirrorSubPlot}.{$ext}";
+                $this->ensureDirectory($disk, $mirrorDir);
 
-                // 建目錄
-                $disk->makeDirectory($mirrorDir);
-
-                // 清掉鏡像目標的舊副檔名
-                foreach ($allExts as $oldExt) {
-                    $old = "{$mirrorDir}/{$mirrorSubPlot}.{$oldExt}";
-                    if ($disk->exists($old)) {
-                        $disk->delete($old);
-                    }
+                foreach ($this->photoExts as $oldExt) {
+                    $existingPaths[] = "{$mirrorDir}/{$mirrorSubPlot}.{$oldExt}";
                 }
+            }
 
-                // 複製並改檔名（同 disk copy）
-                $disk->copy($targetPath, $mirrorPath);
+            $this->backupExistingFiles($disk, $existingPaths, Str::random(12), $backups);
+            if (! $disk->move($tmpPath, $targetPath)) {
+                throw new \RuntimeException('無法將照片暫存檔轉為正式檔。');
+            }
+            $createdPaths[] = $targetPath;
+            $tmpPaths = [];
 
-                // 更新鏡像小樣區 DB；若地被資料不存在，不阻斷主照片上傳。
+            if ($mirrorPath !== null) {
+                if (! $disk->copy($targetPath, $mirrorPath)) {
+                    throw new \RuntimeException('無法建立對應地被照片。');
+                }
+                $createdPaths[] = $mirrorPath;
+            }
+
+            $updated = SubPlotEnv2025::where('plot_full_id', $basename)->update([
+                'file_uploaded_at' => now(),
+                'file_uploaded_by' => $this->creatorCode,
+            ]);
+            if ($updated === 0) {
+                throw new \RuntimeException("找不到小樣方資料：{$basename}");
+            }
+
+            if ($mirrorSubPlot !== null) {
                 SubPlotEnv2025::where('plot_full_id', $mirrorSubPlot)->update([
                     'file_uploaded_at' => now(),
                     'file_uploaded_by' => $this->creatorCode,
                 ]);
             }
 
-            DB::commit();
-
-            // 7) 重新載入預覽（內部已做多副檔名偵測的話可直接用）
-            $this->loadPhotoInfo();
-            session()->flash('photoUploadSuccess', '上傳成功！');
-            $this->photo = null;
-
+            $connection->commit();
         } catch (Throwable $e) {
-            DB::rollBack();
+            if ($connection->transactionLevel() > 0) {
+                $connection->rollBack();
+            }
+            $this->restoreUploadFiles($disk, $createdPaths, $backups, $tmpPaths);
 
             FixLog::create([
                 'table_name' => 'upload_photo_error',
@@ -1105,71 +1553,92 @@ class EntryEntry extends Component
             ]);
 
             $this->addError('photo', '上傳失敗，請稍後再試或聯絡管理者。');
+
+            return;
         }
+
+        $this->deleteUploadBackups($disk, $backups);
+        $this->loadPhotoInfo();
+        session()->flash('photoUploadSuccess', '上傳成功！');
+        $this->photo = null;
     }
 
     public $plotFile;
 
     protected $rules = [
-        'plotFile' => 'required|file|mimes:pdf|max:20480',
+        'plotFile' => 'required|file|mimes:pdf|mimetypes:application/pdf|max:20480',
     ];
 
     public function clickUploadFile()
     {
+        $this->authorizePlot();
         $this->resetErrorBag('plotFile');
 
         $rules = [
-            'plotFile' => 'required|file|mimes:pdf|max:20480', // 20MB (= 20*1024 KB)
+            'plotFile' => 'required|file|mimes:pdf|mimetypes:application/pdf|max:20480', // 20MB (= 20*1024 KB)
         ];
         $messages = [
             'plotFile.required' => '請先選擇檔案',
             'plotFile.file' => '檔案格式不正確',
             'plotFile.mimes' => '只接受 PDF 檔',
+            'plotFile.mimetypes' => '只接受 PDF 檔',
             'plotFile.max' => '檔案不可超過 20 MB',
         ];
         // dd('test');
         // 1) 先做表單驗證（這一步的錯誤會自動進到 $errors）
         $this->validate($rules, $messages);
 
+        if (! UploadMime::isPdf($this->plotFile->getMimeType())) {
+            $this->addError('plotFile', '無法辨識 PDF 檔案格式。');
+
+            return;
+        }
+
         // 2) 準備路徑與檔名
         $filename = $this->thisPlot.'.pdf';
-        $relativeDir = "invasi_files/plotData/{$this->thisCounty}";
+        $relativeDir = "plotData/{$this->thisCounty}";
         $targetPath = "{$relativeDir}/{$filename}";
-        $disk = Storage::disk('public'); // 對應 storage/app/public
+        $disk = Storage::disk('invasi_files');
+        $connection = DB::connection('invasiflora');
+        $backups = [];
+        $createdPaths = [];
+        $tmpPaths = [];
 
         try {
-            DB::beginTransaction();
+            $connection->beginTransaction();
+            $this->ensureDirectory($disk, $relativeDir);
 
-            // 3) 確保目錄存在（用 Storage，不要混 public_path）
-            $disk->makeDirectory($relativeDir);
-
-            // 4) 原子寫入：先存暫存檔，再 rename 成正式檔（避免半成品）
             $tmpName = $this->thisPlot.'.tmp_'.Str::random(8).'.pdf';
-            $disk->putFileAs($relativeDir, $this->plotFile, $tmpName);
-
-            // 若已有舊檔可先刪除（或保留歷史就改成 rename 加時間戳）
-            if ($disk->exists($targetPath)) {
-                $disk->delete($targetPath);
+            $tmpPath = "{$relativeDir}/{$tmpName}";
+            $tmpPaths[] = $tmpPath;
+            if ($disk->putFileAs($relativeDir, $this->plotFile, $tmpName) === false) {
+                throw new \RuntimeException('無法寫入 PDF 暫存檔。');
             }
-            $disk->move("{$relativeDir}/{$tmpName}", $targetPath);
+
+            $this->backupExistingFiles($disk, [$targetPath], Str::random(12), $backups);
+            if (! $disk->move($tmpPath, $targetPath)) {
+                throw new \RuntimeException('無法將 PDF 暫存檔轉為正式檔。');
+            }
+            $createdPaths[] = $targetPath;
+            $tmpPaths = [];
 
             // 5) 寫入資料庫（成功寫檔後才更新）
-            PlotList2025::where('plot', $this->thisPlot)->update([
+            $updated = PlotList2025::where('plot', $this->thisPlot)->update([
                 'file_uploaded_at' => now(),
                 'file_uploaded_by' => $this->creatorCode,
                 // 若資料表有路徑欄，建議一起更新
                 // 'file_path' => $targetPath,
             ]);
+            if ($updated === 0) {
+                throw new \RuntimeException("找不到樣區資料：{$this->thisPlot}");
+            }
 
-            DB::commit();
-
-            // 6) UI 狀態
-            $this->loadFileInfo();
-            session()->flash('fileUploadSuccess', '上傳成功！');
-            $this->plotFile = null;
-
+            $connection->commit();
         } catch (Throwable $e) {
-            DB::rollBack();
+            if ($connection->transactionLevel() > 0) {
+                $connection->rollBack();
+            }
+            $this->restoreUploadFiles($disk, $createdPaths, $backups, $tmpPaths);
 
             // 後台 log（方便追查）
             FixLog::create([
@@ -1195,8 +1664,198 @@ class EntryEntry extends Component
 
             // 綁在欄位錯誤或一般錯誤都可，這裡綁欄位比較直覺
             $this->addError('plotFile', $friendly);
+
+            return;
         }
 
+        $this->deleteUploadBackups($disk, $backups);
+        $this->loadFileInfo();
+        session()->flash('fileUploadSuccess', '上傳成功！');
+        $this->plotFile = null;
+    }
+
+    private function ensureDirectory(FilesystemAdapter $disk, string $directory): void
+    {
+        if (! $disk->exists($directory) && ! $disk->makeDirectory($directory)) {
+            throw new \RuntimeException("無法建立檔案目錄：{$directory}");
+        }
+    }
+
+    private function movePhotosForSubPlotRename(
+        string $oldPlotFullId,
+        string $newPlotFullId,
+        string $oldHabitat,
+        string $newHabitat
+    ): array {
+        $disk = Storage::disk('invasi_files');
+        $moves = $this->photoMovePlan($oldPlotFullId, $newPlotFullId, $oldHabitat, $newHabitat);
+        $copies = [];
+
+        if (! HabitatCode::isWood($oldHabitat) && HabitatCode::isWood($newHabitat)) {
+            $newUnderstoryHabitat = HabitatCode::understoryFor($newHabitat);
+            $newUnderstoryId = substr($newPlotFullId, 0, 6)
+                .$newUnderstoryHabitat
+                .substr($newPlotFullId, 8);
+
+            foreach ($moves as $move) {
+                $extension = pathinfo($move['to'], PATHINFO_EXTENSION);
+                $copies[] = [
+                    'from' => $move['to'],
+                    'to' => $this->subPlotPhotoPath($newUnderstoryId, $newUnderstoryHabitat, $extension),
+                ];
+            }
+        }
+
+        if (HabitatCode::isWood($oldHabitat) && HabitatCode::isWood($newHabitat)) {
+            $oldUnderstoryHabitat = HabitatCode::understoryFor($oldHabitat);
+            $newUnderstoryHabitat = HabitatCode::understoryFor($newHabitat);
+            $oldUnderstoryId = substr($oldPlotFullId, 0, 6)
+                .$oldUnderstoryHabitat
+                .substr($oldPlotFullId, 8);
+            $newUnderstoryId = substr($newPlotFullId, 0, 6)
+                .$newUnderstoryHabitat
+                .substr($newPlotFullId, 8);
+            $moves = array_merge(
+                $moves,
+                $this->photoMovePlan(
+                    $oldUnderstoryId,
+                    $newUnderstoryId,
+                    $oldUnderstoryHabitat,
+                    $newUnderstoryHabitat
+                )
+            );
+        }
+
+        foreach (array_merge($moves, $copies) as $operation) {
+            if ($operation['from'] !== $operation['to'] && $disk->exists($operation['to'])) {
+                throw ValidationException::withMessages([
+                    '小樣方流水號' => '新小樣方編號已有照片，為避免覆蓋檔案，請先確認資料後再試。',
+                ]);
+            }
+        }
+
+        $completed = [];
+        try {
+            foreach ($moves as $move) {
+                $this->ensureDirectory($disk, dirname($move['to']));
+                if (! $disk->move($move['from'], $move['to'])) {
+                    throw new \RuntimeException('無法同步移動小樣方照片。');
+                }
+                $completed[] = ['type' => 'move'] + $move;
+            }
+
+            foreach ($copies as $copy) {
+                $this->ensureDirectory($disk, dirname($copy['to']));
+                if (! $disk->copy($copy['from'], $copy['to'])) {
+                    throw new \RuntimeException('無法建立對應地被照片。');
+                }
+                $completed[] = ['type' => 'copy'] + $copy;
+            }
+        } catch (Throwable $e) {
+            $this->rollbackPhotoOperations($completed);
+
+            throw $e;
+        }
+
+        return $completed;
+    }
+
+    private function photoMovePlan(
+        string $oldPlotFullId,
+        string $newPlotFullId,
+        string $oldHabitat,
+        string $newHabitat
+    ): array {
+        $disk = Storage::disk('invasi_files');
+        $moves = [];
+
+        foreach ($this->photoExts as $extension) {
+            $oldPath = $this->subPlotPhotoPath($oldPlotFullId, $oldHabitat, $extension);
+            if ($disk->exists($oldPath)) {
+                $moves[] = [
+                    'from' => $oldPath,
+                    'to' => $this->subPlotPhotoPath($newPlotFullId, $newHabitat, $extension),
+                ];
+            }
+        }
+
+        return $moves;
+    }
+
+    private function subPlotPhotoPath(string $plotFullId, string $habitat, string $extension): string
+    {
+        return "subPlotPhoto/{$this->thisCounty}/{$this->thisPlot}/{$habitat}/{$plotFullId}.{$extension}";
+    }
+
+    private function rollbackPhotoOperations(array $operations): void
+    {
+        $disk = Storage::disk('invasi_files');
+
+        foreach (array_reverse($operations) as $operation) {
+            if ($operation['type'] === 'copy') {
+                if ($disk->exists($operation['to'])) {
+                    $disk->delete($operation['to']);
+                }
+
+                continue;
+            }
+
+            if ($disk->exists($operation['to']) && ! $disk->exists($operation['from'])) {
+                $this->ensureDirectory($disk, dirname($operation['from']));
+                $disk->move($operation['to'], $operation['from']);
+            }
+        }
+    }
+
+    private function backupExistingFiles(
+        FilesystemAdapter $disk,
+        array $paths,
+        string $token,
+        array &$backups
+    ): void {
+        foreach (array_unique($paths) as $path) {
+            if (! $disk->exists($path)) {
+                continue;
+            }
+
+            $backupPath = "{$path}.bak_{$token}";
+            if (! $disk->move($path, $backupPath)) {
+                throw new \RuntimeException("無法備份既有檔案：{$path}");
+            }
+            $backups[$path] = $backupPath;
+        }
+    }
+
+    private function restoreUploadFiles(
+        FilesystemAdapter $disk,
+        array $createdPaths,
+        array $backups,
+        array $tmpPaths
+    ): void {
+        foreach (array_unique(array_merge($createdPaths, $tmpPaths)) as $path) {
+            if ($disk->exists($path)) {
+                $disk->delete($path);
+            }
+        }
+
+        foreach ($backups as $originalPath => $backupPath) {
+            if (! $disk->exists($backupPath)) {
+                continue;
+            }
+            if ($disk->exists($originalPath)) {
+                $disk->delete($originalPath);
+            }
+            $disk->move($backupPath, $originalPath);
+        }
+    }
+
+    private function deleteUploadBackups(FilesystemAdapter $disk, array $backups): void
+    {
+        foreach ($backups as $backupPath) {
+            if ($disk->exists($backupPath)) {
+                $disk->delete($backupPath);
+            }
+        }
     }
 
     public function fromOverview($county, $plot, $subPlot)
@@ -1210,6 +1869,60 @@ class EntryEntry extends Component
         $this->showPlotEntryTable = true;
         $this->showPlantEntryTable = true;
 
+    }
+
+    private function refreshActor(User $user): void
+    {
+        $this->user = $user;
+        $this->userOrg = (string) ($user->organization ?? '');
+        $this->creatorCode = explode('@', (string) $user->email)[0];
+    }
+
+    private function accessiblePlotQuery(?User $user = null)
+    {
+        $user ??= Auth::user();
+        abort_unless($user, 403);
+        $this->refreshActor($user);
+
+        return PlotList2025::query()
+            ->when(
+                $user->role !== 'admin',
+                fn ($query) => $query->where('team', (string) $user->organization)
+            );
+    }
+
+    private function authorizePlot(?string $plot = null): PlotList2025
+    {
+        $plot = $plot ?? (string) $this->thisPlot;
+        abort_if($plot === '', 403);
+
+        $plotRow = $this->accessiblePlotQuery()
+            ->where('plot', $plot)
+            ->orderByDesc('census_year')
+            ->first();
+        abort_unless($plotRow, 403);
+
+        $this->thisPlot = (string) $plotRow->plot;
+        $this->thisCounty = (string) $plotRow->county;
+
+        return $plotRow;
+    }
+
+    private function authorizeSubPlot(string $plotFullId, bool $onlyTrashed = false): SubPlotEnv2025
+    {
+        $plotRow = $this->authorizePlot();
+        abort_if($plotFullId === '', 403);
+
+        $query = $onlyTrashed
+            ? SubPlotEnv2025::onlyTrashed()
+            : SubPlotEnv2025::query();
+        $subPlot = $query
+            ->where('plot_full_id', $plotFullId)
+            ->where('plot', (string) $plotRow->plot)
+            ->first();
+        abort_unless($subPlot, 403);
+
+        return $subPlot;
     }
 
     public function render()

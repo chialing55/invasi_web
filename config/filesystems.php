@@ -47,6 +47,14 @@ return [
             // 'report' => false,
         ],
 
+        'invasi_files' => [
+            'driver' => 'local',
+            'root' => env('INVASI_FILES_ROOT', storage_path('invasi_files')),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

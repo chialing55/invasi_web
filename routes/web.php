@@ -1,15 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\GoogleBindingController;
-use App\Http\Controllers\FileController;
 use App\Http\Controllers\DataDownloadController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\GoogleBindingController;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Route;
 
 // 首頁（登入畫面 or dashboard）
 Route::redirect('/', '/login');
-
 
 // google 驗證
 Route::middleware(['auth'])->group(function () {
@@ -21,9 +19,7 @@ Route::get('dashboard', function () {
     return redirect()->route('index'); // ✅ 正確：導向 index 頁面
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-
 require __DIR__.'/auth.php';
-
 
 Route::get('/email-verified', function () {
     Auth::logout();
@@ -31,8 +27,6 @@ Route::get('/email-verified', function () {
 
     return view('auth.email-verified');
 })->name('email.verified');
-
-
 
 // Route::middleware(['auth', 'verified'])->group(function () {
 //     Route::get('/docs', [HomeController::class, 'docs'])->name('index');
@@ -64,18 +58,10 @@ Route::middleware(['auth', 'verified', 'can:manage-users'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // 下載檔案
-    Route::get('/download/{path}', [FileController::class, 'download'])
-        ->where('path', '.*')
-        ->name('file.download');
-
-    Route::get('/view/{path}', [FileController::class, 'view'])
-        ->where('path', '.*')
-        ->name('file.view');
-
-    Route::get('/test', function () {
-        return view('test');
-    });
+    Route::get('/files/plot/{plot}', [FileController::class, 'plot'])->name('file.plot');
+    Route::get('/files/subplot-photo/{plotFullId}', [FileController::class, 'subplotPhoto'])->name('file.subplot-photo');
+    Route::get('/files/document/{document}', [FileController::class, 'document'])->name('file.document');
+    Route::get('/files/export/{token}', [FileController::class, 'export'])->name('file.export');
 
     Route::get('/redirect-to-query-plot', function () {
         session([

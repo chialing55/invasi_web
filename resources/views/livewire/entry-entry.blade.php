@@ -77,6 +77,9 @@
                         儲存生育地類型
                     </button>
                 </div>
+                @error('selectedHabitatCodes')
+                    <div class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</div>
+                @enderror
 
 
             </div>
@@ -157,6 +160,12 @@
         </div>
     @endif
 
+    @error('concurrentEdit')
+        <div class="mt-4 rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700" role="alert">
+            <p class="font-semibold">{{ $message }}</p>
+        </div>
+    @enderror
+
 
     @if ($showPlotEntryTable)
 
@@ -184,7 +193,7 @@
             @if ($pendingRestorePlotFullId !== '')
                 <div class="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900" role="alert">
                     <p class="font-semibold">小樣方 {{ $pendingRestorePlotFullId }} 曾被刪除。</p>
-                    <p class="mt-1 text-sm">是否還原舊有的小樣方環境資料及其全部植物調查資料？若不還原，請取消新增並修改小樣方編號。</p>
+                    <p class="mt-1 text-sm">是否還原小樣方環境資料及當次刪除的植物調查資料？先前個別刪除的植物不會還原。若不還原，請取消新增並修改小樣方編號。</p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <button type="button" class="btn-submit"
                             wire:click="restoreDeletedSubPlot"

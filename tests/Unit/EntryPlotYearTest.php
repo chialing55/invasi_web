@@ -22,6 +22,17 @@ class EntryPlotYearTest extends TestCase
         $this->assertNotSame(date('Y'), $year);
     }
 
+    public function test_missing_plot_year_defaults_to_current_year(): void
+    {
+        $plot = new PlotList2025;
+        $plot->setRawAttributes(['census_year' => null]);
+
+        $year = (new ReflectionMethod(EntryEntry::class, 'plotFormYear'))
+            ->invoke(new EntryEntry, $plot);
+
+        $this->assertSame(date('Y'), $year);
+    }
+
     public function test_matching_loaded_and_database_years_are_accepted(): void
     {
         $component = new EntryEntry;
@@ -66,13 +77,52 @@ class EntryPlotYearTest extends TestCase
         $this->assertYearState($component, $this->plot(2, '600002', '2025'));
     }
 
-    private function plot(int $id, string $plot, string $year): PlotList2025
+    public function test_matching_plot_file_version_is_accepted(): void
+    {
+        $component = new EntryEntry;
+        $plot = $this->plot(1, '600001', '2025', '2026-10-02 10:00:00');
+        $this->setFileVersion($component, $plot);
+
+        $this->assertFileState($component, $plot);
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_changed_plot_file_version_is_rejected(): void
+    {
+        $component = new EntryEntry;
+        $this->setFileVersion($component, $this->plot(1, '600001', '2025', '2026-10-02 10:00:00'));
+
+        $this->expectException(ValidationException::class);
+        $this->assertFileState(
+            $component,
+            $this->plot(1, '600001', '2025', '2026-10-02 10:01:00')
+        );
+    }
+
+    public function test_plot_file_version_refresh_keeps_current_selection(): void
+    {
+        $component = new EntryEntry;
+        $component->thisPlot = '600001';
+        $component->thisSubPlot = '6000010801';
+
+        $this->setFileVersion(
+            $component,
+            $this->plot(1, '600001', '2025', '2026-10-02 10:01:00')
+        );
+
+        $this->assertSame('600001', $component->thisPlot);
+        $this->assertSame('6000010801', $component->thisSubPlot);
+        $this->assertSame('2026-10-02 10:01:00', $component->loadedPlotFileUploadedAt);
+    }
+
+    private function plot(int $id, string $plot, string $year, ?string $fileUploadedAt = null): PlotList2025
     {
         $record = new PlotList2025;
         $record->setRawAttributes([
             'id' => $id,
             'plot' => $plot,
             'census_year' => $year,
+            'file_uploaded_at' => $fileUploadedAt,
         ], true);
 
         return $record;
@@ -86,5 +136,15 @@ class EntryPlotYearTest extends TestCase
     private function assertYearState(EntryEntry $component, PlotList2025 $plot): void
     {
         (new ReflectionMethod(EntryEntry::class, 'assertPlotYearState'))->invoke($component, $plot);
+    }
+
+    private function setFileVersion(EntryEntry $component, PlotList2025 $plot): void
+    {
+        (new ReflectionMethod(EntryEntry::class, 'setPlotFileVersion'))->invoke($component, $plot);
+    }
+
+    private function assertFileState(EntryEntry $component, PlotList2025 $plot): void
+    {
+        (new ReflectionMethod(EntryEntry::class, 'assertPlotFileState'))->invoke($component, $plot);
     }
 }

@@ -1,9 +1,14 @@
 {{-- livewire/survey-overview.blade.php --}}
-<div>
+<div wire:init="loadInitialData">
     <div wire:loading.class="flex" wire:loading.remove.class="hidden"
         class="fixed left-0 top-0 z-50 hidden h-full w-full items-center justify-center bg-white/50">
         <div class="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"></div>
     </div>
+    @if (!$pageReady)
+        {{-- <div class="flex min-h-48 items-center justify-center" role="status" aria-label="載入中">
+            <div class="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"></div>
+        </div> --}}
+    @else
     <h2 class="mb-4 text-xl font-bold">樣區完成狀況總覽</h2>
     <div class="mb-6 border-l-4 border-yellow-500 bg-yellow-100 p-4 text-yellow-800" role="alert">
         <ul class="mt-2 list-['🌼'] space-y-1 pl-5 text-sm">
@@ -460,6 +465,7 @@
             @endif
         </div>
     </div>
+    @endif
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {

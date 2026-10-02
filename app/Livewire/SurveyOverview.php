@@ -18,6 +18,8 @@ use Livewire\Component;
 
 class SurveyOverview extends Component
 {
+    public bool $pageReady = false;
+
     public $countyList = [];
 
     public $thisCounty;
@@ -67,15 +69,21 @@ class SurveyOverview extends Component
 
     public function mount()
     {
-        $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
-        // 預設顯示全部 plot; 統
-        $this->allContyInfo();
-        // $this->surveryedPlotInfo('', '');
         $user = Auth::user(); // 取代 auth()->user()
         $this->userOrg = $user->organization ?? '未知單位';
         $this->userRole = $user->role;
         $this->thisCensusYear = date('Y');
+    }
 
+    public function loadInitialData(): void
+    {
+        if ($this->pageReady) {
+            return;
+        }
+
+        $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
+        $this->allContyInfo();
+        $this->pageReady = true;
     }
 
     public $allContyInfo = [];

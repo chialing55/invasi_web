@@ -18,10 +18,10 @@ use App\Services\DataSyncService;
 use App\Services\FormAuditService;
 use App\Services\PlantIdentityResolver;
 use App\Support\HabitatCode;
-use App\Support\PlanYearPlotFilter;
 use App\Support\RecordStateGuard;
 use App\Support\TaiwanChecklistQuery;
 use App\Support\UploadMime;
+use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
@@ -95,6 +95,12 @@ class EntryEntry extends Component
 
     public string $loadedPlotYearToken = '';
 
+    public $plotCensusYear = '';
+
+    public string $loadedPlotFileUploadedAt = '';
+
+    public string $loadedPlotFileToken = '';
+
     public $pendingRestorePlotFullId = '';
 
     public string $pendingRestoreToken = '';
@@ -157,9 +163,8 @@ class EntryEntry extends Component
         $this->showPlotEntryTable = false;
         $this->showPlantEntryTable = false;
         $this->thisPlot = '';
-        $this->loadedPlotCensusYear = '';
         $this->clearPendingRestore();
-        $this->loadedPlotYearToken = '';
+        $this->resetPlotVersionState();
         $this->plotHabToken = '';
         $this->resetRecordVersions();
         $this->dispatch('reset_plant_table');
@@ -183,9 +188,8 @@ class EntryEntry extends Component
         if ((string) $plot === '') {
             $this->thisPlot = '';
             $this->thisSubPlot = '';
-            $this->loadedPlotCensusYear = '';
             $this->clearPendingRestore();
-            $this->loadedPlotYearToken = '';
+            $this->resetPlotVersionState();
             $this->plotHabToken = '';
             $this->resetRecordVersions();
             $this->subPlotList = [];
@@ -203,8 +207,10 @@ class EntryEntry extends Component
         $this->thisPlot = (string) $plotRow->plot;
         $this->thisCounty = (string) $plotRow->county;
         $this->loadedPlotCensusYear = (string) ($plotRow->getRawOriginal('census_year') ?? '');
+        $this->plotCensusYear = $this->plotFormYear($plotRow);
         $this->clearPendingRestore();
         $this->loadedPlotYearToken = $this->plotYearToken($plotRow);
+        $this->setPlotFileVersion($plotRow);
         $this->plotHabToken = '';
         $this->thisSubPlot = ''; // 清空樣區ID
         $this->resetRecordVersions();
@@ -319,6 +325,49 @@ class EntryEntry extends Component
         session()->flash('habSaveMessage', '生育地類型已儲存。');
     }
 
+    public function savePlotCensusYear(): void
+    {
+        $plotRow = $this->authorizePlot();
+        $this->validate([
+            'plotCensusYear' => 'required|integer|min:2025|max:'.(date('Y') + 1),
+        ], [
+            'plotCensusYear.required' => '請填寫樣區計畫年度。',
+            'plotCensusYear.integer' => '樣區計畫年度必須為四位整數。',
+            'plotCensusYear.min' => '樣區計畫年度不得小於 2025 年。',
+            'plotCensusYear.max' => '樣區計畫年度最多可預做至下一年。',
+        ]);
+
+        $year = (int) $this->plotCensusYear;
+        $changed = false;
+        $lockedPlot = DB::connection('invasiflora')->transaction(function () use ($plotRow, $year, &$changed) {
+            $record = PlotList2025::whereKey($plotRow->id)->lockForUpdate()->firstOrFail();
+            $this->assertPlotYearState($record);
+            $originalYear = (int) ($record->census_year ?? 0);
+
+            if ($originalYear !== $year) {
+                $record->census_year = $year;
+                $record->updated_by = $this->creatorCode;
+                $record->save();
+                $changed = true;
+
+                FixLog::create([
+                    'table_name' => 'plot_list',
+                    'record_id' => $record->id,
+                    'changes' => ['census_year' => ['old' => $originalYear, 'new' => $year]],
+                    'modified_by' => $this->creatorCode,
+                    'modified_at' => now(),
+                ]);
+            }
+
+            return $record;
+        });
+
+        $this->plotCensusYear = (string) $year;
+        $this->loadedPlotCensusYear = (string) $year;
+        $this->loadedPlotYearToken = $this->plotYearToken($lockedPlot);
+        session()->flash('yearSaveMessage', $changed ? '計畫年度已儲存。' : '計畫年度無任何變更。');
+    }
+
     private function plotHabStateToken(string $plot, Collection $records): string
     {
         return RecordStateGuard::token('plot-habitats:'.$plot, $this->plotHabState($records));
@@ -371,7 +420,7 @@ class EntryEntry extends Component
 
     public function loadEmptyEnvForm()
     {
-        $plotRow = $this->authorizePlot();
+        $this->authorizePlot();
         $this->thisSubPlot = ''; // 清空樣區ID
         $this->clearPendingRestore();
         $this->resetRecordVersions();
@@ -387,7 +436,6 @@ class EntryEntry extends Component
             $this->subPlotEnvForm[$col] = '';
         }
         $this->subPlotEnvForm['plot'] = $this->thisPlot;
-        $this->subPlotEnvForm['census_year'] = $this->plotFormYear($plotRow);
         // dd($this->subPlotEnvForm);
         $this->showPlotEntryTable = true;
         $this->showPlantEntryTable = false;
@@ -401,12 +449,10 @@ class EntryEntry extends Component
         $this->thisSubPlot = (string) $data->plot_full_id;
         $subPlotEnvForm = [];
 
-        $plotRow = $this->authorizePlot((string) $this->thisPlot);
-        $census_year = $this->plotFormYear($plotRow);
+        $this->authorizePlot((string) $this->thisPlot);
 
         if ($data) {
             $subPlotEnvForm = $data->toArray(); // 有資料：預填入表單
-            $subPlotEnvForm['census_year'] = $census_year;
         }
         // dd($data);
         // $subPlotAreaMap = config('item_list.sub_plot_area');
@@ -417,7 +463,7 @@ class EntryEntry extends Component
         //  $subPlotEnvForm['plot_env'] = $plotEnvMap[$subPlotEnvForm['plot_env']];
         //   $subPlotEnvForm['island_category'] = $islandCategoryMap[$subPlotEnvForm['island_category']];
         $this->subPlotEnvForm = $subPlotEnvForm;
-        $this->envRecordVersions = [(string) $data->id => $this->recordVersion($data)];
+        $environmentRecords = collect([$data]);
 
         $habitat = (string) $data->habitat_code;
         if (HabitatCode::isWood($habitat)) {
@@ -426,10 +472,10 @@ class EntryEntry extends Component
                 .substr((string) $data->plot_full_id, 8);
             $understory = SubPlotEnv2025::where('plot_full_id', $understoryId)->first();
             if ($understory) {
-                $this->envRecordVersions[(string) $understory->id] = $this->recordVersion($understory);
+                $environmentRecords->push($understory);
             }
         }
-        $this->envVersionToken = $this->recordVersionToken('environment', $this->envRecordVersions);
+        $this->setEnvironmentRecordVersions($environmentRecords);
 
         $this->showPlotEntryTable = true; // 顯示表單
 
@@ -510,8 +556,13 @@ class EntryEntry extends Component
         $plantRecords = SubPlotPlant2025::where('plot_full_id', $plotFullId)
             ->lockForUpdate()
             ->get();
-        $this->assertRecordVersionToken('plants', $this->plantRecordVersions, $this->plantVersionToken, '植物調查資料');
-        $this->assertVersionSet($plantRecords, $this->plantRecordVersions, '植物調查資料');
+        $this->assertRecordVersionState(
+            'plants',
+            $plantRecords,
+            $this->plantRecordVersions,
+            $this->plantVersionToken,
+            '植物調查資料'
+        );
         $deletionBatchId = (string) Str::uuid();
 
         SubPlotPlant2025::where('plot_full_id', $plotFullId)
@@ -657,10 +708,7 @@ class EntryEntry extends Component
         $existingPlantForm = $data->map(function ($item) use ($columns) {
             return collect($item)->only($columns)->toArray();
         })->toArray();
-        $this->plantRecordVersions = $data
-            ->mapWithKeys(fn ($item) => [(string) $item->id => $this->recordVersion($item)])
-            ->all();
-        $this->plantVersionToken = $this->recordVersionToken('plants', $this->plantRecordVersions);
+        $this->setPlantRecordVersions($data);
         // dd($existingPlantForm);
         for ($i = 0; $i < 15; $i++) {
             $row = $empty;
@@ -807,19 +855,8 @@ class EntryEntry extends Component
             }
         }
 
-        $this->validate(
-            array_merge($this->subPlotEnvRules(), [
-                'subPlotEnvForm.census_year' => 'required|integer|min:2025|max:'.(date('Y') + 1),
-            ]),
-            array_merge($this->subPlotEnvMessages(), [
-                'subPlotEnvForm.census_year.required' => '請填寫樣區計畫年度。',
-                'subPlotEnvForm.census_year.integer' => '樣區計畫年度必須為四位整數。',
-                'subPlotEnvForm.census_year.min' => '樣區計畫年度不得小於 2025 年。',
-                'subPlotEnvForm.census_year.max' => '樣區計畫年度最多可預做至下一年。',
-            ])
-        );
+        $this->validate($this->subPlotEnvRules(), $this->subPlotEnvMessages());
         $msg = '';
-        $censusYear = (int) $this->subPlotEnvForm['census_year'];
         $subPlotEnvForm = collect($this->subPlotEnvForm)
             ->only(self::ENV_EDITABLE_FIELDS)
             ->toArray();
@@ -838,8 +875,6 @@ class EntryEntry extends Component
             CoordinateHelper::toTm2($subPlotEnvForm['dd97_x'], $subPlotEnvForm['dd97_y']),
             DateHelper::splitYmd($subPlotEnvForm['date'])
         );
-        $subPlotEnvForm['census_year'] = $censusYear;
-
         if (! $this->environmentTargetsAvailable($subPlotEnvForm, $authorizedSubPlot)) {
             return;
         }
@@ -849,22 +884,22 @@ class EntryEntry extends Component
         $connection->beginTransaction();
 
         try {
-            $record = PlotList2025::whereKey($plotRow->id)
+            PlotList2025::whereKey($plotRow->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $this->assertPlotYearState($record);
 
             if ($authorizedSubPlot) {
-                $this->assertRecordVersionToken('environment', $this->envRecordVersions, $this->envVersionToken, '小樣方環境資料');
                 $lockedEnvRecords = SubPlotEnv2025::whereIn(
                     'id',
                     array_map('intval', array_keys($this->envRecordVersions))
                 )
                     ->lockForUpdate()
                     ->get();
-                $this->assertVersionSet(
+                $this->assertRecordVersionState(
+                    'environment',
                     $lockedEnvRecords,
                     $this->envRecordVersions,
+                    $this->envVersionToken,
                     '小樣方環境資料'
                 );
             }
@@ -1032,35 +1067,6 @@ class EntryEntry extends Component
                 }
             } else {
                 $msg .= '環境資料無任何變更。';
-            }
-
-            // 更新調查年度
-
-            $upyear = $censusYear;
-            $originalCensusYear = $record->census_year;
-            $recordId = $record->id;
-
-            if ($upyear != $originalCensusYear) {
-                PlotList2025::whereKey($recordId)
-                    ->update(['census_year' => $upyear, 'updated_by' => $this->creatorCode]);
-                if ($originalCensusYear != '0') {
-                    $msg .= " 已將樣區調查年度更新為 {$upyear} 。";
-
-                    $yearDiff = [
-                        'census_year' => [
-                            'old' => $originalCensusYear,
-                            'new' => $upyear,
-                        ],
-                    ];
-                    FixLog::create([
-                        'table_name' => 'plot_list',
-                        'record_id' => $recordId,
-                        'changes' => $yearDiff,
-                        'modified_by' => $this->creatorCode,
-                        'modified_at' => now(),
-                    ]);
-
-                }
             }
 
             $connection->commit();
@@ -1256,10 +1262,11 @@ class EntryEntry extends Component
             $currentRecords = SubPlotPlant2025::where('plot_full_id', $this->thisSubPlot)
                 ->lockForUpdate()
                 ->get();
-            $this->assertRecordVersionToken('plants', $this->plantRecordVersions, $this->plantVersionToken, '植物調查資料');
-            $this->assertVersionSet(
+            $this->assertRecordVersionState(
+                'plants',
                 $currentRecords,
                 $this->plantRecordVersions,
+                $this->plantVersionToken,
                 '植物調查資料'
             );
             $originalData = $currentRecords->toArray();
@@ -1320,12 +1327,72 @@ class EntryEntry extends Component
         }
     }
 
+    private function plotFileToken(PlotList2025 $plotRow, string $uploadedAt): string
+    {
+        return RecordStateGuard::token(
+            'entry-plot-file:'.$plotRow->getKey().':'.(string) $plotRow->plot,
+            ['file_uploaded_at' => $uploadedAt]
+        );
+    }
+
+    private function setPlotFileVersion(PlotList2025 $plotRow): void
+    {
+        $this->loadedPlotFileUploadedAt = (string) ($plotRow->getRawOriginal('file_uploaded_at') ?? '');
+        $this->loadedPlotFileToken = $this->plotFileToken($plotRow, $this->loadedPlotFileUploadedAt);
+    }
+
+    private function assertPlotFileState(PlotList2025 $lockedPlot): void
+    {
+        $scope = 'entry-plot-file:'.$lockedPlot->getKey().':'.(string) $lockedPlot->plot;
+        RecordStateGuard::assertToken(
+            $this->loadedPlotFileToken,
+            $scope,
+            ['file_uploaded_at' => $this->loadedPlotFileUploadedAt],
+            'plotFile',
+            '樣區 PDF 載入狀態已變更，請重新選擇樣區後再上傳。'
+        );
+
+        if ((string) ($lockedPlot->getRawOriginal('file_uploaded_at') ?? '') !== $this->loadedPlotFileUploadedAt) {
+            throw ValidationException::withMessages([
+                'plotFile' => '樣區 PDF 已由其他使用者更新，請重新選擇樣區後再上傳。',
+            ]);
+        }
+    }
+
     private function resetRecordVersions(): void
     {
         $this->envRecordVersions = [];
         $this->plantRecordVersions = [];
         $this->envVersionToken = '';
         $this->plantVersionToken = '';
+    }
+
+    private function resetPlotVersionState(): void
+    {
+        $this->loadedPlotCensusYear = '';
+        $this->plotCensusYear = '';
+        $this->loadedPlotYearToken = '';
+        $this->loadedPlotFileUploadedAt = '';
+        $this->loadedPlotFileToken = '';
+    }
+
+    private function recordVersionMap(Collection $records): array
+    {
+        return $records
+            ->mapWithKeys(fn ($record) => [(string) $record->id => $this->recordVersion($record)])
+            ->all();
+    }
+
+    private function setEnvironmentRecordVersions(Collection $records): void
+    {
+        $this->envRecordVersions = $this->recordVersionMap($records);
+        $this->envVersionToken = $this->recordVersionToken('environment', $this->envRecordVersions);
+    }
+
+    private function setPlantRecordVersions(Collection $records): void
+    {
+        $this->plantRecordVersions = $this->recordVersionMap($records);
+        $this->plantVersionToken = $this->recordVersionToken('plants', $this->plantRecordVersions);
     }
 
     private function recordVersionToken(string $kind, array $versions): string
@@ -1338,16 +1405,35 @@ class EntryEntry extends Component
         );
     }
 
-    private function assertRecordVersionToken(string $kind, array $versions, string $token, string $label): void
+    private function assertRecordVersionToken(
+        string $kind,
+        array $versions,
+        string $token,
+        string $label,
+        string $field = 'concurrentEdit'
+    ): void
     {
         ksort($versions, SORT_NATURAL);
         RecordStateGuard::assertToken(
             $token,
             'entry:'.$kind.':'.(string) $this->thisSubPlot,
             ['versions' => $versions],
-            'concurrentEdit',
+            $field,
             "{$label}載入狀態已變更，請重新載入後再修改。"
         );
+    }
+
+    private function assertRecordVersionState(
+        string $kind,
+        Collection $records,
+        array $versions,
+        string $token,
+        string $label,
+        string $field = 'concurrentEdit'
+    ): void
+    {
+        $this->assertRecordVersionToken($kind, $versions, $token, $label, $field);
+        $this->assertVersionSet($records, $versions, $label, $field);
     }
 
     private function plotFormYear(PlotList2025 $plotRow): string
@@ -1357,37 +1443,37 @@ class EntryEntry extends Component
             return $year;
         }
 
-        $user = Auth::user();
-        $default = $user
-            ? PlanYearPlotFilter::defaultYear(PlanYearPlotFilter::years($user))
-            : '';
-
-        return $default !== '' ? $default : date('Y');
+        return date('Y');
     }
 
-    private function assertRecordVersion($model, array $versions, string $label): void
+    private function assertRecordVersion($model, array $versions, string $label, string $field = 'concurrentEdit'): void
     {
         $id = (string) $model->getKey();
         if (! array_key_exists($id, $versions) || $versions[$id] !== $this->recordVersion($model)) {
             throw ValidationException::withMessages([
-                'concurrentEdit' => "{$label}已由其他使用者更新，請重新載入後再修改。",
+                $field => "{$label}已由其他使用者更新，請重新載入後再修改。",
             ]);
         }
     }
 
-    private function assertVersionSet(Collection $records, array $versions, string $label): void
+    private function assertVersionSet(
+        Collection $records,
+        array $versions,
+        string $label,
+        string $field = 'concurrentEdit'
+    ): void
     {
         $currentIds = $records->pluck('id')->map(fn ($id) => (string) $id)->sort()->values()->all();
         $loadedIds = collect(array_keys($versions))->map(fn ($id) => (string) $id)->sort()->values()->all();
 
         if ($currentIds !== $loadedIds) {
             throw ValidationException::withMessages([
-                'concurrentEdit' => "{$label}筆數已由其他使用者變更，請重新載入後再修改。",
+                $field => "{$label}筆數已由其他使用者變更，請重新載入後再修改。",
             ]);
         }
 
         foreach ($records as $record) {
-            $this->assertRecordVersion($record, $versions, $label);
+            $this->assertRecordVersion($record, $versions, $label, $field);
         }
     }
 
@@ -1477,9 +1563,24 @@ class EntryEntry extends Component
         $backups = [];
         $createdPaths = [];
         $tmpPaths = [];
+        $updatedEnvironmentRecords = collect();
 
         try {
             $connection->beginTransaction();
+            $lockedEnvRecords = SubPlotEnv2025::whereIn(
+                'id',
+                array_map('intval', array_keys($this->envRecordVersions))
+            )
+                ->lockForUpdate()
+                ->get();
+            $this->assertRecordVersionState(
+                'environment',
+                $lockedEnvRecords,
+                $this->envRecordVersions,
+                $this->envVersionToken,
+                '小樣方環境資料',
+                'photo'
+            );
             $this->ensureDirectory($disk, $relativeDir);
 
             $tmpName = $filename.'.tmp_'.Str::random(8);
@@ -1537,12 +1638,18 @@ class EntryEntry extends Component
                 ]);
             }
 
+            $updatedEnvironmentRecords = SubPlotEnv2025::whereIn(
+                'plot_full_id',
+                array_values(array_filter([$basename, $mirrorSubPlot]))
+            )->get();
+
             $connection->commit();
+        } catch (ValidationException $e) {
+            $this->rollbackUploadAttempt($connection, $disk, $createdPaths, $backups, $tmpPaths);
+
+            throw $e;
         } catch (Throwable $e) {
-            if ($connection->transactionLevel() > 0) {
-                $connection->rollBack();
-            }
-            $this->restoreUploadFiles($disk, $createdPaths, $backups, $tmpPaths);
+            $this->rollbackUploadAttempt($connection, $disk, $createdPaths, $backups, $tmpPaths);
 
             FixLog::create([
                 'table_name' => 'upload_photo_error',
@@ -1558,6 +1665,7 @@ class EntryEntry extends Component
         }
 
         $this->deleteUploadBackups($disk, $backups);
+        $this->setEnvironmentRecordVersions($updatedEnvironmentRecords);
         $this->loadPhotoInfo();
         session()->flash('photoUploadSuccess', '上傳成功！');
         $this->photo = null;
@@ -1571,7 +1679,7 @@ class EntryEntry extends Component
 
     public function clickUploadFile()
     {
-        $this->authorizePlot();
+        $authorizedPlot = $this->authorizePlot();
         $this->resetErrorBag('plotFile');
 
         $rules = [
@@ -1606,6 +1714,10 @@ class EntryEntry extends Component
 
         try {
             $connection->beginTransaction();
+            $lockedPlot = PlotList2025::whereKey($authorizedPlot->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->assertPlotFileState($lockedPlot);
             $this->ensureDirectory($disk, $relativeDir);
 
             $tmpName = $this->thisPlot.'.tmp_'.Str::random(8).'.pdf';
@@ -1623,22 +1735,17 @@ class EntryEntry extends Component
             $tmpPaths = [];
 
             // 5) 寫入資料庫（成功寫檔後才更新）
-            $updated = PlotList2025::where('plot', $this->thisPlot)->update([
-                'file_uploaded_at' => now(),
-                'file_uploaded_by' => $this->creatorCode,
-                // 若資料表有路徑欄，建議一起更新
-                // 'file_path' => $targetPath,
-            ]);
-            if ($updated === 0) {
-                throw new \RuntimeException("找不到樣區資料：{$this->thisPlot}");
-            }
+            $lockedPlot->file_uploaded_at = now();
+            $lockedPlot->file_uploaded_by = $this->creatorCode;
+            $lockedPlot->save();
 
             $connection->commit();
+        } catch (ValidationException $e) {
+            $this->rollbackUploadAttempt($connection, $disk, $createdPaths, $backups, $tmpPaths);
+
+            throw $e;
         } catch (Throwable $e) {
-            if ($connection->transactionLevel() > 0) {
-                $connection->rollBack();
-            }
-            $this->restoreUploadFiles($disk, $createdPaths, $backups, $tmpPaths);
+            $this->rollbackUploadAttempt($connection, $disk, $createdPaths, $backups, $tmpPaths);
 
             // 後台 log（方便追查）
             FixLog::create([
@@ -1669,6 +1776,7 @@ class EntryEntry extends Component
         }
 
         $this->deleteUploadBackups($disk, $backups);
+        $this->setPlotFileVersion($lockedPlot);
         $this->loadFileInfo();
         session()->flash('fileUploadSuccess', '上傳成功！');
         $this->plotFile = null;
@@ -1812,7 +1920,8 @@ class EntryEntry extends Component
         array $paths,
         string $token,
         array &$backups
-    ): void {
+    ): void
+    {
         foreach (array_unique($paths) as $path) {
             if (! $disk->exists($path)) {
                 continue;
@@ -1847,6 +1956,19 @@ class EntryEntry extends Component
             }
             $disk->move($backupPath, $originalPath);
         }
+    }
+
+    private function rollbackUploadAttempt(
+        Connection $connection,
+        FilesystemAdapter $disk,
+        array $createdPaths,
+        array $backups,
+        array $tmpPaths
+    ): void {
+        if ($connection->transactionLevel() > 0) {
+            $connection->rollBack();
+        }
+        $this->restoreUploadFiles($disk, $createdPaths, $backups, $tmpPaths);
     }
 
     private function deleteUploadBackups(FilesystemAdapter $disk, array $backups): void

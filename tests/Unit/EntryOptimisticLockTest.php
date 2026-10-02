@@ -43,6 +43,23 @@ class EntryOptimisticLockTest extends TestCase
         );
     }
 
+    public function test_version_conflict_can_be_attached_to_photo_field(): void
+    {
+        try {
+            $method = new ReflectionMethod(EntryEntry::class, 'assertVersionSet');
+            $method->invoke(
+                new EntryEntry,
+                collect([$this->record(1, '2026-10-02 10:01:00')]),
+                ['1' => '2026-10-02 10:00:00'],
+                '小樣方環境資料',
+                'photo'
+            );
+            $this->fail('Expected a version conflict.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('photo', $e->errors());
+        }
+    }
+
     public function test_loaded_version_map_accepts_its_signed_token(): void
     {
         $component = new EntryEntry;
@@ -74,6 +91,51 @@ class EntryOptimisticLockTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->assertToken($component, 'plants', $versions, $token);
+    }
+
+    public function test_refreshing_environment_versions_keeps_the_selected_subplot_and_form(): void
+    {
+        $component = new EntryEntry;
+        $component->thisSubPlot = '6000010801';
+        $component->subPlotEnvForm = ['env_description' => '尚未儲存的修改'];
+
+        (new ReflectionMethod(EntryEntry::class, 'setEnvironmentRecordVersions'))
+            ->invoke($component, collect([
+                $this->record(1, '2026-10-02 10:00:01'),
+                $this->record(2, '2026-10-02 10:00:01'),
+            ]));
+
+        $this->assertSame('6000010801', $component->thisSubPlot);
+        $this->assertSame(['env_description' => '尚未儲存的修改'], $component->subPlotEnvForm);
+        $this->assertSame([
+            '1' => '2026-10-02 10:00:01',
+            '2' => '2026-10-02 10:00:01',
+        ], $component->envRecordVersions);
+        $this->assertToken(
+            $component,
+            'environment',
+            $component->envRecordVersions,
+            $component->envVersionToken
+        );
+    }
+
+    public function test_refreshing_plant_versions_keeps_unsaved_plant_form_data(): void
+    {
+        $component = new EntryEntry;
+        $component->thisSubPlot = '6000010801';
+        $component->subPlotPlantForm = [['chname_index' => '尚未儲存的植物']];
+
+        (new ReflectionMethod(EntryEntry::class, 'setPlantRecordVersions'))
+            ->invoke($component, collect([$this->record(3, '2026-10-02 10:00:02')]));
+
+        $this->assertSame([['chname_index' => '尚未儲存的植物']], $component->subPlotPlantForm);
+        $this->assertSame(['3' => '2026-10-02 10:00:02'], $component->plantRecordVersions);
+        $this->assertToken(
+            $component,
+            'plants',
+            $component->plantRecordVersions,
+            $component->plantVersionToken
+        );
     }
 
     private function assertVersionSet(Collection $records, array $versions): void

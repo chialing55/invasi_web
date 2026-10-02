@@ -10,6 +10,8 @@ use Livewire\Component;
 
 class ResultsCharts extends Component
 {
+    public bool $pageReady = false;
+
     public array $yearList = [];
 
     public array $teamList = [];
@@ -42,8 +44,12 @@ class ResultsCharts extends Component
 
     public string $message = '';
 
-    public function mount(): void
+    public function loadInitialData(): void
     {
+        if ($this->pageReady) {
+            return;
+        }
+
         $this->yearList = PlotList2025::where('census_year', '>=', 2025)
             ->distinct()
             ->orderByDesc('census_year')
@@ -54,6 +60,7 @@ class ResultsCharts extends Component
         // 優先今年；今年無資料時使用最新計畫年度，仍可切換成 All。
         $this->thisCensusYear = PlanYearPlotFilter::defaultYear($this->yearList);
         $this->loadCountyList('');
+        $this->pageReady = true;
     }
 
     public function loadYear($year): void

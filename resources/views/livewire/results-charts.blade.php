@@ -1,8 +1,14 @@
-<div>
+<div wire:init="loadInitialData">
     <div wire:loading.class="flex" wire:loading.remove.class="hidden"
         class="hidden fixed top-0 left-0 w-full h-full z-50 bg-white/50 items-center justify-center">
         <div class="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
+
+    @if (!$pageReady)
+        {{-- <div class="flex min-h-48 items-center justify-center" role="status" aria-label="載入中">
+            <div class="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-500"></div>
+        </div> --}}
+    @else
 
     <div class="md:flex md:flex-row md:items-center gap-4 mb-6">
         <div class="md:flex md:flex-row md:items-center">
@@ -225,5 +231,6 @@
                     :key="'downloads-' . md5(json_encode($selectedPlots))" />
             </div>
         </div>
+    @endif
     @endif
 </div>

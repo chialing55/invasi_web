@@ -50,6 +50,28 @@
         <!-- 有選擇樣區之後 -->
         @if ($thisPlot != '')
 
+            <div class="flex flex-col gap-3 mt-8 rounded border border-gray-200 bg-gray-50 p-4 text-gray-600">
+                <div class="flex flex-wrap items-center gap-2">
+                    <label for="plot_census_year" class="font-semibold text-gray-600">計畫年度</label>
+                    <input id="plot_census_year" name="plot_census_year" type="text"
+                        wire:model.defer="plotCensusYear"
+                        class="w-32 rounded border border-gray-300 bg-gray-100 px-2 py-1 text-gray-700"
+                        inputmode="numeric">
+                    <button type="button" wire:click="savePlotCensusYear" wire:loading.attr="disabled"
+                        wire:target="savePlotCensusYear"
+                        class="rounded border border-gray-300 bg-gray-200 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50">
+                        儲存計畫年度
+                    </button>
+                    <span class="text-xs text-gray-400">同一個樣區使用同一計畫年度；預做下一年度調查者，可填 {{ date('Y') + 1 }}。</span>
+                </div>
+                @if (session()->has('yearSaveMessage'))
+                    <p class="font-semibold">{{ session('yearSaveMessage') }}</p>
+                @endif
+                @error('plotCensusYear')
+                    <div class="text-sm text-red-600" role="alert">{{ $message }}</div>
+                @enderror
+            </div>
+
             <div class="flex flex-col gap-4 mt-8 gray-card">
                 <h3>{{ $thisPlot }} 生育地類型 <span class='ml-4 text-sm font-normal text-gray-700 align-middle'>*
                         淺綠色表示上次調查曾包含的生育地類型</span></h3>

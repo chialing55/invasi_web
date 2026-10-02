@@ -507,6 +507,7 @@
             presetKey: 'plot_full_id',
             presetValue: thisSubPlot,
             globalName: 'plantTable',
+            enableHeaderSort: false,
         });
     }
 

@@ -27,6 +27,7 @@ window.initTabulator = function ({
     presetValue = '',
     globalName = null, // ✅ 新增參數
     enableRowContextMenu = true,
+    enableHeaderSort = true,
 }) {
     setTimeout(() => {
         if (!window.Tabulator) {
@@ -46,6 +47,9 @@ window.initTabulator = function ({
                 reactiveData: true,
                 data: tableData,
                 footerElement: false,
+                columnDefaults: {
+                    headerSort: enableHeaderSort,
+                },
                 rowContextMenu: enableRowContextMenu ? [
                     {
                         label: "➕ 新增一列",

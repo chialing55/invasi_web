@@ -1,8 +1,8 @@
 # 第一步：Composer 安裝器
 FROM composer:2 AS composer
 
-# 第二步：主容器 PHP 8.2
-FROM php:8.2-fpm
+# 第二步：主容器 PHP 8.2（固定安全修補版本）
+FROM php:8.2.35-fpm
 
 RUN apt-get update && apt-get install -y \
     git curl unzip zip \

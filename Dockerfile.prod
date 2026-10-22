@@ -1,8 +1,8 @@
 # 第一步：Composer 安裝器
 FROM composer:2 AS composer
 
-# 第二步：主容器 PHP 8.2
-FROM php:8.2-fpm
+# 第二步：主容器 PHP 8.2（固定安全修補版本）
+FROM php:8.2.35-fpm
 
 RUN apt-get update && apt-get install -y \
     git curl unzip zip \
@@ -39,6 +39,6 @@ RUN chmod +x /app/init_prod.sh
 RUN composer install --no-interaction --prefer-dist \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
-COPY upload-limit.ini /usr/local/etc/php/conf.d/
+COPY ./docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 # 啟動
 CMD ["sh", "-c", "sleep 5 && bash init_prod.sh && npm run build && exec php-fpm"]

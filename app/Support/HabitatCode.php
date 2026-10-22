@@ -185,4 +185,21 @@ final class HabitatCode
 
         return $habitatLabels[$code] ?? $code;
     }
+
+    /** 表三、表四排序：木本後接對應地被，合併資料統一置於最後。 */
+    public static function analysisSortKey(string $code): string
+    {
+        if (str_starts_with($code, 'combined-')) {
+            $mainCode = substr($code, strlen('combined-'));
+
+            return sprintf('1-%03d', (int) $mainCode);
+        }
+
+        $mainCode = self::mainFor($code);
+        if ($mainCode !== null) {
+            return sprintf('0-%03d-1', (int) $mainCode);
+        }
+
+        return sprintf('0-%03d-0', (int) $code);
+    }
 }

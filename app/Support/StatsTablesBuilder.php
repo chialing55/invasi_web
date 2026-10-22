@@ -147,7 +147,7 @@ class StatsTablesBuilder
             'title' => '生育地多樣性指數',
             'headings' => null,
             'rows' => $shannonRows,
-            'numberCols' => ['歸化種數比例(%)', '歸化物種平均覆蓋度(%)', 'Shannon_歸化', 'Shannon_原生', 'Shannon_全部'],
+            'numberCols' => ['歸化種數比例(%)', '歸化物種平均覆蓋度(%)', 'Shannon_歸化物種', 'Shannon_原生物種', 'Shannon_全部物種'],
             'fillEmptyWithZero' => true,
             'layouts' => ['two-row-group-header'],
             'headerGroups' => ['Shannon_' => 'Shannon index'],

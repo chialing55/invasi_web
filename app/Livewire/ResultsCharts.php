@@ -403,7 +403,7 @@ class ResultsCharts extends Component
 
     private function sectionCacheKey(string $sourceKey): string
     {
-        return 'results-charts.v3.'.md5(json_encode([
+        return 'results-charts.v7.'.md5(json_encode([
             'year' => $this->thisCensusYear,
             'team' => $this->thisTeam,
             'county' => $this->thisCounty,

@@ -197,8 +197,11 @@ class HabitatShannonIndex
             ];
         }
 
-        // 照生育地名稱自然排序
-        usort($out, fn ($a, $b) => strnatcmp($a['生育地代碼'], $b['生育地代碼']));
+        // 木本後緊接對應地被，合併資料統一置於最後。
+        usort($out, fn ($a, $b) => strcmp(
+            HabitatCode::analysisSortKey((string) $a['生育地代碼']),
+            HabitatCode::analysisSortKey((string) $b['生育地代碼'])
+        ));
 
         array_walk($out, function (&$r) {
             unset($r['生育地代碼']);

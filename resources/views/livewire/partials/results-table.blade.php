@@ -24,9 +24,12 @@
         ],
     ];
 
-    $formatCell = function ($value) {
+    $formatCell = function ($value, $heading = null) {
         if (is_array($value) || is_object($value)) {
             return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+        if (is_numeric($value) && is_string($heading) && str_starts_with($heading, 'Shannon_')) {
+            return number_format((float) $value, 2, '.', '');
         }
         return $value;
     };
@@ -81,7 +84,7 @@
                     <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                         @foreach ($headings as $heading)
                             @continue($heading === '分組' && !$isFirstGroupRow)
-                            @php $value = $formatCell($row[$heading] ?? ''); @endphp
+                            @php $value = $formatCell($row[$heading] ?? '', $heading); @endphp
                             <td class="border px-3 py-2 whitespace-nowrap {{ in_array($heading, ['分組', '隸屬特性'], true) ? 'text-center align-middle' : '' }}"
                                 @if ($heading === '分組') rowspan="{{ $groupCounts[$group] ?? 1 }}" @endif>
                                 {{ $value }}
@@ -116,7 +119,7 @@
                     @php $row = (array) $row; @endphp
                     <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }}">
                         @foreach ($headings as $heading)
-                            @php $value = $formatCell($row[$heading] ?? ''); @endphp
+                            @php $value = $formatCell($row[$heading] ?? '', $heading); @endphp
                             <td class="border px-3 py-2 whitespace-nowrap">{{ $value }}</td>
                         @endforeach
                     </tr>

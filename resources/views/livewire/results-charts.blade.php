@@ -170,17 +170,64 @@
                         <h3 class="font-semibold">下載統計成果</h3>
                         <p class="text-sm text-gray-600">依目前已套用的 {{ count($selectedPlots) }} 個樣區產生統計表格與統計圖。</p>
                     </div>
-                    <form method="POST" action="{{ route('downloads.stats') }}" class="flex flex-wrap gap-2">
+                    <form method="POST" action="{{ route('downloads.stats') }}" class="flex flex-wrap items-center gap-2"
+                        x-data="{
+                            downloading: false,
+                            format: '',
+                            beginDownload(selectedFormat) {
+                                this.downloading = true;
+                                this.format = selectedFormat;
+                                const randomPart = window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+                                const token = `${Date.now()}-${randomPart}`;
+                                this.$refs.downloadToken.value = token;
+
+                                const poll = window.setInterval(() => {
+                                    const cookie = document.cookie.split('; ').find((row) => row.startsWith('download_complete='));
+                                    if (!cookie || decodeURIComponent(cookie.split('=').slice(1).join('=')) !== token) return;
+
+                                    window.clearInterval(poll);
+                                    document.cookie = 'download_complete=; Max-Age=0; path=/; SameSite=Lax';
+                                    this.downloading = false;
+                                    this.format = '';
+                                }, 500);
+
+                                window.setTimeout(() => {
+                                    window.clearInterval(poll);
+                                    this.downloading = false;
+                                    this.format = '';
+                                }, 600000);
+                            }
+                        }"
+                        @submit="beginDownload($event.submitter?.value ?? '')">
                         @csrf
+                        <input type="hidden" name="downloadToken" x-ref="downloadToken">
                         <input type="hidden" name="team" value="{{ $thisTeam }}">
                         <input type="hidden" name="county" value="{{ $thisCounty }}">
                         <input type="hidden" name="censusYear" value="{{ $thisCensusYear }}">
                         @foreach ($selectedPlots as $plot)
                             <input type="hidden" name="selectedPlots[]" value="{{ $plot }}">
                         @endforeach
-                        <button type="submit" name="format" value="xlsx" class="btn-submit">統計表 xlsx</button>
-                        <button type="submit" name="format" value="docx" class="btn-submit">統計表 docx</button>
-                        <button type="submit" name="format" value="pdf" class="btn-submit">統計圖 PDF</button>
+                        <button type="submit" name="format" value="xlsx" class="btn-submit"
+                            :class="downloading ? 'cursor-wait opacity-60' : ''"
+                            :aria-disabled="downloading" @click="if (downloading) $event.preventDefault()">
+                            <span x-show="downloading && format === 'xlsx'" class="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-[-2px]"></span>
+                            <span x-text="downloading && format === 'xlsx' ? '下載中…' : '統計表 xlsx'"></span>
+                        </button>
+                        <button type="submit" name="format" value="docx" class="btn-submit"
+                            :class="downloading ? 'cursor-wait opacity-60' : ''"
+                            :aria-disabled="downloading" @click="if (downloading) $event.preventDefault()">
+                            <span x-show="downloading && format === 'docx'" class="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-[-2px]"></span>
+                            <span x-text="downloading && format === 'docx' ? '下載中…' : '統計表 docx'"></span>
+                        </button>
+                        <button type="submit" name="format" value="pdf" class="btn-submit"
+                            :class="downloading ? 'cursor-wait opacity-60' : ''"
+                            :aria-disabled="downloading" @click="if (downloading) $event.preventDefault()">
+                            <span x-show="downloading && format === 'pdf'" class="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-[-2px]"></span>
+                            <span x-text="downloading && format === 'pdf' ? '下載中…' : '統計圖 PDF'"></span>
+                        </button>
+                        <span x-show="downloading" x-cloak class="text-sm text-gray-600" role="status" aria-live="polite">
+                            正在產生檔案，請稍候…
+                        </span>
                     </form>
                 </div>
             </div>

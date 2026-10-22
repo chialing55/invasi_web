@@ -80,18 +80,26 @@ class HabitatIVIndex
                 ->groupBy('hab', 's.spcode', 's.chname', 's.full_name')
                 ->get());
 
-            $sumCovByHab = $sumCovByHab->merge((clone $groupBase)
+            $coverageTotals = (clone $groupBase)
                 ->selectRaw("{$habExpr} as hab, SUM(p.coverage) as cov_sum_hab")
                 ->groupBy('hab')
-                ->pluck('cov_sum_hab', 'hab'));
+                ->pluck('cov_sum_hab', 'hab');
+            // Collection::merge() reindexes numeric keys. Habitat codes 10–20 are
+            // numeric array keys, so reindexing made their denominators unreachable.
+            $coverageTotals->each(
+                fn ($total, $hab) => $sumCovByHab->put($hab, $total)
+            );
 
             $speciesKeyExpr = 's.spcode';
-            $sumFreqByHab = $sumFreqByHab->merge((clone $groupBase)
+            $frequencyTotals = (clone $groupBase)
                 ->selectRaw("{$habExpr} as hab, {$speciesKeyExpr} as sp, COUNT(DISTINCT p.plot_full_id) as n")
                 ->groupByRaw("{$habExpr}, {$speciesKeyExpr}")
                 ->get()
                 ->groupBy('hab')
-                ->map(fn ($g) => (int) $g->sum('n')));
+                ->map(fn ($g) => (int) $g->sum('n'));
+            $frequencyTotals->each(
+                fn ($total, $hab) => $sumFreqByHab->put($hab, $total)
+            );
         }
 
         if ($spAgg->isEmpty()) {
@@ -137,8 +145,10 @@ class HabitatIVIndex
 
         // 產生「矩陣」：col = 生育地，row = 排名 1..N；cell = 名稱 \n(IV)
         $habKeys = array_keys($habLists);
-        // 以名稱排序
-        // usort($habKeys, fn($a,$b)=>strnatcmp($habMap[$a] ?? $a, $habMap[$b] ?? $b));
+        usort($habKeys, fn ($a, $b) => strcmp(
+            HabitatCode::analysisSortKey((string) $a),
+            HabitatCode::analysisSortKey((string) $b)
+        ));
 
         $headings = array_merge(['排名'], array_map(fn ($k) => HabitatCode::analysisLabel($k, $habMap), $habKeys));
 

@@ -18,6 +18,7 @@ class StatsDocxExport
     private const PAGE_HEIGHT = 16838;
     private const MARGIN_TOP_BOTTOM = 1440; // 2.54 cm
     private const MARGIN_LEFT_RIGHT = 1803; // 3.18 cm
+    private const HABITAT_IV_COLUMNS_PER_TABLE = 7;
 
     private array $media = [];
 
@@ -75,13 +76,17 @@ class StatsDocxExport
 
             if ($this->isHabitatIvSection($section)) {
                 $body[] = $this->caption('表 ' . $tableNo . ' ' . $this->sectionTitle($section, $tableNo));
-                $body[] = $this->habitatIvTable($section, 0, 7);
+                $body[] = $this->habitatIvTable($section, 0, self::HABITAT_IV_COLUMNS_PER_TABLE);
 
                 $habitatTotal = max(0, count(($section['headings'] ?? [])) - 1);
-                for ($offset = 7; $offset < $habitatTotal; $offset += 4) {
+                for ($offset = self::HABITAT_IV_COLUMNS_PER_TABLE; $offset < $habitatTotal; $offset += self::HABITAT_IV_COLUMNS_PER_TABLE) {
                     $body[] = $this->paragraph('');
-                    $body[] = $this->caption('續表' . $tableNo . $this->sectionTitle($section, $tableNo));
-                    $body[] = $this->habitatIvTable($section, $offset, min(4, $habitatTotal - $offset));
+                    $body[] = $this->caption('續表' . $tableNo . ' ' . $this->sectionTitle($section, $tableNo));
+                    $body[] = $this->habitatIvTable(
+                        $section,
+                        $offset,
+                        min(self::HABITAT_IV_COLUMNS_PER_TABLE, $habitatTotal - $offset)
+                    );
                 }
                 $tableNo++;
             } else {
@@ -313,7 +318,11 @@ class StatsDocxExport
             $row = (array) $row;
             $xml .= '<w:tr>';
             foreach (array_merge($baseHeadings, $shannonHeadings) as $i => $heading) {
-                $xml .= $this->cell($row[$heading['key']] ?? '', ['width' => $widths[$i]]);
+                $value = $row[$heading['key']] ?? '';
+                if (str_starts_with($heading['key'], 'Shannon_') && is_numeric($value)) {
+                    $value = number_format((float) $value, 2, '.', '');
+                }
+                $xml .= $this->cell($value, ['width' => $widths[$i]]);
             }
             $xml .= '</w:tr>';
         }

@@ -28,8 +28,30 @@
                     ],
                 ];
             @endphp
-            <form method="POST" action="{{ route('downloads.data') }}">
+            <form method="POST" action="{{ route('downloads.data') }}"
+                x-data="{
+                    downloading: false,
+                    beginDownload() {
+                        this.downloading = true;
+                        const randomPart = window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+                        const token = `${Date.now()}-${randomPart}`;
+                        this.$refs.downloadToken.value = token;
+                        const poll = window.setInterval(() => {
+                            const cookie = document.cookie.split('; ').find((row) => row.startsWith('download_complete='));
+                            if (!cookie || decodeURIComponent(cookie.split('=').slice(1).join('=')) !== token) return;
+                            window.clearInterval(poll);
+                            document.cookie = 'download_complete=; Max-Age=0; path=/; SameSite=Lax';
+                            this.downloading = false;
+                        }, 500);
+                        window.setTimeout(() => {
+                            window.clearInterval(poll);
+                            this.downloading = false;
+                        }, 600000);
+                    }
+                }"
+                @submit="beginDownload()">
                 @csrf
+                <input type="hidden" name="downloadToken" x-ref="downloadToken">
                 <input type="hidden" name="team" value="{{ $thisTeam }}">
                 <input type="hidden" name="county" value="{{ $thisCounty }}">
                 @foreach ($selectedPlots as $plot)
@@ -80,7 +102,13 @@
                 </table>
             </div>
             <div class="mt-4 text-right">
-                <button type="submit" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
+                <button type="submit" class="btn-submit" :class="downloading ? 'cursor-wait opacity-60' : ''"
+                    :aria-disabled="downloading" @click="if (downloading) $event.preventDefault()"
+                    @disabled(empty($selectedPlots))>
+                    <span x-show="downloading" class="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-[-2px]"></span>
+                    <span x-text="downloading ? '下載中…' : '下載選取資料'"></span>
+                </button>
+                <p x-show="downloading" x-cloak class="mt-2 text-sm text-gray-600" role="status" aria-live="polite">正在產生檔案，請稍候…</p>
             </div>
             </form>
         </div>
@@ -209,8 +237,30 @@
                     </table>
                 </div>
                 <p class="font-semibold mt-6">選擇下載資料內容與格式：</p>
-                <form method="POST" action="{{ route('downloads.data') }}" class='ml-2 mt-3'>
+                <form method="POST" action="{{ route('downloads.data') }}" class='ml-2 mt-3'
+                    x-data="{
+                        downloading: false,
+                        beginDownload() {
+                            this.downloading = true;
+                            const randomPart = window.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+                            const token = `${Date.now()}-${randomPart}`;
+                            this.$refs.downloadToken.value = token;
+                            const poll = window.setInterval(() => {
+                                const cookie = document.cookie.split('; ').find((row) => row.startsWith('download_complete='));
+                                if (!cookie || decodeURIComponent(cookie.split('=').slice(1).join('=')) !== token) return;
+                                window.clearInterval(poll);
+                                document.cookie = 'download_complete=; Max-Age=0; path=/; SameSite=Lax';
+                                this.downloading = false;
+                            }, 500);
+                            window.setTimeout(() => {
+                                window.clearInterval(poll);
+                                this.downloading = false;
+                            }, 600000);
+                        }
+                    }"
+                    @submit="beginDownload()">
                     @csrf
+                    <input type="hidden" name="downloadToken" x-ref="downloadToken">
                     <input type="hidden" name="team" value="{{ $thisTeam }}">
                     <input type="hidden" name="county" value="{{ $thisCounty }}">
                     @foreach ($selectedPlots as $plot)
@@ -284,7 +334,13 @@
                     </table>
 
                     <div class="mt-4 text-right">
-                        <button type="submit" class="btn-submit" @disabled(empty($selectedPlots))>下載選取資料</button>
+                        <button type="submit" class="btn-submit" :class="downloading ? 'cursor-wait opacity-60' : ''"
+                            :aria-disabled="downloading" @click="if (downloading) $event.preventDefault()"
+                            @disabled(empty($selectedPlots))>
+                            <span x-show="downloading" class="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-[-2px]"></span>
+                            <span x-text="downloading ? '下載中…' : '下載選取資料'"></span>
+                        </button>
+                        <p x-show="downloading" x-cloak class="mt-2 text-sm text-gray-600" role="status" aria-live="polite">正在產生檔案，請稍候…</p>
                     </div>
                 </form>
             </div>

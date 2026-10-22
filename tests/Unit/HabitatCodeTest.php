@@ -7,6 +7,21 @@ use PHPUnit\Framework\TestCase;
 
 class HabitatCodeTest extends TestCase
 {
+    public function test_analysis_order_places_understory_after_wood_and_combined_last(): void
+    {
+        $codes = ['combined-09', '10', '99', '09', 'combined-08', '88', '08'];
+
+        usort($codes, fn ($a, $b) => strcmp(
+            HabitatCode::analysisSortKey($a),
+            HabitatCode::analysisSortKey($b)
+        ));
+
+        $this->assertSame(
+            ['08', '88', '09', '99', '10', 'combined-08', 'combined-09'],
+            $codes
+        );
+    }
+
     public function test_pairs_and_classifications_come_from_one_mapping(): void
     {
         $this->assertSame('88', HabitatCode::understoryFor('08'));

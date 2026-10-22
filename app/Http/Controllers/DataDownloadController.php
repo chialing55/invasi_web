@@ -20,14 +20,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Excel;
 use Maatwebsite\Excel\Facades\Excel as ExcelFacade;
-use OpenSpout\Common\Entity\Row;
-use OpenSpout\Common\Entity\Cell\EmptyCell;
 use OpenSpout\Common\Entity\Cell\BooleanCell;
+use OpenSpout\Common\Entity\Cell\EmptyCell;
 use OpenSpout\Common\Entity\Cell\NumericCell;
 use OpenSpout\Common\Entity\Cell\StringCell;
+use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Options as StreamingXlsxOptions;
 use OpenSpout\Writer\XLSX\Writer as StreamingXlsxWriter;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -48,6 +49,7 @@ class DataDownloadController extends Controller
             'selectedPlots.*' => ['required', 'string', 'max:30'],
             'team' => ['nullable', 'string', 'max:100'],
             'county' => ['nullable', 'string', 'max:100'],
+            'downloadToken' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9-]+$/'],
         ]);
 
         $plots = $this->validPlots($validated['selectedPlots']);
@@ -60,23 +62,22 @@ class DataDownloadController extends Controller
         if ($format === 'docx') {
             $list = PlantListExport::PlantListForWord($plots);
 
-            return (new PlantListDocxExport($list['rows'], '植物名錄'))
+            $response = (new PlantListDocxExport($list['rows'], '植物名錄'))
                 ->download("{$prefix}-plantList.docx");
+        } else {
+            [$export, $filename] = $this->rawExport($dataType, $plots, $prefix, $format);
+
+            if ($format === 'txt') {
+                $response = $this->streamText($export, $filename);
+            } elseif ($format === 'xlsx' && $dataType !== 'allPlantList') {
+                $response = $this->streamXlsx($export, $filename);
+            } else {
+                $writer = $format === 'xlsx' ? Excel::XLSX : Excel::CSV;
+                $response = ExcelFacade::download($export, $filename, $writer);
+            }
         }
 
-        [$export, $filename] = $this->rawExport($dataType, $plots, $prefix, $format);
-
-        if ($format === 'txt') {
-            return $this->streamText($export, $filename);
-        }
-
-        if ($format === 'xlsx' && $dataType !== 'allPlantList') {
-            return $this->streamXlsx($export, $filename);
-        }
-
-        $writer = $format === 'xlsx' ? Excel::XLSX : Excel::CSV;
-
-        return ExcelFacade::download($export, $filename, $writer);
+        return $this->withDownloadCompletionCookie($response, $request, $validated['downloadToken'] ?? '');
     }
 
     private function streamXlsx(object $export, string $filename): Response
@@ -87,8 +88,8 @@ class DataDownloadController extends Controller
         }
 
         try {
-            $options = new StreamingXlsxOptions();
-            $options->DEFAULT_ROW_STYLE = (new Style())
+            $options = new StreamingXlsxOptions;
+            $options->DEFAULT_ROW_STYLE = (new Style)
                 ->setFontName('Calibri')
                 ->setFontSize(11)
                 ->setShouldWrapText(false);
@@ -146,7 +147,7 @@ class DataDownloadController extends Controller
                 $value = $value->format('Y-m-d H:i:s');
             } elseif ($value instanceof \DateInterval) {
                 $value = $value->format('%r%a days %H:%I:%S');
-            } elseif (!is_scalar($value)) {
+            } elseif (! is_scalar($value)) {
                 $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
             }
 
@@ -154,10 +155,11 @@ class DataDownloadController extends Controller
             if (preg_match('/^[+\-]?(\d+\.?\d*|\d*\.?\d+)([Ee][\-+]?[0-2]?\d{1,3})?$/', $value)) {
                 $unsigned = ltrim($value, '+-');
                 $hasLeadingZero = strlen($unsigned) > 1 && $unsigned[0] === '0' && $unsigned[1] !== '.';
-                $tooLargeForInteger = !str_contains($value, '.') && (float) $value > PHP_INT_MAX;
+                $tooLargeForInteger = ! str_contains($value, '.') && (float) $value > PHP_INT_MAX;
 
-                if (!$hasLeadingZero && !$tooLargeForInteger && is_numeric($value)) {
+                if (! $hasLeadingZero && ! $tooLargeForInteger && is_numeric($value)) {
                     $numeric = strpbrk($value, '.Ee') === false ? (int) $value : (float) $value;
+
                     return new NumericCell($numeric, null);
                 }
             }
@@ -206,6 +208,7 @@ class DataDownloadController extends Controller
             'county' => ['nullable', 'string', 'max:100'],
             'team' => ['nullable', 'string', 'max:100'],
             'censusYear' => ['nullable', 'string', 'max:20'],
+            'downloadToken' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9-]+$/'],
         ]);
 
         $plots = $this->validPlots($validated['selectedPlots']);
@@ -214,10 +217,10 @@ class DataDownloadController extends Controller
         $scope = ($validated['county'] ?? '') !== ''
             ? $validated['county']
             : ((($validated['team'] ?? '') !== '') ? $validated['team'] : '全部縣市');
-        $prefix = $this->safeFilenamePart($scope) . '_' . date('Ymd');
+        $prefix = $this->safeFilenamePart($scope).'_'.date('Ymd');
         $county = $this->statsCountyLabel($plots, $validated['censusYear'] ?? '');
 
-        return match ($validated['format']) {
+        $response = match ($validated['format']) {
             'xlsx' => ExcelFacade::download(
                 new StatsMultiSheetExport($plots, 'xlsx'),
                 "{$prefix}-statsTable.xlsx",
@@ -228,11 +231,32 @@ class DataDownloadController extends Controller
             'pdf' => redirect((new StatsChartsPdfExport($plots))
                 ->publicDownloadUrl("{$prefix}-statsCharts.pdf")),
         };
+
+        return $this->withDownloadCompletionCookie($response, $request, $validated['downloadToken'] ?? '');
+    }
+
+    private function withDownloadCompletionCookie(Response $response, Request $request, string $token): Response
+    {
+        if ($token !== '') {
+            $response->headers->setCookie(new Cookie(
+                'download_complete',
+                $token,
+                0,
+                '/',
+                null,
+                $request->isSecure(),
+                false,
+                false,
+                Cookie::SAMESITE_LAX,
+            ));
+        }
+
+        return $response;
     }
 
     private function statsCountyLabel(array $plots, string $censusYear): string
     {
-        $year = $censusYear !== '' ? $censusYear . '年調查' : '全部調查年度';
+        $year = $censusYear !== '' ? $censusYear.'年調查' : '全部調查年度';
         $counties = PlotList2025::query()
             ->whereIn('plot', $plots)
             ->whereNotNull('county')
@@ -241,7 +265,7 @@ class DataDownloadController extends Controller
             ->pluck('county')
             ->filter();
 
-        return $year . '之' . ($counties->isNotEmpty() ? $counties->implode('、') : '未選擇縣市');
+        return $year.'之'.($counties->isNotEmpty() ? $counties->implode('、') : '未選擇縣市');
     }
 
     private function validPlots(array $plots): array
@@ -258,25 +282,29 @@ class DataDownloadController extends Controller
 
     private function formatFor(string $dataType): string
     {
-        if ($dataType === 'plantList.docx') return 'docx';
-        if (str_ends_with($dataType, '.txt')) return 'txt';
+        if ($dataType === 'plantList.docx') {
+            return 'docx';
+        }
+        if (str_ends_with($dataType, '.txt')) {
+            return 'txt';
+        }
 
         return 'xlsx';
     }
 
     private function filenamePrefix(string $team, string $county): string
     {
-        $prefix = $team !== '' ? $this->safeFilenamePart($team) . '_' : '';
+        $prefix = $team !== '' ? $this->safeFilenamePart($team).'_' : '';
         $prefix .= $this->safeFilenamePart($county !== '' ? $county : '全部縣市');
 
-        return $prefix . '_' . date('Ymd');
+        return $prefix.'_'.date('Ymd');
     }
 
     private function safeFilenamePart(string $value): string
     {
         $value = preg_replace('/[\\x00-\\x1F\\x7F\\\\\/:*?"<>|]+/u', '_', $value) ?? '';
 
-        return trim($value, " ._") ?: '全部縣市';
+        return trim($value, ' ._') ?: '全部縣市';
     }
 
     private function rawExport(string $dataType, array $plots, string $prefix, string $format): array

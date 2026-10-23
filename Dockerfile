@@ -21,13 +21,7 @@ WORKDIR /app
 # 安裝前端套件
 COPY package*.json ./
 ENV PATH="./node_modules/.bin:$PATH"
-RUN npm install -D vite@5.4.19 \
-    laravel-vite-plugin@1.0.2 \
-    tailwindcss@3.4.1 \
-    postcss@8.4.31 \
-    autoprefixer@10.4.16 \
-    @tailwindcss/forms@latest \
-    axios 
+RUN npm ci
 
 # 安裝 Composer
 COPY --from=composer /usr/bin/composer /usr/bin/composer

@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\DB;
 class HabitatShannonIndex
 {
     /**
+     * 合併以生育地代碼為鍵的統計值，且保留 10、11…等數字鍵。
+     */
+    public static function mergeHabitatMetricMaps(array $base, array $additional): array
+    {
+        return array_replace($base, $additional);
+    }
+
+    /**
      * 以 selectedPlots 為篩選，直接在 DB 做彙總，再計算每個 habitat 的 Shannon 指數。
      * 僅納入成功對應目前名錄，且來源屬性已分類的物種
      *
@@ -122,7 +130,7 @@ class HabitatShannonIndex
             ->pluck('avg_pct', 'hab')
             ->map(fn ($v) => round((float) $v, 2))
             ->all();
-        $avgPctByHab = array_merge($avgPctByHab, $combinedAvgPctByHab);
+        $avgPctByHab = self::mergeHabitatMetricMaps($avgPctByHab, $combinedAvgPctByHab);
         // 對數底
         $logFn = match ($logBase) {
             '2' => fn ($x) => log($x, 2),

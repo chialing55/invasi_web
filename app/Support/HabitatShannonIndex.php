@@ -10,12 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class HabitatShannonIndex
 {
-    /**
-     * 合併以生育地代碼為鍵的統計值，且保留 10、11…等數字鍵。
-     */
-    public static function mergeHabitatMetricMaps(array $base, array $additional): array
+    /** 避免 PHP 將「10」以上的純數字生育地代碼轉成整數陣列鍵。 */
+    public static function habitatMetricKey(int|string $habitatCode): string
     {
-        return array_replace($base, $additional);
+        return 'hab:'.(string) $habitatCode;
     }
 
     /**
@@ -115,7 +113,7 @@ class HabitatShannonIndex
                 AVG(CASE WHEN total_cov > 0 THEN 100 * alien_cov / total_cov ELSE 0 END) AS avg_pct')
             ->groupBy('hab')
             ->pluck('avg_pct', 'hab')       // -> ['08'=>xx.x, '09'=>yy.y, ...]
-            ->map(fn ($v) => round((float) $v, 2))
+            ->mapWithKeys(fn ($v, $hab) => [self::habitatMetricKey($hab) => round((float) $v, 2)])
             ->all();
 
         $combinedSub = (clone $base)
@@ -128,9 +126,9 @@ class HabitatShannonIndex
             ->selectRaw('hab, AVG(CASE WHEN total_cov > 0 THEN 100 * alien_cov / total_cov ELSE 0 END) AS avg_pct')
             ->groupBy('hab')
             ->pluck('avg_pct', 'hab')
-            ->map(fn ($v) => round((float) $v, 2))
+            ->mapWithKeys(fn ($v, $hab) => [self::habitatMetricKey($hab) => round((float) $v, 2)])
             ->all();
-        $avgPctByHab = self::mergeHabitatMetricMaps($avgPctByHab, $combinedAvgPctByHab);
+        $avgPctByHab = array_replace($avgPctByHab, $combinedAvgPctByHab);
         // 對數底
         $logFn = match ($logBase) {
             '2' => fn ($x) => log($x, 2),
@@ -189,7 +187,7 @@ class HabitatShannonIndex
                 return $h;
             };
 
-            $avgAlienCover = isset($avgPctByHab[$hab]) ? (float) $avgPctByHab[$hab] : 0.0;
+            $avgAlienCover = (float) ($avgPctByHab[self::habitatMetricKey($hab)] ?? 0.0);
 
             $out[] = [
                 '生育地代碼' => $hab,

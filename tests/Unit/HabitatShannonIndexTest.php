@@ -7,16 +7,18 @@ use PHPUnit\Framework\TestCase;
 
 class HabitatShannonIndexTest extends TestCase
 {
-    public function test_merging_combined_habitats_preserves_numeric_habitat_codes(): void
+    public function test_metric_keys_are_stable_for_one_and_two_digit_habitat_codes(): void
     {
-        $metrics = HabitatShannonIndex::mergeHabitatMetricMaps(
-            ['09' => 40.98, 10 => 12.34, 11 => 23.45],
-            ['combined-08' => 13.51]
-        );
+        $metrics = [
+            HabitatShannonIndex::habitatMetricKey('09') => 40.98,
+            HabitatShannonIndex::habitatMetricKey(10) => 12.34,
+            HabitatShannonIndex::habitatMetricKey('11') => 23.45,
+            HabitatShannonIndex::habitatMetricKey('combined-08') => 13.51,
+        ];
 
-        $this->assertSame(40.98, $metrics['09']);
-        $this->assertSame(12.34, $metrics[10]);
-        $this->assertSame(23.45, $metrics[11]);
-        $this->assertSame(13.51, $metrics['combined-08']);
+        $this->assertSame(40.98, $metrics[HabitatShannonIndex::habitatMetricKey('09')]);
+        $this->assertSame(12.34, $metrics[HabitatShannonIndex::habitatMetricKey('10')]);
+        $this->assertSame(23.45, $metrics[HabitatShannonIndex::habitatMetricKey(11)]);
+        $this->assertSame(13.51, $metrics[HabitatShannonIndex::habitatMetricKey('combined-08')]);
     }
 }

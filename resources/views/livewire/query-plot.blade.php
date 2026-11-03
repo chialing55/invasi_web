@@ -63,7 +63,8 @@
                         <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
                             wire:change="loadPlotHab($event.target.value)">
                             <option value="">-- 請選擇 --</option>
-                            @foreach ($habTypeOptions as $code => $label)
+                            @foreach ($habTypeOptions as $habitatKey => $label)
+                                @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
                                 <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                             @endforeach
                         </select>

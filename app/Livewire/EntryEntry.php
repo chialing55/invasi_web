@@ -230,10 +230,11 @@ class EntryEntry extends Component
     {
         $this->authorizePlot((string) $plot);
 
-        $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+        $habTypeMap = HabitatInfo::get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
 
         $this->habTypeOptions = collect($habTypeMap)
-            ->mapWithKeys(fn ($habitat, $code) => [$code => $code.' '.$habitat])
+            ->mapWithKeys(fn ($habitat, $key) => [$key => HabitatCode::codeFromMapKey($key).' '.$habitat])
             ->sortBy(fn ($label) => $label)
             ->toArray();
 
@@ -1411,8 +1412,7 @@ class EntryEntry extends Component
         string $token,
         string $label,
         string $field = 'concurrentEdit'
-    ): void
-    {
+    ): void {
         ksort($versions, SORT_NATURAL);
         RecordStateGuard::assertToken(
             $token,
@@ -1430,8 +1430,7 @@ class EntryEntry extends Component
         string $token,
         string $label,
         string $field = 'concurrentEdit'
-    ): void
-    {
+    ): void {
         $this->assertRecordVersionToken($kind, $versions, $token, $label, $field);
         $this->assertVersionSet($records, $versions, $label, $field);
     }
@@ -1461,8 +1460,7 @@ class EntryEntry extends Component
         array $versions,
         string $label,
         string $field = 'concurrentEdit'
-    ): void
-    {
+    ): void {
         $currentIds = $records->pluck('id')->map(fn ($id) => (string) $id)->sort()->values()->all();
         $loadedIds = collect(array_keys($versions))->map(fn ($id) => (string) $id)->sort()->values()->all();
 
@@ -1920,8 +1918,7 @@ class EntryEntry extends Component
         array $paths,
         string $token,
         array &$backups
-    ): void
-    {
+    ): void {
         foreach (array_unique($paths) as $path) {
             if (! $disk->exists($path)) {
                 continue;

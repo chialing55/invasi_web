@@ -352,8 +352,9 @@ class SurveyOverview extends Component
             $plotQuery2025 = SubPlotEnv2025::select('habitat_code', DB::raw('count(*) as subplot_count'))
                 ->where('plot', $plot)
                 ->groupBy('habitat_code')
-                ->pluck('subplot_count', 'habitat_code')  // 轉成 key-value 陣列
-                ->toArray();
+                ->get()
+                ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->subplot_count])
+                ->all();
             $rawData = SubPlotPlant2025::where('plot_full_id', 'like', $plot.'%')->get();
 
             $grouped = $rawData->groupBy(function ($item) {
@@ -369,7 +370,7 @@ class SurveyOverview extends Component
 
                 $unidentifiedCount = $group->where('unidentified', 1)->count();
 
-                $habitatStats[$habCode] = [
+                $habitatStats[HabitatCode::mapKey($habCode)] = [
                     'data_error_count' => $dataErrorCount,
                     'unidentified_count' => $unidentifiedCount,
                 ];
@@ -379,18 +380,20 @@ class SurveyOverview extends Component
 
             // 如果 habList 有資料，就正常處理
             if (! empty($plotHabList)) {
-                foreach ($plotHabList as $habCode => $habName) {
+                foreach ($plotHabList as $habitatOptionKey => $habName) {
+                    $habCode = HabitatCode::codeFromMapKey($habitatOptionKey);
+                    $habitatKey = HabitatCode::mapKey($habCode);
                     $summary[] = [
                         'plot' => $plot,
                         'hab_code' => $habCode,
                         'hab_name' => $habName,
-                        'subplot_count_2025' => $plotQuery2025[$habCode] ?? 0,
+                        'subplot_count_2025' => $plotQuery2025[$habitatKey] ?? 0,
                         'required_subplot_count' => is_array($status)
-                            ? (int) (($status['habitatThresholds'][$habCode] ?? 5))
+                            ? (int) (($status['habitatThresholds'][$habitatKey] ?? 5))
                             : 5,
                         'plotFile' => $thisPlotFile,
-                        'unidentified_count' => $habitatStats[$habCode]['unidentified_count'] ?? 0,
-                        'data_error_count' => $habitatStats[$habCode]['data_error_count'] ?? 0,
+                        'unidentified_count' => $habitatStats[$habitatKey]['unidentified_count'] ?? 0,
+                        'data_error_count' => $habitatStats[$habitatKey]['data_error_count'] ?? 0,
                         'completed' => is_array($status) && ($status['plotCompleted'] ?? null) === '1',
                     ];
                 }
@@ -474,13 +477,14 @@ class SurveyOverview extends Component
             $this->subPlotHabList = collect($this->allPlotInfo)
                 ->filter(fn ($item) => $item['plot'] === $value && ! is_null($item['hab_code']))
                 ->mapWithKeys(fn ($item) => [
-                    $item['hab_code'] => $item['hab_name'],
+                    HabitatCode::mapKey($item['hab_code']) => $item['hab_name'],
                 ])
                 ->sortKeys()
                 ->toArray();
 
             // dd($thisPlotList);
-            $habTypeMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+            $habTypeMap = HabitatInfo::get(['habitat_code', 'habitat'])
+                ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
             $plotQueries = SubPlotEnv2025::whereIn('plot_full_id', $subPlotList2025)
                 ->get()
                 ->keyBy('plot_full_id');
@@ -500,7 +504,7 @@ class SurveyOverview extends Component
                 $photopath = null;
                 // 生育地對照
                 $habitatCode = substr($plotFullID, 6, 2);
-                $habitat = $habTypeMap[$habitatCode] ?? '未知';
+                $habitat = $habTypeMap[HabitatCode::mapKey($habitatCode)] ?? '未知';
 
                 $plotQuery = optional($plotQueries->get($plotFullID))->toArray();
                 $plantStat = $plantStats->get($plotFullID);
@@ -542,14 +546,15 @@ class SurveyOverview extends Component
         } else {
             // 篩選指定 habitat_code
             $this->thisHabType = $value; // 更新目前選擇的 habitat_code
-            $this->thisSelectedHabitat = "{$value} {$this->subPlotHabList[$value]}"; // 更新目前選擇的 habitat_code
+            $label = $this->subPlotHabList[HabitatCode::mapKey($value)] ?? '';
+            $this->thisSelectedHabitat = "{$value} {$label}"; // 更新目前選擇的 habitat_code
             $this->filteredSubPlotSummary = [];
             $this->filteredSubPlotSummary = collect($this->subPlotSummary)
                 ->where('habitat_code', $value)
                 ->values()
                 ->toArray();
             if (empty($this->filteredSubPlotSummary)) {
-                $this->subPlotinfomessage = "此生育地類型 {$value} {$this->subPlotHabList[$value]} 尚未輸入小樣方資料。";
+                $this->subPlotinfomessage = "此生育地類型 {$value} {$label} 尚未輸入小樣方資料。";
             } else {
                 $this->subPlotinfomessage = '';
             }

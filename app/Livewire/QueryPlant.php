@@ -2,50 +2,49 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use App\Models\SubPlotPlant2010;
-use App\Models\SubPlotPlant2025;
-use App\Models\PlotList2025;
-use App\Models\TaiwanChecklist;
-use App\Models\HabitatInfo;
-use App\Models\SpcodeIndex;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
-use App\Helpers\PlantStatHelper;
 use App\Helpers\PlantSearchHelper;
+use App\Helpers\PlantStatHelper;
+use App\Models\FixLog;
+use App\Models\SpcodeIndex;
+use App\Models\TaiwanChecklist;
+use App\Support\HabitatCode;
 use App\Support\PlantStatusHelper;
 use App\Support\RecordStateGuard;
 use App\Support\ScientificNameHelper;
-use App\Models\FixLog;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use Livewire\Component;
+
 class QueryPlant extends Component
 {
-
     public $search;
+
     public $plantName = 'test';
+
     public $plantCode = null;
 
     public $test;
 
     public $suggestions = [];
+
     public string $searchMessage = '';
-    public $spnameInfo=[];
 
-    public function mount(){
+    public $spnameInfo = [];
 
-    }
-
+    public function mount() {}
 
     public function updatedPlantName($value)
     {
-        
+
         // dd($value);
         $value = trim($value);
-    // dd($this->chnameIndex);
+        // dd($this->chnameIndex);
         if ($value === '') {
             $this->suggestions = [];
             $this->searchMessage = '';
+
             return;
         }
 
@@ -60,52 +59,61 @@ class QueryPlant extends Component
         //     if ($match) {
         //         $this->plantCode = $match['spcode'];
         //         $this->plantInfo($this->plantCode);
-        //     }  
+        //     }
         // }
-        
+
     }
 
     public $comparisonTable = [];
+
     public $chnameIndex = [];
+
     public string $chnameIndexStateToken = '';
 
-
     public bool $showTable = false;
+
     public function toggle()
     {
-        $this->showTable = !$this->showTable;
+        $this->showTable = ! $this->showTable;
         if ($this->showTable) {
             $this->dispatchIndex($this->plantCode);
-        } 
-        
-    }    
+        }
+
+    }
 
     public $countyList = [];
+
     public $allCountyList = [];
+
     public $habList = [];
+
     public $allHabList = [];
+
     public $thisCounty = '';
+
     public $thisHabType = '';
+
     public $filteredComparisonTable = [];
 
     public function plantInfo($value)
     {
-        
-// 植物資訊
-        $this->countyList=[];
-        $this->allCountyList=[];
-        $this->habList=[];
-        $this->allHabList=[];
+
+        // 植物資訊
+        $this->countyList = [];
+        $this->allCountyList = [];
+        $this->habList = [];
+        $this->allHabList = [];
         $this->thisCounty = '';
         $this->thisHabType = '';
- 
+
         $plant = TaiwanChecklist::where('spcode', $value)->first()
             ?? TaiwanChecklist::where('spcode_current', $value)->first();
 
-        if (!$plant) {
+        if (! $plant) {
             $this->spnameInfo = [];
             $this->suggestions = [];
             $this->searchMessage = '查無此植物資料，請重新輸入植物名稱。';
+
             return;
         }
 
@@ -135,7 +143,7 @@ class QueryPlant extends Component
         $this->plantName = $this->spnameInfo['chname'];
         $this->suggestions = []; // 清空建議即可
         $this->searchMessage = '';
-        
+
         $this->comparisonTable = PlantStatHelper::summarizeByCountyAndHabitat($relatedSpcodes);
         // dd($this->comparisonTable);
         $this->plantCode = $currentSpcode;
@@ -154,22 +162,20 @@ class QueryPlant extends Component
             ->filter(fn ($row) => filled($row['hab_code'] ?? null))
             ->unique('hab_code')
             ->sortBy('hab_code')
-            ->mapWithKeys(fn ($row) => [(string) $row['hab_code'] => $row['habitat']])
+            ->mapWithKeys(fn ($row) => [HabitatCode::mapKey($row['hab_code']) => $row['habitat']])
             ->all();
         $this->habList = $this->allHabList;
 
         $this->filteredComparisonTable = $this->comparisonTable; // 初始化為全部資料
 
-
-// dd($this->comparisonTable);
-        $this->dispatch('plant-name-selected');        
+        // dd($this->comparisonTable);
+        $this->dispatch('plant-name-selected');
         // dd($this->chnameIndex);
         $this->searchChnameIndex($value);
 
         $this->showTable = false;
 
-    }    
-
+    }
 
     public function reloadPlantInfoCounty($thisCounty)
     {
@@ -180,7 +186,7 @@ class QueryPlant extends Component
 
     public function reloadPlantInfoHab($thisHabType)
     {
-        $this->thisHabType = array_key_exists((string) $thisHabType, $this->habList)
+        $this->thisHabType = array_key_exists(HabitatCode::mapKey($thisHabType), $this->habList)
             ? (string) $thisHabType
             : '';
         $this->refreshFilterOptions();
@@ -216,25 +222,25 @@ class QueryPlant extends Component
             ->filter(fn ($row) => filled($row['hab_code'] ?? null))
             ->unique('hab_code')
             ->sortBy('hab_code')
-            ->mapWithKeys(fn ($row) => [(string) $row['hab_code'] => $row['habitat']])
+            ->mapWithKeys(fn ($row) => [HabitatCode::mapKey($row['hab_code']) => $row['habitat']])
             ->all();
 
-        if ($this->thisHabType !== '' && ! array_key_exists($this->thisHabType, $this->habList)) {
+        if ($this->thisHabType !== '' && ! array_key_exists(HabitatCode::mapKey($this->thisHabType), $this->habList)) {
             $this->thisHabType = '';
         }
     }
 
     public function searchChnameIndex($value)
     {
-// chnameIndex
-// dd($value);
+        // chnameIndex
+        // dd($value);
         $this->loadChnameIndexRows((string) $value);
 
     }
 
     public function dispatchIndex($value)
     {
-       
+
         $this->dispatch('chname_index_table', data: [
             'data' => $this->chnameIndex,
             'spcode' => $value,
@@ -342,6 +348,7 @@ class QueryPlant extends Component
                         ],
                     ], $creatorCode);
                     $changed = true;
+
                     continue;
                 }
 
@@ -368,14 +375,13 @@ class QueryPlant extends Component
 
         if ($changed) {
             session()->flash('chIndexMessage', '中文別名已更新！');
-        
+
             $this->dispatch('sync-complete', data: [
                 'data' => $this->chnameIndex,
                 'spcode' => $this->plantCode,
-            ]); 
+            ]);
         }
-        
- 
+
     }
 
     private function loadChnameIndexRows(string $spcode): void
@@ -415,8 +421,8 @@ class QueryPlant extends Component
         ]);
     }
 
-
     public $sortField = 'county';
+
     public $sortDirection = 'asc';
 
     public function sortBy($field)
@@ -433,9 +439,6 @@ class QueryPlant extends Component
             ->values()
             ->toArray();
     }
-
-
-
 
     public function render()
     {

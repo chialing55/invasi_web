@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Livewire\QueryPlant;
+use App\Support\HabitatCode;
 use PHPUnit\Framework\TestCase;
 
 class QueryPlantFilterTest extends TestCase
@@ -17,7 +18,7 @@ class QueryPlantFilterTest extends TestCase
         $this->assertCount(1, $component->filteredComparisonTable);
         $this->assertSame('臺北市', $component->filteredComparisonTable[0]['county']);
         $this->assertSame('08', $component->filteredComparisonTable[0]['hab_code']);
-        $this->assertSame(['08' => '天然林', '09' => '人工林'], $component->habList);
+        $this->assertSame([HabitatCode::mapKey('08') => '天然林', HabitatCode::mapKey('09') => '人工林'], $component->habList);
     }
 
     public function test_all_only_clears_the_changed_filter(): void
@@ -39,7 +40,7 @@ class QueryPlantFilterTest extends TestCase
 
         $component->reloadPlantInfoCounty('臺中市');
 
-        $this->assertSame(['08' => '天然林'], $component->habList);
+        $this->assertSame([HabitatCode::mapKey('08') => '天然林'], $component->habList);
         $this->assertCount(1, $component->filteredComparisonTable);
     }
 
@@ -83,7 +84,7 @@ class QueryPlantFilterTest extends TestCase
         $component = new QueryPlant;
         $component->allCountyList = ['臺中市', '臺北市'];
         $component->countyList = $component->allCountyList;
-        $component->allHabList = ['08' => '天然林', '09' => '人工林'];
+        $component->allHabList = [HabitatCode::mapKey('08') => '天然林', HabitatCode::mapKey('09') => '人工林'];
         $component->habList = $component->allHabList;
         $component->comparisonTable = [
             ['county' => '臺北市', 'hab_code' => '08', 'habitat' => '天然林'],

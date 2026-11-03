@@ -2,28 +2,35 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use App\Models\PlotList2025;
-use App\Models\SubPlotEnv2025;
+use App\Helpers\HabHelper;
 use App\Helpers\PlantListHelper;
 use App\Helpers\PlotHelper;
-use App\Helpers\HabHelper;
+use App\Models\PlotList2025;
+use App\Models\SubPlotEnv2025;
+use App\Support\HabitatCode;
 use Illuminate\Validation\ValidationException;
+use Livewire\Component;
 
 class QueryPlot extends Component
 {
-
     public $countyList = [];
+
     public $thisCounty;
+
     public $plotList = [];
+
     public $thisPlot;
 
-
     public $subPlotList = [];
+
     public $thisSubPlot;
+
     public $allPlotInfo = [];
+
     public $showAllPlot = true;
+
     public $thisListType = '';
+
     public $thisSpcode = '';
 
     public function mount()
@@ -31,8 +38,8 @@ class QueryPlot extends Component
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
 
         if (session()->has('query.county')) {
-            $county  = session()->pull('query.county');
-            $plot    = session()->pull('query.plot');
+            $county = session()->pull('query.county');
+            $plot = session()->pull('query.plot');
             $subPlot = session()->pull('query.subPlot');
             $habitat = session()->pull('query.habitat');
             $this->thisSpcode = session()->pull('query.spcode', '');
@@ -64,10 +71,12 @@ class QueryPlot extends Component
         $this->dispatch('thisHabTypeUpdated');
         $this->dispatch('thisSubPlotUpdated');
     }
-    public $plotplantList = [];
-    public $plotplantListAll = [];
-    public $habTypeOptions;
 
+    public $plotplantList = [];
+
+    public $plotplantListAll = [];
+
+    public $habTypeOptions;
 
     // 樣區內所有生育地類型與全部植物名錄
     public function loadPlotInfo($plot)
@@ -97,18 +106,18 @@ class QueryPlot extends Component
         // $this->thisSubPlotInfo = []; // 清空樣區ID資料
         // $this->plotInfo2025 = []; // 清空樣區資料
 
-        //取得生育地類型列表、小樣區清單
+        // 取得生育地類型列表、小樣區清單
         $data = PlotHelper::getSubPlotInfo($plot);
         $this->habTypeOptions = $data['habTypeOptions'];
         $this->subPlotList = $data['subPlotList'];
-        $this->subPlotEnvForm =[];
+        $this->subPlotEnvForm = [];
         // dd($plotPlant2025);
 
         // $this->dispatch('plotIDUpdated', plotID: '');
 
         $this->plotplantList = PlantListHelper::getMergedPlotPlantList($this->thisPlot);
         // dd( $this->plotplantList);
-        $this->plotplantListAll =  $this->plotplantList;
+        $this->plotplantListAll = $this->plotplantList;
 
         $this->dispatch('thisHabTypeUpdated');
         $this->dispatch('thisSubPlotUpdated');
@@ -116,10 +125,12 @@ class QueryPlot extends Component
     }
 
     public $thisSubPlotPlant2010 = [];
+
     public $thisSubPlotPlant2025 = [];
+
     public $thisHabType;
 
-    //單一個生育地資料
+    // 單一個生育地資料
     public function loadPlotHab($habType)
     {
         $this->assertCurrentPlot();
@@ -132,10 +143,12 @@ class QueryPlot extends Component
             $this->subPlotEnvForm = [];
             $this->plotplantList = $this->plotplantListAll;
             $this->thisListType = $this->thisPlot;
+
             return;
         }
 
-        if (! array_key_exists($habType, $options)) {
+        $habitatKey = HabitatCode::mapKey($habType);
+        if (! array_key_exists($habitatKey, $options)) {
             throw ValidationException::withMessages([
                 'thisHabType' => '生育地類型不屬於目前樣區，請重新選擇。',
             ]);
@@ -146,20 +159,20 @@ class QueryPlot extends Component
         // $this->dispatch('plotIDUpdated', plotID: '');
         // dd($plotPlant2025);
         $this->plotplantList = PlantListHelper::getMergedPlotPlantList($this->thisPlot, [
-            'hab_type' => $habType
+            'hab_type' => $habType,
         ]);
 
         // $this->plotplantListAll =  $this->plotplantList;
         // $this->dispatch('SubPlotIDUpdated', subPlotID: $subPlot);
         // dd($habType);
-        $this->thisListType = $this->thisPlot . ' ' . $options[$habType];
+        $this->thisListType = $this->thisPlot.' '.$options[$habitatKey];
         $this->subPlotEnvForm = [];
 
         $this->dispatch('thisSubPlotUpdated');
         $this->dispatch('plantListLoaded');
     }
 
-    public $subPlotEnvForm=[];
+    public $subPlotEnvForm = [];
 
     public function loadSubPlot($thisSubPlot)
     {
@@ -172,6 +185,7 @@ class QueryPlot extends Component
             $this->thisListType = $this->thisPlot;
             $this->subPlotEnvForm = [];
             $this->plotplantList = $this->plotplantListAll;
+
             return;
         }
 
@@ -186,7 +200,7 @@ class QueryPlot extends Component
         $this->thisHabType = ''; // 讓下拉選單同步更新
         //  dd($thisSubPlot);
         $habType = substr($thisSubPlot, 6, 2);   // 第 7,8 位（index 從 0 開始）
-        $sub_id  = substr($thisSubPlot, -2);     // 最後兩位
+        $sub_id = substr($thisSubPlot, -2);     // 最後兩位
 
         $data = SubPlotEnv2025::where('plot', (string) $this->thisPlot)
             ->where('plot_full_id', $thisSubPlot)
@@ -196,7 +210,7 @@ class QueryPlot extends Component
             $hab[] = $habType;
             $habTypeOptions = HabHelper::habitatOptions($hab);
             // dd($habTypeOptions);
-            $data->hab_type = $habTypeOptions[$habType] ?? '未知';
+            $data->hab_type = $habTypeOptions[HabitatCode::mapKey($habType)] ?? '未知';
             $subPlotAreaMap = config('item_list.sub_plot_area');
             $data->subplot_area_data = $subPlotAreaMap[$data->subplot_area] ?? $data->subplot_area;
 
@@ -235,6 +249,7 @@ class QueryPlot extends Component
     }
 
     public $sortField = 'cov_2025';
+
     public $sortDirection = 'asc';
 
     public function sortBy($field)
@@ -296,6 +311,7 @@ class QueryPlot extends Component
         $this->plotplantListAll = [];
         $this->subPlotEnvForm = [];
     }
+
     public $downloadFormat = 'csv'; // 預設為 .csv
 
     public function render()

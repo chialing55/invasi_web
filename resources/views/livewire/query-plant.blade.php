@@ -139,7 +139,8 @@
                                 <select id='habType' wire:model="thisHabType" class="border rounded p-2 w-40"
                                     wire:change="reloadPlantInfoHab($event.target.value)">
                                     <option value="">-- All --</option>
-                                    @foreach ($habList as $code => $label)
+                                    @foreach ($habList as $habitatKey => $label)
+                                        @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
                                         <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                                     @endforeach
                                 </select>

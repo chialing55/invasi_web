@@ -52,7 +52,8 @@
                 wire:change="habPlantInfo($event.target.value)">
                 <option value="">-- 請選擇 --</option>
                 <option value="All">All</option>
-                @foreach ($habTypeOptions as $code => $label)
+                @foreach ($habTypeOptions as $habitatKey => $label)
+                    @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
                     <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                 @endforeach
             </select>

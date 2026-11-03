@@ -261,7 +261,8 @@ class StatsTablesBuilder
         $woodRows = [];
         $headings = [];
         $labels = HabitatInfo::whereIn('habitat_code', HabitatCode::woodCodes())
-            ->pluck('habitat', 'habitat_code');
+            ->get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
 
         foreach (HabitatCode::woodCodes() as $code) {
             $table = FloraIVISupport::iviTable(
@@ -270,9 +271,9 @@ class StatsTablesBuilder
                 includeCultivated: false
             );
 
-            if (!empty($table['rows'])) {
+            if (! empty($table['rows'])) {
                 $headings = $headings ?: $table['headings'];
-                $woodRows[] = ['中文名' => '[' . ($labels[$code] ?? $code) . ']'];
+                $woodRows[] = ['中文名' => '['.($labels[HabitatCode::mapKey($code)] ?? $code).']'];
                 $woodRows = array_merge($woodRows, $table['rows']);
             }
         }
@@ -303,8 +304,9 @@ class StatsTablesBuilder
         }
 
         $countyLabel = (string) ($iviComparison['countyLabel'] ?? '選取縣市');
+
         return [
-            'title' => $countyLabel . '低海拔IVI比較',
+            'title' => $countyLabel.'低海拔IVI比較',
             'headings' => $iviComparison['headings'],
             'rows' => $iviComparison['rows'],
             'countyLabel' => $countyLabel,

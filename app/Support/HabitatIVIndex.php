@@ -30,7 +30,9 @@ class HabitatIVIndex
         }
 
         // 生育地代碼 → 名稱
-        $habMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+        $habMap = HabitatInfo::get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat])
+            ->all();
 
         // 共同基礎（全部物種；只過濾樣區）
         $base = DB::connection('invasiflora')->table('im_spvptdata_2025 as p')
@@ -84,10 +86,8 @@ class HabitatIVIndex
                 ->selectRaw("{$habExpr} as hab, SUM(p.coverage) as cov_sum_hab")
                 ->groupBy('hab')
                 ->pluck('cov_sum_hab', 'hab');
-            // Collection::merge() reindexes numeric keys. Habitat codes 10–20 are
-            // numeric array keys, so reindexing made their denominators unreachable.
             $coverageTotals->each(
-                fn ($total, $hab) => $sumCovByHab->put($hab, $total)
+                fn ($total, $hab) => $sumCovByHab->put(HabitatCode::mapKey($hab), $total)
             );
 
             $speciesKeyExpr = 's.spcode';
@@ -98,7 +98,7 @@ class HabitatIVIndex
                 ->groupBy('hab')
                 ->map(fn ($g) => (int) $g->sum('n'));
             $frequencyTotals->each(
-                fn ($total, $hab) => $sumFreqByHab->put($hab, $total)
+                fn ($total, $hab) => $sumFreqByHab->put(HabitatCode::mapKey($hab), $total)
             );
         }
 
@@ -121,9 +121,11 @@ class HabitatIVIndex
 
         $byHab = $spAgg->groupBy('hab');
         $habLists = [];
+        $habCodes = [];
         foreach ($byHab as $hab => $rows) {
-            $denCov = max(0.000001, (float) ($sumCovByHab[$hab] ?? 0));
-            $denFreq = max(1, (int) ($sumFreqByHab[$hab] ?? 0));
+            $habitatKey = HabitatCode::mapKey($hab);
+            $denCov = max(0.000001, (float) ($sumCovByHab[$habitatKey] ?? 0));
+            $denFreq = max(1, (int) ($sumFreqByHab[$habitatKey] ?? 0));
 
             $list = $rows->map(function ($r) use ($denCov, $denFreq, $labelField) {
                 $rc = 100.0 * ((float) $r->cov_sum) / $denCov;
@@ -140,23 +142,23 @@ class HabitatIVIndex
                 ->take($topN)
                 ->all();
 
-            $habLists[$hab] = $list;
+            $habLists[$habitatKey] = $list;
+            $habCodes[] = (string) $hab;
         }
 
         // 產生「矩陣」：col = 生育地，row = 排名 1..N；cell = 名稱 \n(IV)
-        $habKeys = array_keys($habLists);
-        usort($habKeys, fn ($a, $b) => strcmp(
+        usort($habCodes, fn ($a, $b) => strcmp(
             HabitatCode::analysisSortKey((string) $a),
             HabitatCode::analysisSortKey((string) $b)
         ));
 
-        $headings = array_merge(['排名'], array_map(fn ($k) => HabitatCode::analysisLabel($k, $habMap), $habKeys));
+        $headings = array_merge(['排名'], array_map(fn ($k) => HabitatCode::analysisLabel($k, $habMap), $habCodes));
 
         $rows = [];
         for ($rank = 1; $rank <= $topN; $rank++) {
             $row = ['排名' => $rank];
-            foreach ($habKeys as $k) {
-                $item = $habLists[$k][$rank - 1] ?? null;
+            foreach ($habCodes as $k) {
+                $item = $habLists[HabitatCode::mapKey($k)][$rank - 1] ?? null;
                 $row[HabitatCode::analysisLabel($k, $habMap)] = $item
                     ? ($item['label']."\n(".$item['iv'].')')
                     : '-';

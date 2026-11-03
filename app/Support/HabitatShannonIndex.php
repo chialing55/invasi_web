@@ -29,7 +29,9 @@ class HabitatShannonIndex
         }
 
         // habitat_code => habitat 名稱
-        $habMap = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+        $habMap = HabitatInfo::get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat])
+            ->all();
 
         // 主要彙總：算到 (habitat, status, spcode) 的 x_i
 

@@ -10,12 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class HabitatShannonIndex
 {
-    /** 避免 PHP 將「10」以上的純數字生育地代碼轉成整數陣列鍵。 */
-    public static function habitatMetricKey(int|string $habitatCode): string
-    {
-        return 'hab:'.(string) $habitatCode;
-    }
-
     /**
      * 以 selectedPlots 為篩選，直接在 DB 做彙總，再計算每個 habitat 的 Shannon 指數。
      * 僅納入成功對應目前名錄，且來源屬性已分類的物種
@@ -113,7 +107,7 @@ class HabitatShannonIndex
                 AVG(CASE WHEN total_cov > 0 THEN 100 * alien_cov / total_cov ELSE 0 END) AS avg_pct')
             ->groupBy('hab')
             ->pluck('avg_pct', 'hab')       // -> ['08'=>xx.x, '09'=>yy.y, ...]
-            ->mapWithKeys(fn ($v, $hab) => [self::habitatMetricKey($hab) => round((float) $v, 2)])
+            ->mapWithKeys(fn ($v, $hab) => [HabitatCode::mapKey($hab) => round((float) $v, 2)])
             ->all();
 
         $combinedSub = (clone $base)
@@ -126,7 +120,7 @@ class HabitatShannonIndex
             ->selectRaw('hab, AVG(CASE WHEN total_cov > 0 THEN 100 * alien_cov / total_cov ELSE 0 END) AS avg_pct')
             ->groupBy('hab')
             ->pluck('avg_pct', 'hab')
-            ->mapWithKeys(fn ($v, $hab) => [self::habitatMetricKey($hab) => round((float) $v, 2)])
+            ->mapWithKeys(fn ($v, $hab) => [HabitatCode::mapKey($hab) => round((float) $v, 2)])
             ->all();
         $avgPctByHab = array_replace($avgPctByHab, $combinedAvgPctByHab);
         // 對數底
@@ -187,7 +181,7 @@ class HabitatShannonIndex
                 return $h;
             };
 
-            $avgAlienCover = (float) ($avgPctByHab[self::habitatMetricKey($hab)] ?? 0.0);
+            $avgAlienCover = (float) ($avgPctByHab[HabitatCode::mapKey($hab)] ?? 0.0);
 
             $out[] = [
                 '生育地代碼' => $hab,

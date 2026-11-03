@@ -9,6 +9,7 @@ use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2025;
 use App\Support\HabitatCode;
 use App\Support\HabitatCompletionThreshold;
+use Illuminate\Support\Facades\DB;
 
 class PlotCompletedCheckHelper
 {
@@ -106,20 +107,21 @@ class PlotCompletedCheckHelper
             ->groupBy('plot');
         $prefixes = $plotList->map(fn ($plot) => substr($plot, 0, 6))->unique()->values();
 
-        $plantQuery = SubPlotPlant2025::query();
-        $prefixes->each(function ($prefix, $index) use ($plantQuery) {
-            $method = $index === 0 ? 'where' : 'orWhere';
-            $plantQuery->{$method}('plot_full_id', 'like', $prefix.'%');
-        });
+        // 完成度只需要知道每個樣區是否存在 data_error，不應把全部植物明細
+        // 載入 PHP 後再分組；全區資料會輕易超過容器 memory_limit。
+        $plantQuery = SubPlotPlant2025::query()
+            ->selectRaw('LEFT(plot_full_id, 6) AS plot_prefix')
+            ->selectRaw('MAX(CASE WHEN COALESCE(data_error, 0) <> 0 THEN 1 ELSE 0 END) AS has_error')
+            ->whereIn(DB::raw('LEFT(plot_full_id, 6)'), $prefixes->all());
 
-        $plantDataByPrefix = $plantQuery
-            ->get()
-            ->groupBy(fn ($row) => substr($row->plot_full_id, 0, 6));
+        $plantErrorByPrefix = $plantQuery
+            ->groupByRaw('LEFT(plot_full_id, 6)')
+            ->pluck('has_error', 'plot_prefix');
 
         return $plotList
             ->map(function ($plot) use (
                 $envDataByPlot,
-                $plantDataByPrefix,
+                $plantErrorByPrefix,
                 $plotListByPlot,
                 $habDataByPlot,
                 $completionExceptionsByPlot
@@ -133,7 +135,7 @@ class PlotCompletedCheckHelper
                 $status = self::getPlotCompletedInfo_v2(
                     $plot,
                     $envDataByPlot,
-                    $plantDataByPrefix,
+                    $plantErrorByPrefix,
                     $plotListByPlot,
                     $habDataByPlot,
                     $completionExceptionsByPlot
@@ -148,7 +150,7 @@ class PlotCompletedCheckHelper
     public static function getPlotCompletedInfo_v2(
         string $plot,
         $envDataByPlot,
-        $plantDataByPrefix,
+        $plantErrorByPrefix,
         $plotListByPlot,
         $habDataByPlot,
         $completionExceptionsByPlot
@@ -165,7 +167,7 @@ class PlotCompletedCheckHelper
         $prefix = substr($plot, 0, 6);
 
         $thisEnvData = $envDataByPlot[$plot] ?? collect();
-        $thisPlantData = $plantDataByPrefix[$prefix] ?? collect();
+        $hasPlantDataError = (int) ($plantErrorByPrefix[$prefix] ?? 0) !== 0;
         $thisPLotData = $plotListByPlot[$plot] ?? null;
         $thisHabData = $habDataByPlot[$plot] ?? collect();
         $completionExceptions = ($completionExceptionsByPlot[$plot] ?? collect())
@@ -176,7 +178,7 @@ class PlotCompletedCheckHelper
         ])->all();
         // dd($thisEnvData->toArray(), $thisPlantData->toArray(), $thisPLotData->toArray(), $thisHabData->toArray());
         if ($thisEnvData->isNotEmpty()) {
-            $dataCorrect = self::hasPlantDataError($thisPlantData) ? '0' : '1';
+            $dataCorrect = $hasPlantDataError ? '0' : '1';
 
             $subPlotImage = $thisEnvData->every(fn ($row) => ! empty($row->file_uploaded_at)) ? '1' : '0';
 

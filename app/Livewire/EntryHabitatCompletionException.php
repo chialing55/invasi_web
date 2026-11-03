@@ -111,33 +111,35 @@ class EntryHabitatCompletionException extends Component
             ->sort()
             ->values();
 
-        $labels = HabitatInfo::pluck('habitat', 'habitat_code')->toArray();
+        $labels = HabitatInfo::get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
         $counts = SubPlotEnv2025::query()
             ->where('plot', $this->thisPlot)
             ->selectRaw('habitat_code, COUNT(DISTINCT plot_full_id) AS subplot_count')
             ->groupBy('habitat_code')
-            ->pluck('subplot_count', 'habitat_code');
+            ->get()
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->subplot_count]);
         $exceptionRecords = PlotHabitatCompletionException::query()
             ->where('plot', $this->thisPlot)
             ->orderBy('habitat_code')
             ->get();
-        $exceptions = $exceptionRecords->keyBy('habitat_code');
+        $exceptions = $exceptionRecords->keyBy(fn ($item) => HabitatCode::mapKey($item->habitat_code));
         $this->stateToken = $this->completionStateToken($selectedHabitats, $exceptionRecords);
 
         foreach ($this->canonicalGroups($selectedCodes->all()) as $groupKey => $codes) {
-            $existing = collect($codes)->map(fn ($item) => $exceptions->get($item))->filter();
+            $existing = collect($codes)->map(fn ($item) => $exceptions->get(HabitatCode::mapKey($item)))->filter();
             $savedCount = $existing->first()?->actual_subplot_count;
 
             $this->rows[] = [
                 'group_key' => $groupKey,
                 'codes' => $codes,
                 'label' => collect($codes)
-                    ->map(fn ($item) => $item.' '.($labels[$item] ?? $item))
+                    ->map(fn ($item) => $item.' '.($labels[HabitatCode::mapKey($item)] ?? $item))
                     ->implode('／'),
                 'enabled' => $existing->isNotEmpty(),
                 'actual_subplot_count' => $savedCount !== null ? (string) $savedCount : '',
                 'current_counts' => collect($codes)
-                    ->mapWithKeys(fn ($item) => [$item => (int) ($counts[$item] ?? 0)])
+                    ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item) => (int) ($counts[HabitatCode::mapKey($item)] ?? 0)])
                     ->all(),
             ];
         }

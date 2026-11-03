@@ -7,6 +7,7 @@ use App\Models\PlotHabitatCompletionException;
 use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2025;
+use App\Support\HabitatCode;
 use App\Support\HabitatCompletionThreshold;
 
 class PlotCompletedCheckHelper
@@ -30,10 +31,11 @@ class PlotCompletedCheckHelper
         $thisHabData = PlotHab::where('plot', $plot)->get();
         $completionExceptions = PlotHabitatCompletionException::query()
             ->where('plot', $plot)
-            ->pluck('actual_subplot_count', 'habitat_code');
+            ->get(['habitat_code', 'actual_subplot_count'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->actual_subplot_count]);
         $habCodesInHab = $thisHabData->pluck('habitat_code')->unique()->sort()->values();
         $habitatThresholds = $habCodesInHab->mapWithKeys(fn ($code) => [
-            (string) $code => HabitatCompletionThreshold::requiredCount((string) $code, $completionExceptions),
+            HabitatCode::mapKey($code) => HabitatCompletionThreshold::requiredCount((string) $code, $completionExceptions),
         ])->all();
 
         if ($thisEnvData->isNotEmpty()) {
@@ -50,12 +52,13 @@ class PlotCompletedCheckHelper
             $plotHabData = $habCodesInEnv->diff($habCodesInHab)->isEmpty() && $habCodesInHab->diff($habCodesInEnv)->isEmpty() ? '1' : '0';
 
             // 4. $subPlotData：每個 habitat_code 達到一般門檻 5 或已登錄的例外門檻。
-            $grouped = $thisEnvData->groupBy('habitat_code');
+            $grouped = $thisEnvData->groupBy(fn ($item) => HabitatCode::mapKey($item->habitat_code));
             $subPlotData = $habCodesInHab->every(function ($code) use ($grouped, $habitatThresholds) {
-                $required = $habitatThresholds[(string) $code] ?? HabitatCompletionThreshold::DEFAULT_COUNT;
+                $key = HabitatCode::mapKey($code);
+                $required = $habitatThresholds[$key] ?? HabitatCompletionThreshold::DEFAULT_COUNT;
 
-                return isset($grouped[$code])
-                    && $grouped[$code]->pluck('plot_full_id')->unique()->count() >= $required;
+                return isset($grouped[$key])
+                    && $grouped[$key]->pluck('plot_full_id')->unique()->count() >= $required;
             }) ? '1' : '0';
 
             // 5. $plotFile：檢查 $thisPLotData 的 file_uploaded_at 是否有任何非空值
@@ -166,10 +169,10 @@ class PlotCompletedCheckHelper
         $thisPLotData = $plotListByPlot[$plot] ?? null;
         $thisHabData = $habDataByPlot[$plot] ?? collect();
         $completionExceptions = ($completionExceptionsByPlot[$plot] ?? collect())
-            ->pluck('actual_subplot_count', 'habitat_code');
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->actual_subplot_count]);
         $habCodesInHab = $thisHabData->pluck('habitat_code')->unique()->sort()->values();
         $habitatThresholds = $habCodesInHab->mapWithKeys(fn ($code) => [
-            (string) $code => HabitatCompletionThreshold::requiredCount((string) $code, $completionExceptions),
+            HabitatCode::mapKey($code) => HabitatCompletionThreshold::requiredCount((string) $code, $completionExceptions),
         ])->all();
         // dd($thisEnvData->toArray(), $thisPlantData->toArray(), $thisPLotData->toArray(), $thisHabData->toArray());
         if ($thisEnvData->isNotEmpty()) {
@@ -180,12 +183,13 @@ class PlotCompletedCheckHelper
             $habCodesInEnv = $thisEnvData->pluck('habitat_code')->unique()->sort()->values();
             $plotHabData = $habCodesInEnv->diff($habCodesInHab)->isEmpty() && $habCodesInHab->diff($habCodesInEnv)->isEmpty() ? '1' : '0';
 
-            $grouped = $thisEnvData->groupBy('habitat_code');
+            $grouped = $thisEnvData->groupBy(fn ($item) => HabitatCode::mapKey($item->habitat_code));
             $subPlotData = $habCodesInHab->every(function ($code) use ($grouped, $habitatThresholds) {
-                $required = $habitatThresholds[(string) $code] ?? HabitatCompletionThreshold::DEFAULT_COUNT;
+                $key = HabitatCode::mapKey($code);
+                $required = $habitatThresholds[$key] ?? HabitatCompletionThreshold::DEFAULT_COUNT;
 
-                return isset($grouped[$code])
-                    && $grouped[$code]->pluck('plot_full_id')->unique()->count() >= $required;
+                return isset($grouped[$key])
+                    && $grouped[$key]->pluck('plot_full_id')->unique()->count() >= $required;
             }) ? '1' : '0';
 
             $plotFile = ! empty($thisPLotData?->file_uploaded_at) ? '1' : '0';

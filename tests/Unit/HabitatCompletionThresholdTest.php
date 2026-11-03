@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Support\HabitatCode;
 use App\Support\HabitatCompletionThreshold;
 use PHPUnit\Framework\TestCase;
 
@@ -14,13 +15,13 @@ class HabitatCompletionThresholdTest extends TestCase
 
     public function test_valid_exception_becomes_the_threshold(): void
     {
-        $this->assertSame(3, HabitatCompletionThreshold::requiredCount('01', ['01' => 3]));
+        $this->assertSame(3, HabitatCompletionThreshold::requiredCount('01', [HabitatCode::mapKey('01') => 3]));
     }
 
     public function test_invalid_exception_values_fall_back_to_five(): void
     {
-        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', ['01' => 0]));
-        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', ['01' => 5]));
-        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', ['01' => 9]));
+        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', [HabitatCode::mapKey('01') => 0]));
+        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', [HabitatCode::mapKey('01') => 5]));
+        $this->assertSame(5, HabitatCompletionThreshold::requiredCount('01', [HabitatCode::mapKey('01') => 9]));
     }
 }

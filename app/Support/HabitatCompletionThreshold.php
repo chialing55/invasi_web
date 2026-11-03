@@ -10,9 +10,10 @@ final class HabitatCompletionThreshold
 
     public static function requiredCount(string $habitatCode, Collection|array $exceptions): int
     {
+        $key = HabitatCode::mapKey($habitatCode);
         $value = $exceptions instanceof Collection
-            ? $exceptions->get($habitatCode)
-            : ($exceptions[$habitatCode] ?? null);
+            ? $exceptions->get($key)
+            : ($exceptions[$key] ?? null);
 
         if (is_object($value)) {
             $value = $value->actual_subplot_count ?? null;

@@ -78,15 +78,13 @@ class SurveyStats extends Component
         if ($this->embedded) {
             $plotHab2025 = SubPlotEnv2025::query()
                 ->whereIn('plot', $this->selectedPlots)
+                ->distinct()
                 ->pluck('habitat_code')
-                ->unique()
-                ->values()
                 ->toArray();
         } elseif ($thisCounty == '' && $this->thisTeam == '') {
             $plotHab2025 = SubPlotEnv2025::select('habitat_code')
+                ->distinct()
                 ->pluck('habitat_code')
-                ->unique()
-                ->values()
                 ->toArray();
 
         } else {
@@ -263,13 +261,16 @@ class SurveyStats extends Component
             ->distinct()
             ->orderBy('family')
             ->orderBy('s.full_name')
+            ->toBase()
             ->get()
             ->map(function ($r) {
-                $r->latinname_html = ScientificNameHelper::italicize($r->latinname ?? '', $r->simname ?? '');
+                $row = (array) $r;
+                $row['latinname_html'] = ScientificNameHelper::italicize($row['latinname'] ?? '', $row['simname'] ?? '');
+                unset($row['simname']);
 
-                return $r;
+                return $row;
             })
-            ->toArray();
+            ->all();
 
         // dd($plantListAll);
         if (empty($plantListAll)) {

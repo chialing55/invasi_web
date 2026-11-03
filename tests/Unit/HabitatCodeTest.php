@@ -7,6 +7,19 @@ use PHPUnit\Framework\TestCase;
 
 class HabitatCodeTest extends TestCase
 {
+    public function test_map_keys_round_trip_without_numeric_coercion(): void
+    {
+        foreach (['09', '10', '11', '08+88', 'combined-08'] as $code) {
+            $key = HabitatCode::mapKey($code);
+
+            $this->assertIsString($key);
+            $this->assertSame($code, HabitatCode::codeFromMapKey($key));
+        }
+
+        $this->expectException(\InvalidArgumentException::class);
+        HabitatCode::codeFromMapKey('10');
+    }
+
     public function test_analysis_order_places_understory_after_wood_and_combined_last(): void
     {
         $codes = ['combined-09', '10', '99', '09', 'combined-08', '88', '08'];

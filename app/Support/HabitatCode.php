@@ -34,6 +34,15 @@ final class HabitatCode
         return 'hab:'.(string) $code;
     }
 
+    public static function codeFromMapKey(string $key): string
+    {
+        if (! str_starts_with($key, 'hab:')) {
+            throw new \InvalidArgumentException("不合法的生育地 map key：{$key}");
+        }
+
+        return substr($key, 4);
+    }
+
     public static function legacyPairs(): array
     {
         return self::LEGACY_UNDERSTORY_PAIRS;
@@ -182,14 +191,14 @@ final class HabitatCode
         if (str_starts_with($code, 'combined-')) {
             $mainCode = substr($code, strlen('combined-'));
 
-            return ($habitatLabels[$mainCode] ?? $mainCode).'-合併';
+            return ($habitatLabels[self::mapKey($mainCode)] ?? $mainCode).'-合併';
         }
 
         if (self::isWood($code)) {
-            return ($habitatLabels[$code] ?? $code).'-木本';
+            return ($habitatLabels[self::mapKey($code)] ?? $code).'-木本';
         }
 
-        return $habitatLabels[$code] ?? $code;
+        return $habitatLabels[self::mapKey($code)] ?? $code;
     }
 
     /** 表三、表四排序：木本後接對應地被，合併資料統一置於最後。 */

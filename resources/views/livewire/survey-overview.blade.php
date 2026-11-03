@@ -257,7 +257,9 @@
                                 wire:change="reloadPlotInfo($event.target.value)">
                                 <option value="">-- All --</option>
                                 @foreach ($subPlotHabList as $habitatKey => $label)
-                                    @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
+                                    @php
+                                        $code = \App\Support\HabitatCode::codeFromMapKey($habitatKey);
+                                    @endphp
                                     <option value="{{ $code }}">{{ $code }} {{ $label }}
                                     </option>
                                 @endforeach

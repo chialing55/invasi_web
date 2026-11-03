@@ -86,7 +86,9 @@
                     wire:key="habitat-checkboxes-{{ $this->thisPlot }}-{{ implode('-', $selectedHabitatCodes) }}">
 
                     @foreach ($habTypeOptions as $habitatKey => $label)
-                        @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
+                        @php
+                            $code = \App\Support\HabitatCode::codeFromMapKey($habitatKey);
+                        @endphp
                         <label for="hab_{{ $code }}"
                             class="flex items-center gap-1 px-2 py-1 rounded border cursor-pointer
             {{ in_array($code, $refHabitatCodes) ? 'bg-lime-600/20 border-lime-800/50' : 'border-gray-300' }}">

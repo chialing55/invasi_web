@@ -53,7 +53,9 @@
                 <option value="">-- 請選擇 --</option>
                 <option value="All">All</option>
                 @foreach ($habTypeOptions as $habitatKey => $label)
-                    @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
+                    @php
+                        $code = \App\Support\HabitatCode::codeFromMapKey($habitatKey);
+                    @endphp
                     <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                 @endforeach
             </select>

@@ -64,7 +64,9 @@
                             wire:change="loadPlotHab($event.target.value)">
                             <option value="">-- 請選擇 --</option>
                             @foreach ($habTypeOptions as $habitatKey => $label)
-                                @php($code = \App\Support\HabitatCode::codeFromMapKey($habitatKey))
+                                @php
+                                    $code = \App\Support\HabitatCode::codeFromMapKey($habitatKey);
+                                @endphp
                                 <option value="{{ $code }}">{{ $code }} {{ $label }}</option>
                             @endforeach
                         </select>

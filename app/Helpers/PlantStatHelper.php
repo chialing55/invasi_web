@@ -18,96 +18,45 @@ class PlantStatHelper
             return [];
         }
 
-        $plotCounty = PlotList2025::get()->keyBy('plot')->toArray(); // plot => 縣市
+        $plotCounty = PlotList2025::get(['plot', 'county'])->keyBy('plot')->toArray();
         $habTypeMap = HabitatInfo::get(['habitat_code', 'habitat'])
             ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
 
-        // 🟩 讀取並格式化 2010 資料
-        $data2010 = SubPlotPlant2010::whereIn('spcode', $spcodes)->get()->map(function ($item) {
-            return [
-                'plot' => $item->PLOT_ID,
-                'hab' => $item->HAB_TYPE,
-                'sub' => $item->SUB_ID,
-                'cov' => $item->COV,
-            ];
-        });
+        // 只讓資料庫回傳「樣區 × 生育地」的小型彙總，不載入每一筆植物紀錄。
+        $rows2010 = SubPlotPlant2010::query()
+            ->whereIn('spcode', $spcodes)
+            ->selectRaw('PLOT_ID AS plot, HAB_TYPE AS habitat_code')
+            ->selectRaw('COUNT(*) AS observation_count')
+            ->selectRaw('COUNT(DISTINCT SUB_ID) AS subplot_count')
+            ->selectRaw('SUM(COALESCE(CAST(COV AS DECIMAL(18,6)), 0)) AS coverage_sum')
+            ->selectRaw('SUM(POW(COALESCE(CAST(COV AS DECIMAL(18,6)), 0), 2)) AS coverage_square_sum')
+            ->groupBy('PLOT_ID', 'HAB_TYPE')
+            ->toBase()
+            ->get();
 
-        // 🟦 讀取並格式化 2025 資料（解碼 plot_full_id）
-        $data2025 = SubPlotPlant2025::whereIn('spcode', $spcodes)->get()->map(function ($item) {
-            $plot_full_id = $item->plot_full_id;
+        $rows2025 = SubPlotPlant2025::query()
+            ->whereIn('spcode', $spcodes)
+            ->selectRaw('LEFT(plot_full_id, 6) AS plot, SUBSTRING(plot_full_id, 7, 2) AS habitat_code')
+            ->selectRaw('COUNT(*) AS observation_count')
+            ->selectRaw('COUNT(DISTINCT plot_full_id) AS subplot_count')
+            ->selectRaw('SUM(COALESCE(coverage, 0)) AS coverage_sum')
+            ->selectRaw('SUM(POW(COALESCE(coverage, 0), 2)) AS coverage_square_sum')
+            ->groupByRaw('LEFT(plot_full_id, 6), SUBSTRING(plot_full_id, 7, 2)')
+            ->toBase()
+            ->get();
 
-            return [
-                'plot' => substr($plot_full_id, 0, 6),
-                'hab' => substr($plot_full_id, 6, 2),
-                'sub' => substr($plot_full_id, 8, 2),
-                'cov' => $item->coverage,
-            ];
-        });
+        $group2010 = self::combineDatabaseAggregates($rows2010, $plotCounty);
+        $group2025 = self::combineDatabaseAggregates($rows2025, $plotCounty);
+        $allKeys = $group2010->keys()->merge($group2025->keys())->unique();
 
-        // groupBy: [縣市][hab_type]
-        // $group2010 = $data2010->groupBy(function ($item) use ($plotCounty) {
-        //     return $plotCounty[$item['plot']]['county'] ?? $item['plot'];
-        // })->map(function ($itemsByCounty) {
-        //     return $itemsByCounty->groupBy('hab');
-        // });
-
-        // $group2025 = $data2025->groupBy(function ($item) use ($plotCounty) {
-        //     return $plotCounty[$item['plot']]['county'] ?? $item['plot'];
-        // })->map(function ($itemsByCounty) {
-        //     return $itemsByCounty->groupBy('hab');
-        // });
-
-        $group2010 = $data2010->groupBy(function ($item) use ($plotCounty) {
-            return self::getCountyFromPlot($item['plot'], $plotCounty);
-        })->map(function ($itemsByCounty) {
-            return $itemsByCounty->groupBy(fn ($item) => HabitatCode::mapKey($item['hab']));
-        });
-
-        $group2025 = $data2025->groupBy(function ($item) use ($plotCounty) {
-            return self::getCountyFromPlot($item['plot'], $plotCounty);
-        })->map(function ($itemsByCounty) {
-            return $itemsByCounty->groupBy(fn ($item) => HabitatCode::mapKey($item['hab']));
-        });
-
-        // 合併所有 (縣市, hab) 組合
-        $allKeys = collect();
-        foreach ($group2010 as $county => $habGroup) {
-            foreach ($habGroup as $hab => $set) {
-                $allKeys->push([$county, $hab]);
-            }
-        }
-        foreach ($group2025 as $county => $habGroup) {
-            foreach ($habGroup as $hab => $set) {
-                $allKeys->push([$county, $hab]);
-            }
-        }
-
-        $merged = $allKeys->unique(function ($pair) {
-            return implode('|', $pair);
-        })->map(function ($pair) use ($group2010, $group2025, $habTypeMap) {
-            [$county, $habitatKey] = $pair;
+        return $allKeys->map(function (string $key) use ($group2010, $group2025, $habTypeMap) {
+            $data2010 = $group2010->get($key);
+            $data2025 = $group2025->get($key);
+            $county = $data2010['county'] ?? $data2025['county'];
+            $habitatKey = $data2010['habitat_key'] ?? $data2025['habitat_key'];
             $habType = HabitatCode::codeFromMapKey($habitatKey);
-
-            $data2010 = $group2010[$county][$habitatKey] ?? collect();
-            $data2025 = $group2025[$county][$habitatKey] ?? collect();
-
-            $stat = function ($items) {
-                if ($items->isEmpty()) {
-                    return [0, 0, 0, 0, []]; // [plotCount, subCount, mean, sd, plots[]]
-                }
-                $col = collect($items);
-                $plots = $col->pluck('plot')->unique()->sort()->values()->all(); // 唯一 plot 陣列
-                $plotCount = count($plots);
-                $subCount = $col->map(fn ($i) => $i['plot'].'.'.$i['hab'].'.'.$i['sub'])->unique()->count();
-                $mean = $col->avg('cov');
-                $meanSq = $col->avg(fn ($i) => $i['cov'] ** 2);
-                $sd = sqrt(max(0, $meanSq - ($mean ** 2))); // 避免極小負數誤差
-
-                return [$plotCount, $subCount, round($mean, 1), round($sd, 1), $plots];
-            };
-
-            [$p10, $s10, $m10, $sd10, $plots10] = $stat($data2010);
-            [$p25, $s25, $m25, $sd25, $plots25] = $stat($data2025);
+            [$p10, $s10, $m10, $sd10, $plots10] = self::formatAggregate($data2010);
+            [$p25, $s25, $m25, $sd25, $plots25] = self::formatAggregate($data2025);
 
             return [
                 'county' => $county,
@@ -127,8 +76,61 @@ class PlantStatHelper
                 'plots_2025' => $plots25,
             ];
         })->sortBy(['county', 'habitat'])->values()->toArray();
+    }
 
-        return $merged;
+    private static function combineDatabaseAggregates($rows, array $plotCounty)
+    {
+        $countyByPrefix = collect($plotCounty)
+            ->filter(fn ($info) => ! empty($info['county']))
+            ->mapWithKeys(fn ($info, $plot) => [substr((string) $plot, 0, 3) => $info['county']])
+            ->all();
+
+        return $rows->reduce(function ($groups, $row) use ($plotCounty, $countyByPrefix) {
+            $plot = (string) $row->plot;
+            $county = $plotCounty[$plot]['county']
+                ?? $countyByPrefix[substr($plot, 0, 3)]
+                ?? $plot;
+            $habitatKey = HabitatCode::mapKey($row->habitat_code);
+            $key = $county.'|'.$habitatKey;
+            $aggregate = $groups->get($key, [
+                'county' => $county,
+                'habitat_key' => $habitatKey,
+                'observation_count' => 0,
+                'subplot_count' => 0,
+                'coverage_sum' => 0.0,
+                'coverage_square_sum' => 0.0,
+                'plots' => [],
+            ]);
+            $aggregate['observation_count'] += (int) $row->observation_count;
+            $aggregate['subplot_count'] += (int) $row->subplot_count;
+            $aggregate['coverage_sum'] += (float) $row->coverage_sum;
+            $aggregate['coverage_square_sum'] += (float) $row->coverage_square_sum;
+            $aggregate['plots'][$plot] = true;
+            $groups->put($key, $aggregate);
+
+            return $groups;
+        }, collect());
+    }
+
+    private static function formatAggregate(?array $aggregate): array
+    {
+        if (! $aggregate || $aggregate['observation_count'] === 0) {
+            return [0, 0, 0, 0, []];
+        }
+
+        $plots = array_keys($aggregate['plots']);
+        sort($plots);
+        $mean = $aggregate['coverage_sum'] / $aggregate['observation_count'];
+        $meanSquare = $aggregate['coverage_square_sum'] / $aggregate['observation_count'];
+        $sd = sqrt(max(0, $meanSquare - ($mean ** 2)));
+
+        return [
+            count($plots),
+            $aggregate['subplot_count'],
+            round($mean, 1),
+            round($sd, 1),
+            $plots,
+        ];
     }
 
     public static function getCountyFromPlot($plot, $plotCounty)

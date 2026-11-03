@@ -327,7 +327,9 @@ class EntryHabitatCompletionException extends Component
                 $processed[$groupCode] = true;
             }
 
-            $groups[implode('+', $codes)] = $codes;
+            // PHP 會把 '10'、'11'…等純數字字串陣列鍵轉成 int，造成
+            // Livewire 送回時無法通過字串 group_key 驗證；加上前綴固定型別。
+            $groups['hab:'.implode('+', $codes)] = $codes;
         }
 
         return $groups;

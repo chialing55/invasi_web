@@ -3,8 +3,8 @@
 namespace App\Livewire;
 
 use App\Helpers\PlotCompletedCheckHelper;
-use App\Helpers\PlotCompletedHelper;
 use App\Models\HabitatInfo;
+use App\Models\PlotHab;
 use App\Models\PlotList2025;
 use App\Models\SubPlotEnv2025;
 use App\Models\SubPlotPlant2025;
@@ -322,6 +322,14 @@ class SurveyOverview extends Component
 
     public function loadAllPlotInfo($plotList)
     {
+        $plotList = collect($plotList)->filter()->unique()->values();
+        if ($plotList->isEmpty()) {
+            $this->allPlotInfo = [];
+            $this->showAllPlotInfo = [];
+
+            return;
+        }
+
         $summary = [];
         $plotRows = PlotList2025::whereIn('plot', $plotList)
             ->when($this->thisCensusYear !== '', fn ($query) => $query->where('census_year', $this->thisCensusYear))
@@ -330,18 +338,50 @@ class SurveyOverview extends Component
             ->unique('plot')
             ->keyBy('plot');
 
+        $habitatLabels = HabitatInfo::get(['habitat_code', 'habitat'])
+            ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->habitat]);
+        $selectedHabitats = PlotHab::whereIn('plot', $plotList)
+            ->get(['plot', 'habitat_code'])
+            ->groupBy('plot')
+            ->map(fn ($rows) => $rows->pluck('habitat_code')->map(fn ($code) => str_pad((string) $code, 2, '0', STR_PAD_LEFT))->unique());
+        $environmentCounts = SubPlotEnv2025::whereIn('plot', $plotList)
+            ->selectRaw('plot, habitat_code, COUNT(DISTINCT plot_full_id) AS subplot_count')
+            ->groupBy('plot', 'habitat_code')
+            ->get();
+        $environmentHabitats = $environmentCounts
+            ->groupBy('plot')
+            ->map(fn ($rows) => $rows->pluck('habitat_code')->map(fn ($code) => str_pad((string) $code, 2, '0', STR_PAD_LEFT))->unique());
+        $subplotCounts = $environmentCounts->mapWithKeys(fn ($row) => [
+            $row->plot.'|'.HabitatCode::mapKey($row->habitat_code) => (int) $row->subplot_count,
+        ]);
+        $plantStats = DB::connection('invasiflora')
+            ->table('im_spvptdata_2025 as p')
+            ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
+            ->whereIn('e.plot', $plotList)
+            ->whereNull('p.deleted_at')
+            ->whereNull('e.deleted_at')
+            ->selectRaw('e.plot, e.habitat_code,
+                SUM(CASE WHEN COALESCE(p.coverage, 0) = 0 OR COALESCE(p.data_error, 0) <> 0 THEN 1 ELSE 0 END) AS data_error_count,
+                SUM(CASE WHEN COALESCE(p.unidentified, 0) = 1 THEN 1 ELSE 0 END) AS unidentified_count')
+            ->groupBy('e.plot', 'e.habitat_code')
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->plot.'|'.HabitatCode::mapKey($row->habitat_code) => $row,
+            ]);
+        $statusByPlot = collect($this->thisPlotWithStatus)->keyBy('plot');
+        $disk = Storage::disk('invasi_files');
+
         foreach ($plotList as $plot) {
-            $data = PlotCompletedHelper::plotCompleted($plot);
-            // $status = PlotCompletedCheckHelper::getPlotCompletedInfo($plot);
-            $status = collect($this->thisPlotWithStatus)->firstWhere('plot', $plot);
-            // dd($status);
-            $plotHabList = $data['habTypeOptions'];
-            // dd($plotHabList);
+            $status = $statusByPlot->get($plot);
+            $habitatCodes = collect($selectedHabitats->get($plot, collect()))
+                ->merge($environmentHabitats->get($plot, collect()))
+                ->unique()
+                ->sort()
+                ->values();
 
             $plotRow = $plotRows->get($plot);
             $canViewFiles = PlotFileAccess::allows(Auth::user(), $plotRow?->team);
             $relativePath = "plotData/{$plotRow?->county}/{$plot}.pdf";
-            $disk = Storage::disk('invasi_files');
 
             if ($canViewFiles && $plotRow && $disk->exists($relativePath)) {
                 $thisPlotFile = route('file.plot', ['plot' => $plot]).'?v='.$disk->lastModified($relativePath);
@@ -349,51 +389,22 @@ class SurveyOverview extends Component
                 $thisPlotFile = null;
             }
 
-            $plotQuery2025 = SubPlotEnv2025::select('habitat_code', DB::raw('count(*) as subplot_count'))
-                ->where('plot', $plot)
-                ->groupBy('habitat_code')
-                ->get()
-                ->mapWithKeys(fn ($item) => [HabitatCode::mapKey($item->habitat_code) => $item->subplot_count])
-                ->all();
-            $rawData = SubPlotPlant2025::where('plot_full_id', 'like', $plot.'%')->get();
-
-            $grouped = $rawData->groupBy(function ($item) {
-                return substr($item->plot_full_id, 6, 2); // 第 7、8 碼為 habitat code
-            });
-
-            $habitatStats = [];
-
-            foreach ($grouped as $habCode => $group) {
-                $dataErrorCount = $group->filter(function ($item) {
-                    return $item->coverage == 0 || $item->data_error != 0;
-                })->count();
-
-                $unidentifiedCount = $group->where('unidentified', 1)->count();
-
-                $habitatStats[HabitatCode::mapKey($habCode)] = [
-                    'data_error_count' => $dataErrorCount,
-                    'unidentified_count' => $unidentifiedCount,
-                ];
-            }
-
-            // 組合所有 habitat_code 的結果
-
-            // 如果 habList 有資料，就正常處理
-            if (! empty($plotHabList)) {
-                foreach ($plotHabList as $habitatOptionKey => $habName) {
-                    $habCode = HabitatCode::codeFromMapKey($habitatOptionKey);
+            if ($habitatCodes->isNotEmpty()) {
+                foreach ($habitatCodes as $habCode) {
                     $habitatKey = HabitatCode::mapKey($habCode);
+                    $aggregateKey = $plot.'|'.$habitatKey;
+                    $plantStat = $plantStats->get($aggregateKey);
                     $summary[] = [
                         'plot' => $plot,
                         'hab_code' => $habCode,
-                        'hab_name' => $habName,
-                        'subplot_count_2025' => $plotQuery2025[$habitatKey] ?? 0,
+                        'hab_name' => $habitatLabels[$habitatKey] ?? $habCode,
+                        'subplot_count_2025' => $subplotCounts[$aggregateKey] ?? 0,
                         'required_subplot_count' => is_array($status)
                             ? (int) (($status['habitatThresholds'][$habitatKey] ?? 5))
                             : 5,
                         'plotFile' => $thisPlotFile,
-                        'unidentified_count' => $habitatStats[$habitatKey]['unidentified_count'] ?? 0,
-                        'data_error_count' => $habitatStats[$habitatKey]['data_error_count'] ?? 0,
+                        'unidentified_count' => (int) ($plantStat->unidentified_count ?? 0),
+                        'data_error_count' => (int) ($plantStat->data_error_count ?? 0),
                         'completed' => is_array($status) && ($status['plotCompleted'] ?? null) === '1',
                     ];
                 }
@@ -437,7 +448,6 @@ class SurveyOverview extends Component
         $this->thisHabType = ''; // 清除目前選擇的 habitat_code
         $this->thisSelectedHabitat = '';
         $this->refreshKey = now(); // 加一個 dummy key 讓 view 重繪
-        // $this->status = PlotCompletedCheckHelper::getPlotCompletedInfo($value);
         $this->status = collect($this->thisPlotWithStatus)->firstWhere('plot', $value);
         //   dd($this->status);
         if ($this->allPlotInfo != []) {

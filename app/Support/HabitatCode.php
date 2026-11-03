@@ -28,6 +28,12 @@ final class HabitatCode
         return self::UNDERSTORY_PAIRS;
     }
 
+    /** 建立不會被 PHP 轉成整數的生育地 map key。 */
+    public static function mapKey(int|string $code): string
+    {
+        return 'hab:'.(string) $code;
+    }
+
     public static function legacyPairs(): array
     {
         return self::LEGACY_UNDERSTORY_PAIRS;

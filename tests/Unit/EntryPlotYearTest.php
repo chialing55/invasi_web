@@ -13,7 +13,7 @@ class EntryPlotYearTest extends TestCase
     public function test_existing_plot_year_is_used_instead_of_current_calendar_year(): void
     {
         $plot = new PlotList2025;
-        $plot->setRawAttributes(['census_year' => 2025]);
+        $plot->setRawAttributes(['census_year' => 2025], true);
 
         $method = new ReflectionMethod(EntryEntry::class, 'plotFormYear');
         $year = $method->invoke(new EntryEntry, $plot);
@@ -31,6 +31,22 @@ class EntryPlotYearTest extends TestCase
             ->invoke(new EntryEntry, $plot);
 
         $this->assertSame(date('Y'), $year);
+    }
+
+    public function test_valid_plot_year_does_not_need_default_persistence(): void
+    {
+        $plot = new PlotList2025;
+        $plot->setRawAttributes(['census_year' => 2025], true);
+
+        $this->assertFalse($this->needsDefaultYear($plot));
+    }
+
+    public function test_zero_plot_year_needs_default_persistence(): void
+    {
+        $plot = new PlotList2025;
+        $plot->setRawAttributes(['census_year' => 0], true);
+
+        $this->assertTrue($this->needsDefaultYear($plot));
     }
 
     public function test_matching_loaded_and_database_years_are_accepted(): void
@@ -131,6 +147,12 @@ class EntryPlotYearTest extends TestCase
     private function token(EntryEntry $component, PlotList2025 $plot): string
     {
         return (new ReflectionMethod(EntryEntry::class, 'plotYearToken'))->invoke($component, $plot);
+    }
+
+    private function needsDefaultYear(PlotList2025 $plot): bool
+    {
+        return (new ReflectionMethod(EntryEntry::class, 'needsDefaultPlotCensusYear'))
+            ->invoke(new EntryEntry, $plot);
     }
 
     private function assertYearState(EntryEntry $component, PlotList2025 $plot): void

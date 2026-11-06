@@ -60,7 +60,7 @@
                     <button type="button" wire:click="savePlotCensusYear" wire:loading.attr="disabled"
                         wire:target="savePlotCensusYear"
                         class="rounded border border-gray-300 bg-gray-200 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50">
-                        儲存計畫年度
+                        更新計畫年度
                     </button>
                     <span class="text-xs text-gray-400">同一個樣區使用同一計畫年度；預做下一年度調查者，可填 {{ date('Y') + 1 }}。</span>
                 </div>

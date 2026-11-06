@@ -366,7 +366,7 @@ class EntryEntry extends Component
         $this->plotCensusYear = (string) $year;
         $this->loadedPlotCensusYear = (string) $year;
         $this->loadedPlotYearToken = $this->plotYearToken($lockedPlot);
-        session()->flash('yearSaveMessage', $changed ? '計畫年度已儲存。' : '計畫年度無任何變更。');
+        session()->flash('yearSaveMessage', $changed ? '計畫年度已更新。' : '計畫年度無任何變更。');
     }
 
     private function plotHabStateToken(string $plot, Collection $records): string
@@ -885,7 +885,7 @@ class EntryEntry extends Component
         $connection->beginTransaction();
 
         try {
-            PlotList2025::whereKey($plotRow->id)
+            $lockedPlot = PlotList2025::whereKey($plotRow->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -1060,6 +1060,11 @@ class EntryEntry extends Component
                 requiredFields: ['plot_full_id'],
                 userCode: $this->creatorCode
             );
+
+            // The form displays the current year when an older plot_list row has
+            // no valid census year. Persist that same default with the first
+            // environment-data save so the plot is not omitted by year filters.
+            $this->persistDefaultPlotCensusYear($lockedPlot);
 
             if ($changed) {
                 $msg .= '已更新/新增『'.$subPlotEnvForm['plot_full_id'].'』環境資料。';
@@ -1443,6 +1448,34 @@ class EntryEntry extends Component
         }
 
         return date('Y');
+    }
+
+    private function persistDefaultPlotCensusYear(PlotList2025 $plotRow): bool
+    {
+        $originalYear = (int) ($plotRow->getRawOriginal('census_year') ?? 0);
+        if (! $this->needsDefaultPlotCensusYear($plotRow)) {
+            return false;
+        }
+
+        $year = (int) date('Y');
+        $plotRow->census_year = $year;
+        $plotRow->updated_by = $this->creatorCode;
+        $plotRow->save();
+
+        FixLog::create([
+            'table_name' => 'plot_list',
+            'record_id' => $plotRow->id,
+            'changes' => ['census_year' => ['old' => $originalYear, 'new' => $year]],
+            'modified_by' => $this->creatorCode,
+            'modified_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    private function needsDefaultPlotCensusYear(PlotList2025 $plotRow): bool
+    {
+        return (int) ($plotRow->getRawOriginal('census_year') ?? 0) < 2025;
     }
 
     private function assertRecordVersion($model, array $versions, string $label, string $field = 'concurrentEdit'): void

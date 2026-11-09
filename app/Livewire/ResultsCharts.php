@@ -44,6 +44,17 @@ class ResultsCharts extends Component
 
     public string $message = '';
 
+    public string $activeTab = 'species';
+
+    public function selectTab(string $tab): void
+    {
+        if (! in_array($tab, ['species', 'charts', 'download'], true)) {
+            return;
+        }
+
+        $this->activeTab = $tab;
+    }
+
     public function loadInitialData(): void
     {
         if ($this->pageReady) {
@@ -86,6 +97,7 @@ class ResultsCharts extends Component
 
     public function loadCountyList($team): void
     {
+        $this->activeTab = 'species';
         $team = $team === 'All' ? '' : (string) $team;
         $this->thisTeam = $team;
         $this->thisCounty = '';
@@ -116,6 +128,7 @@ class ResultsCharts extends Component
 
     public function loadResultsForCounty($county): void
     {
+        $this->activeTab = 'species';
         $this->thisCounty = $county === 'All' ? '' : (string) $county;
         $this->availablePlots = $this->queryAvailablePlots();
         $this->plotFilterCounties = [];
@@ -192,6 +205,7 @@ class ResultsCharts extends Component
 
     public function updatedPlotSelectionMode(string $mode): void
     {
+        $this->activeTab = 'species';
         $this->plotSelectionMode = $mode === 'filter' ? 'filter' : 'all';
         if ($this->plotSelectionMode !== 'all') {
             return;
@@ -207,6 +221,7 @@ class ResultsCharts extends Component
 
     public function applyPlotSelection(): void
     {
+        $this->activeTab = 'species';
         $this->updatedDraftSelectedPlots();
         $this->selectedPlots = $this->draftSelectedPlots;
         $this->loadedSections = [];

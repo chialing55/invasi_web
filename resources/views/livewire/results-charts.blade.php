@@ -144,26 +144,24 @@
     @endif
 
     @if (!empty($sections))
-        <div x-data="{ tab: 'species' }">
+        <div>
             <div class="flex border-b border-gray-300 mb-4">
-                <button type="button" @click="tab = 'species'"
-                    :class="tab === 'species' ? 'bg-forest text-white' : 'bg-white text-forest'"
-                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t">
+                <button type="button" wire:click="selectTab('species')"
+                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t {{ $activeTab === 'species' ? 'bg-forest text-white' : 'bg-white text-forest' }}">
                     物種數
                 </button>
-                <button type="button" @click="tab = 'charts'"
-                    :class="tab === 'charts' ? 'bg-forest text-white' : 'bg-white text-forest'"
-                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t">
+                <button type="button" wire:click="selectTab('charts')"
+                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t {{ $activeTab === 'charts' ? 'bg-forest text-white' : 'bg-white text-forest' }}">
                     成果圖表
                 </button>
-                <button type="button" @click="tab = 'download'"
-                    :class="tab === 'download' ? 'bg-forest text-white' : 'bg-white text-forest'"
-                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t">
+                <button type="button" wire:click="selectTab('download')"
+                    class="px-5 py-2 font-semibold border border-b-0 border-gray-300 rounded-t {{ $activeTab === 'download' ? 'bg-forest text-white' : 'bg-white text-forest' }}">
                     資料下載
                 </button>
             </div>
 
-            <div x-show="tab === 'charts'" class="space-y-3">
+            @if ($activeTab === 'charts')
+            <div class="space-y-3">
             <div class="gray-card mb-4">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
@@ -257,8 +255,10 @@
                 </div>
             @endforeach
             </div>
+            @endif
 
-            <div x-show="tab === 'species'" x-cloak class="gray-card">
+            @if ($activeTab === 'species')
+            <div class="gray-card">
                 <p class="mb-4 text-sm text-gray-600">
                     物種數以目前已套用的 {{ count($selectedPlots) }} 個樣區為範圍；可再選擇生育地類型。
                 </p>
@@ -267,8 +267,10 @@
                     :embedded="true"
                     :key="'species-' . md5(json_encode($selectedPlots))" />
             </div>
+            @endif
 
-            <div x-show="tab === 'download'" x-cloak class="gray-card">
+            @if ($activeTab === 'download')
+            <div class="gray-card">
                 <livewire:data-export
                     :selected-plots="$selectedPlots"
                     :embedded="true"
@@ -277,6 +279,7 @@
                     :this-census-year="$thisCensusYear"
                     :key="'downloads-' . md5(json_encode($selectedPlots))" />
             </div>
+            @endif
         </div>
     @endif
     @endif

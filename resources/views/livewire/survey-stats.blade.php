@@ -73,18 +73,26 @@
                 <p>其中歸化植物共 {{ $stats['naturalized_species'] }} 種，占全部物種之 {{ $stats['naturalized_ratio'] }}%；原生植物
                     {{ $stats['native_species'] }} 種，包含特有種 {{ $stats['endemic_species'] }} 種。</p>
 
-                <p>植物生長習性以{{ $stats['growth_form'][0]['growth_form'] }}為最多數，占全部物種之
-                    {{ round(($stats['growth_form'][0]['growth_form_count'] / $stats['total_species']) * 100, 1) }}%；其次為{{ $stats['growth_form'][1]['growth_form'] }}，約佔
-                    {{ round(($stats['growth_form'][1]['growth_form_count'] / $stats['total_species']) * 100, 1) }}%
-                    @if (count($stats['growth_form']) > 2)
-                        ；以{{ $stats['growth_form'][count($stats['growth_form']) - 1]['growth_form'] }}為最少，約占
-                        {{ round(($stats['growth_form'][count($stats['growth_form']) - 1]['growth_form_count'] / $stats['total_species']) * 100, 1) }}%
-                    @endif
-                    。
-                </p>
+                @if (count($stats['growth_form']) > 0)
+                    <p>植物生長習性以{{ $stats['growth_form'][0]['growth_form'] }}為最多數，占全部物種之
+                        {{ round(($stats['growth_form'][0]['growth_form_count'] / max($stats['total_species'], 1)) * 100, 1) }}%
+                        @if (count($stats['growth_form']) > 1)
+                            ；其次為{{ $stats['growth_form'][1]['growth_form'] }}，約占
+                            {{ round(($stats['growth_form'][1]['growth_form_count'] / max($stats['total_species'], 1)) * 100, 1) }}%
+                        @endif
+                        @if (count($stats['growth_form']) > 2)
+                            ；以{{ $stats['growth_form'][count($stats['growth_form']) - 1]['growth_form'] }}為最少，約占
+                            {{ round(($stats['growth_form'][count($stats['growth_form']) - 1]['growth_form_count'] / max($stats['total_species'], 1)) * 100, 1) }}%
+                        @endif
+                        。
+                    </p>
+                @endif
                 @if ($stats['naturalized_species'] > 0)
-                    <p>歸化植物共{{ $stats['naturalized_species'] }}種，分屬{{ $stats['naturalized_families'] }}科，{{ $stats['naturalized_genera'] }}個屬。以{{ $stats['naturalized_growth_form'][0]['growth_form'] }}最常見，佔全部歸化植物之
-                        {{ round(($stats['naturalized_growth_form'][0]['growth_form_count'] / $stats['naturalized_species']) * 100, 1) }}%。
+                    <p>歸化植物共{{ $stats['naturalized_species'] }}種，分屬{{ $stats['naturalized_families'] }}科，{{ $stats['naturalized_genera'] }}個屬。
+                        @if (count($stats['naturalized_growth_form']) > 0)
+                            以{{ $stats['naturalized_growth_form'][0]['growth_form'] }}最常見，占全部歸化植物之
+                            {{ round(($stats['naturalized_growth_form'][0]['growth_form_count'] / max($stats['naturalized_species'], 1)) * 100, 1) }}%。
+                        @endif
                     </p>
                 @endif
             </div>

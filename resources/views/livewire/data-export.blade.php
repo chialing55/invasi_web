@@ -64,7 +64,7 @@
                             <th class="border-b px-4 py-2 text-left">資料內容</th>
                             <th class="border-b px-4 py-2 text-center">xlsx</th>
                             <th class="border-b px-4 py-2 text-center">txt</th>
-                            <th class="border-b px-4 py-2 text-center">Word</th>
+                            <th class="border-b px-4 py-2 text-center">docx</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -287,7 +287,7 @@
                                 ],
                             ],
                         ];
-                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'Word'];
+                        $formatLabels = ['xlsx' => 'xlsx', 'txt' => 'txt', 'docx' => 'docx'];
                     @endphp
 
                     <table class="text-sm border border-gray-300 bg-white">

@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Models\SubPlotPlant2025;
 use App\Support\ScientificNameHelper;
 use App\Support\TaiwanChecklistQuery;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 
 class PlantListExport
@@ -64,7 +65,7 @@ class PlantListExport
         $headings = array_merge(['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN'], array_values($teamMap), ['taicol_taxon_id', '簡化學名', '生長型', 'spcode']);
 
         $rows = $builder->toBase()->get()
-            ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
+            ->map(fn ($r) => self::formatSpeciesRow((array) $r, $headings, $format))
             ->values()
             ->all();
 
@@ -73,7 +74,9 @@ class PlantListExport
 
     public static function PlantListDistinctForPlots(array $selectedPlots, string $format = 'xlsx'): array
     {
-        if (empty($selectedPlots)) return ['headings' => [], 'rows' => []];
+        if (empty($selectedPlots)) {
+            return ['headings' => [], 'rows' => []];
+        }
 
         $builder = self::baseQuery($selectedPlots)
             ->groupBy('s.spcode')
@@ -83,11 +86,33 @@ class PlantListExport
 
         $headings = ['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名', '生長型', 'spcode'];
         $rows = $builder->toBase()->get()
-            ->map(fn($r) => self::formatSpeciesRow((array) $r, $headings, $format))
+            ->map(fn ($r) => self::formatSpeciesRow((array) $r, $headings, $format))
             ->values()
             ->all();
 
         return ['headings' => $headings, 'rows' => $rows];
+    }
+
+    public static function estimatedDistinctRowCount(array $selectedPlots = []): int
+    {
+        if ($selectedPlots === []) {
+            return 0;
+        }
+
+        return self::baseQuery($selectedPlots)
+            ->distinct()
+            ->count('s.spcode');
+    }
+
+    public static function estimatedAllRowCount(): int
+    {
+        $speciesCount = self::baseQuery()
+            ->distinct()
+            ->count('s.spcode');
+
+        // 「全部植物名錄」包含一般名錄與生育地名錄兩份內容；此處僅供筆數估算，
+        // 不產生完整資料，也不另計生育地名錄中的分類標題列。
+        return $speciesCount * 2;
     }
 
     public static function PlantListHabitatPivot(array $selectedPlots, string $format = 'xlsx'): array
@@ -113,10 +138,11 @@ class PlantListExport
                 'IUCN' => $arr['IUCN'] ?? '',
             ];
             foreach ($habCodes as $code) {
-                $out[$code] = $arr['h' . $code] ?? '';
+                $out[$code] = $arr['h'.$code] ?? '';
             }
             $out['taicol_taxon_id'] = $arr['taicol_taxon_id'] ?? '';
             $out['簡化學名'] = $arr['簡化學名'] ?? '';
+
             return $out;
         })->values()->all();
 
@@ -131,11 +157,11 @@ class PlantListExport
 
         $builder = self::baseQuery($plots)
             ->groupBy('s.spcode')
-            ->selectRaw(self::pivotSelectSql('類別') . ",
+            ->selectRaw(self::pivotSelectSql('類別').',
                 MAX(s.plantgroup) AS `__pg`,
                 MAX(s.family) AS `__fam`,
                 MAX(s.chfamily) AS `__chfam`
-            ")
+            ')
             ->selectRaw(implode(",\n", $habSqls), $habBindings);
 
         self::applyListOrder($builder);
@@ -150,7 +176,7 @@ class PlantListExport
                 'IUCN' => $arr['IUCN'] ?? '',
             ];
             foreach ($habCodes as $code) {
-                $row[$code] = $arr['h' . $code] ?? '';
+                $row[$code] = $arr['h'.$code] ?? '';
             }
             $row['taicol_taxon_id'] = $arr['taicol_taxon_id'] ?? '';
             $row['簡化學名'] = $arr['簡化學名'] ?? '';
@@ -160,6 +186,7 @@ class PlantListExport
             $row['__fam'] = $arr['__fam'] ?? '';
             $row['__chfam'] = $arr['__chfam'] ?? '';
             $row['__group'] = 'row';
+
             return $row;
         })->values()->all();
 
@@ -172,7 +199,7 @@ class PlantListExport
         foreach ($dataRows as $r) {
             if ($r['__pg'] !== $prevPg) {
                 $g = $blankRow;
-                $g['科名'] = '【' . $r['__pg'] . '】';
+                $g['科名'] = '【'.$r['__pg'].'】';
                 $g['__group'] = 'pg';
                 $rows[] = $g;
                 $prevPg = $r['__pg'];
@@ -181,7 +208,7 @@ class PlantListExport
 
             if ($r['__fam'] !== $prevFam) {
                 $f = $blankRow;
-                $f['科名'] = trim(($r['__fam'] ?? '') . ' ' . ($r['__chfam'] ?? ''));
+                $f['科名'] = trim(($r['__fam'] ?? '').' '.($r['__chfam'] ?? ''));
                 $f['__group'] = 'fam';
                 $rows[] = $f;
                 $prevFam = $r['__fam'];
@@ -196,7 +223,7 @@ class PlantListExport
     private static function baseQuery(array $selectedPlots = [])
     {
         $query = SubPlotPlant2025::query()
-            ->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class)
+            ->withoutGlobalScope(SoftDeletingScope::class)
             ->from('im_spvptdata_2025 as p')
             ->join('im_splotdata_2025 as e', 'p.plot_full_id', '=', 'e.plot_full_id')
             ->whereNull('p.deleted_at')
@@ -206,7 +233,7 @@ class PlantListExport
         TaiwanChecklistQuery::joinCurrent($query, 'p');
         $query->whereNotNull('s.spcode');
 
-        if (!empty($selectedPlots)) {
+        if (! empty($selectedPlots)) {
             $query->whereIn('e.plot', $selectedPlots);
         }
 
@@ -226,14 +253,14 @@ class PlantListExport
             MAX(s.canonical_name) AS `簡化學名`,
             MAX(s.chname) AS `中文名`,
             MAX(s.growth_form) AS `生長型`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::nativeExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `原生種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::endemicExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `特有種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `歸化種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::cultivatedExpr('s') . " = 1 THEN '{$mark}' ELSE '' END) AS `栽培種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::nativeExpr('s')." = 1 THEN '{$mark}' ELSE '' END) AS `原生種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::endemicExpr('s')." = 1 THEN '{$mark}' ELSE '' END) AS `特有種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::naturalizedExpr('s')." = 1 THEN '{$mark}' ELSE '' END) AS `歸化種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::cultivatedExpr('s')." = 1 THEN '{$mark}' ELSE '' END) AS `栽培種`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
-            MAX(" . TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p') . ") AS `spcode`,
+            MAX(".TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p').') AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
-        ";
+        ';
     }
 
     private static function pivotSelectSql(string $statusColumn): string
@@ -250,16 +277,16 @@ class PlantListExport
             MAX(s.chname) AS `中文名`,
             MAX(s.growth_form) AS `生長型`,
             MAX(CASE
-                WHEN " . TaiwanChecklistQuery::endemicExpr('s') . " = 1 THEN '原生 特有'
-                WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '歸化'
-                WHEN " . TaiwanChecklistQuery::cultivatedExpr('s') . " = 1 THEN '栽培'
-                WHEN " . TaiwanChecklistQuery::uncertainExpr('s') . " = 1 THEN '不明'
+                WHEN ".TaiwanChecklistQuery::endemicExpr('s')." = 1 THEN '原生 特有'
+                WHEN ".TaiwanChecklistQuery::naturalizedExpr('s')." = 1 THEN '歸化'
+                WHEN ".TaiwanChecklistQuery::cultivatedExpr('s')." = 1 THEN '栽培'
+                WHEN ".TaiwanChecklistQuery::uncertainExpr('s')." = 1 THEN '不明'
                 ELSE '原生'
             END) AS `{$statusColumn}`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
-            MAX(" . TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p') . ") AS `spcode`,
+            MAX(".TaiwanChecklistQuery::currentSpcodeExpr('raw', 'p').') AS `spcode`,
             MAX(s.IUCN) AS `IUCN`
-        ";
+        ';
     }
 
     private static function applyListOrder($builder): void
@@ -279,6 +306,7 @@ class PlantListExport
         foreach ($headings as $h) {
             $ordered[$h] = $arr[$h] ?? '';
         }
+
         return $ordered;
     }
 
@@ -294,6 +322,7 @@ class PlantListExport
         $arr['簡化學名'] = self::decodeText((string) ($arr['簡化學名'] ?? ($arr['canonical_name'] ?? '')));
 
         unset($arr['pg'], $arr['family'], $arr['latin'], $arr['full_name'], $arr['canonical_name']);
+
         return $arr;
     }
 
@@ -316,7 +345,7 @@ class PlantListExport
 
     private static function habCodes(): array
     {
-        return array_map(fn($i) => str_pad((string) $i, 2, '0', STR_PAD_LEFT), range(1, 20));
+        return array_map(fn ($i) => str_pad((string) $i, 2, '0', STR_PAD_LEFT), range(1, 20));
     }
 
     private static function habitatPivotSql(array $habCodes): array
@@ -324,10 +353,11 @@ class PlantListExport
         $sqls = [];
         $bindings = [];
         foreach ($habCodes as $code) {
-            $alias = 'h' . $code;
+            $alias = 'h'.$code;
             $sqls[] = "MAX(CASE WHEN e.habitat_code = ? THEN e.habitat_code ELSE '' END) AS `{$alias}`";
             $bindings[] = $code;
         }
+
         return [$sqls, $bindings];
     }
 
@@ -338,19 +368,30 @@ class PlantListExport
 
     private static function emHtmlToRichText(string $html): RichText
     {
-        $rt = new RichText();
+        $rt = new RichText;
         $html = str_replace(["\r", "\n"], ' ', $html);
         $html = str_replace(['&nbsp;'], ' ', $html);
         $html = str_replace(['<em>', '</em>'], ["\x01", "\x02"], $html);
         $parts = preg_split('/(\x01|\x02)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
         $italic = false;
         foreach ($parts as $p) {
-            if ($p === "\x01") { $italic = true; continue; }
-            if ($p === "\x02") { $italic = false; continue; }
-            if ($p === '') continue;
+            if ($p === "\x01") {
+                $italic = true;
+
+                continue;
+            }
+            if ($p === "\x02") {
+                $italic = false;
+
+                continue;
+            }
+            if ($p === '') {
+                continue;
+            }
             $run = $rt->createTextRun(self::decodeText($p));
             $run->getFont()->setItalic($italic);
         }
+
         return $rt;
     }
 }

@@ -9,25 +9,29 @@ use App\Exports\PlantListExport;
 use App\Exports\PlantListExport2010;
 use App\Exports\PlotExport;
 use App\Exports\PlotExport2010;
-use Livewire\Component;
-
-use App\Models\PlotList2025;
-
-use App\Models\SubPlotEnv2025;
 use App\Helpers\PlotCompletedCheckHelper;
+use App\Models\PlotList2025;
+use App\Models\SubPlotEnv2025;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Livewire\Component;
 
 class DataExport extends Component
 {
-
     public $countyList = [];
+
     public $teamList = [];
+
     public $plotInfo = [];
+
     public $thisCounty = '';
-    public $thisTeam ='';
+
+    public $thisTeam = '';
+
     public $yearList = [];
+
     public $thisCensusYear = null;
+
     public bool $embedded = false;
 
     public function mount(
@@ -36,11 +40,10 @@ class DataExport extends Component
         string $thisTeam = '',
         string $thisCounty = '',
         string $thisCensusYear = ''
-    )
-    {
+    ) {
         $user = Auth::user(); // 取代 auth()->user()
 
-        if (!$user) {
+        if (! $user) {
             return redirect('/'); // ⬅️ 若未登入，退回首頁
         }
 
@@ -51,19 +54,21 @@ class DataExport extends Component
             $this->thisTeam = $thisTeam;
             $this->thisCounty = $thisCounty;
             $this->thisCensusYear = $thisCensusYear;
+
             return;
         }
 
         $this->teamList = PlotList2025::select('team')->distinct()->pluck('team')->toArray();
         $this->countyList = PlotList2025::select('county')->distinct()->pluck('county')->toArray();
         $this->yearList = PlotList2025::where('census_year', '>=', 2025)
-                ->distinct()
-                ->orderByDesc('census_year')
-                ->pluck('census_year')
-                ->toArray();
+            ->distinct()
+            ->orderByDesc('census_year')
+            ->pluck('census_year')
+            ->toArray();
         $this->thisCensusYear ??= date('Y'); // 如果未指定才設定
     }
-    //選擇團隊之後
+
+    // 選擇團隊之後
     public function loadCountyList($thisteam)
     {
 
@@ -72,46 +77,55 @@ class DataExport extends Component
             $thisteam = '';
         }
 
-        if ($this->thisCensusYear == 'All'){
+        if ($this->thisCensusYear == 'All') {
             $this->thisCensusYear = '';
         }
 
         $this->thisTeam = $thisteam;
         if ($thisteam === '') {
             $this->countyList = PlotList2025::select('county')
-                ->when(!blank($this->thisCensusYear), fn($q) =>
-                    $q->where('census_year', $this->thisCensusYear)
+                ->when(! blank($this->thisCensusYear), fn ($q) => $q->where('census_year', $this->thisCensusYear)
                 )
                 ->distinct()->pluck('county')->toArray();
 
         } else {
             $this->countyList = PlotList2025::where('team', $thisteam)
-                ->when(!blank($this->thisCensusYear), fn($q) =>
-                    $q->where('census_year', $this->thisCensusYear)
+                ->when(! blank($this->thisCensusYear), fn ($q) => $q->where('census_year', $this->thisCensusYear)
                 )
                 ->select('county')->distinct()->pluck('county')->toArray();
 
         }
 
-
         $this->thisCounty = '';
         $this->dispatch('thisCountyUpdated');
         $this->allPlotInfo = [];
     }
-    public $plotList = [];
-    public $allPlotInfo = [];
-    public $showAllPlotInfo = [];
-    public $allContyInfo = [];
-    public $showContyInfo = [];
-    public $allTeamInfo = [];
-    public $showTeamInfo = [];
-    public $subPlotSummary = [];
-    public $subPlotHabList = [];
-    public $thisHabitat = '';           // 使用者目前選的 habitat_code
-    public $filteredSubPlotSummary = []; // 用來顯示的表格資料
-    //選擇縣市之後
 
-    public bool  $selectAll = true;
+    public $plotList = [];
+
+    public $allPlotInfo = [];
+
+    public $showAllPlotInfo = [];
+
+    public $allContyInfo = [];
+
+    public $showContyInfo = [];
+
+    public $allTeamInfo = [];
+
+    public $showTeamInfo = [];
+
+    public $subPlotSummary = [];
+
+    public $subPlotHabList = [];
+
+    public $thisHabitat = '';           // 使用者目前選的 habitat_code
+
+    public $filteredSubPlotSummary = []; // 用來顯示的表格資料
+    // 選擇縣市之後
+
+    public bool $selectAll = true;
+
     public function surveryedPlotInfo($thisCounty)
     {
         $this->message = '';
@@ -123,7 +137,7 @@ class DataExport extends Component
             $thisCounty = '';
         }
 
-        if ($this->thisCensusYear == 'All'){
+        if ($this->thisCensusYear == 'All') {
             $this->thisCensusYear = '';
         }
 
@@ -131,21 +145,18 @@ class DataExport extends Component
 
         $plotListQuery = SubPlotEnv2025::select('im_splotdata_2025.plot as plot')
             ->join('plot_list', 'im_splotdata_2025.plot', '=', 'plot_list.plot')
-            ->when(!blank($this->thisCensusYear), fn($q) =>
-                $q->where('census_year', $this->thisCensusYear)
+            ->when(! blank($this->thisCensusYear), fn ($q) => $q->where('census_year', $this->thisCensusYear)
             )
-            ->when(!blank($this->thisTeam), fn($q) =>
-                $q->where('plot_list.team', $this->thisTeam)
+            ->when(! blank($this->thisTeam), fn ($q) => $q->where('plot_list.team', $this->thisTeam)
             )
-            ->when(!blank($thisCounty), fn($q) =>
-                $q->where('plot_list.county', $thisCounty)
+            ->when(! blank($thisCounty), fn ($q) => $q->where('plot_list.county', $thisCounty)
             );
 
         $plotList = $plotListQuery
             ->distinct()
             ->pluck('plot')
             ->toArray();
-// dd($plotList);
+        // dd($plotList);
 
         $this->plotList = $plotList;
         // $this->dispatch('thisPlotUpdated');
@@ -153,10 +164,14 @@ class DataExport extends Component
 
         $this->loadAllPlotInfo($plotList);
     }
+
     public $thisPlotFile = null;
+
     public $selectedPlots = []; // 用於存儲選中的樣區
-    public $message='';
-    public array $allPlotIds = []; 
+
+    public $message = '';
+
+    public array $allPlotIds = [];
 
     public function loadAllPlotInfo($plotList)
     {
@@ -168,6 +183,7 @@ class DataExport extends Component
             $this->selectedPlots = [];
             $this->allPlotIds = [];
             $this->message = '尚未有調查資料。';
+
             return;
         }
 
@@ -177,13 +193,14 @@ class DataExport extends Component
                 'plot' => $row['plot'],
                 'completed' => $row['plotCompleted'] == '1',
             ])
-            ->sortByDesc(fn ($item) => !is_null($item['plot']))
+            ->sortByDesc(fn ($item) => ! is_null($item['plot']))
             ->values()
             ->toArray();
 
         if (empty($summary)) {
             $this->allPlotInfo = [];
             $this->message = '尚未有調查資料。';
+
             return;
         }
 
@@ -197,6 +214,7 @@ class DataExport extends Component
         $this->selectedPlots = $value ? $this->allPlotIds : [];
 
     }
+
     public function updatedSelectedPlots()
     {
         // 保持僅包含目前列表存在的 id（避免舊值殘留）
@@ -218,9 +236,7 @@ class DataExport extends Component
         $this->updatedSelectedPlots();
     }
 
-
     public $dataType = 'env.xlsx';
-
 
     public function render()
     {
@@ -238,26 +254,22 @@ class DataExport extends Component
         }
 
         sort($plots);
-        $cacheKey = 'data-export-row-counts-v1-' . sha1(implode('|', $plots));
+        $cacheKey = 'data-export-row-counts-v2-'.sha1(implode('|', $plots));
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plots): array {
-            $plantList2010 = PlantListExport2010::PlantListDistinctForPlots($plots, 'txt');
-            $plantList = PlantListExport::PlantListDistinctForPlots($plots, 'txt');
-
             return [
                 'env2010' => (new PlotExport2010($plots, 'txt'))->query()->reorder()->count(),
                 'plant2010' => (new PlantDataExport2010($plots, 'txt'))->query()->reorder()->count(),
-                'plantList2010' => count($plantList2010['rows']),
+                'plantList2010' => PlantListExport2010::estimatedDistinctRowCount($plots),
                 'env' => (new PlotExport($plots, 'txt'))->query()->reorder()->count(),
                 'plant' => (new PlantDataExport($plots, 'txt'))->query()->reorder()->count(),
-                'plantList' => count($plantList['rows']),
+                'plantList' => PlantListExport::estimatedDistinctRowCount($plots),
                 'reasonsTable' => (new MissingPlotExport($plots, 'txt'))->query()->count(),
-                'allPlantList' => Cache::remember('data-export-all-plant-list-row-count-v1', now()->addMinutes(10), function (): int {
-                    $all = PlantListExport::PlantListAll([], 'txt');
-                    $habitat = PlantListExport::PlantListHabitatPivotWithGroups([], 'txt', false);
-
-                    return count($all['rows']) + count($habitat['rows']);
-                }),
+                'allPlantList' => Cache::remember(
+                    'data-export-all-plant-list-row-count-v2',
+                    now()->addMinutes(10),
+                    fn (): int => PlantListExport::estimatedAllRowCount()
+                ),
             ];
         });
     }

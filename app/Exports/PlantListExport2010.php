@@ -29,11 +29,30 @@ class PlantListExport2010
 
         $headings = ['科名', '學名', '中文名', '原生種', '特有種', '歸化種', '栽培種', 'IUCN', 'taicol_taxon_id', '簡化學名'];
         $rows = $builder->toBase()->get()
-            ->map(fn($row) => self::formatSpeciesRow((array) $row, $headings, $format))
+            ->map(fn ($row) => self::formatSpeciesRow((array) $row, $headings, $format))
             ->values()
             ->all();
 
         return ['headings' => $headings, 'rows' => $rows];
+    }
+
+    public static function estimatedDistinctRowCount(array $selectedPlots): int
+    {
+        if ($selectedPlots === []) {
+            return 0;
+        }
+
+        $builder = SubPlotPlant2010::query()
+            ->from('im_spvptdata_2010 as p')
+            ->whereIn('p.PLOT_ID', $selectedPlots)
+            ->whereNotNull('p.spcode');
+
+        TaiwanChecklistQuery::joinCurrent($builder, 'p');
+
+        return $builder
+            ->whereNotNull('s.spcode')
+            ->distinct()
+            ->count('s.spcode');
     }
 
     private static function listSelectSql(): string
@@ -48,10 +67,10 @@ class PlantListExport2010
             MAX(s.full_name) AS `學名`,
             MAX(s.canonical_name) AS `簡化學名`,
             MAX(s.chname) AS `中文名`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::nativeExpr('s') . " = 1 THEN '1' ELSE '' END) AS `原生種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::endemicExpr('s') . " = 1 THEN '1' ELSE '' END) AS `特有種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::naturalizedExpr('s') . " = 1 THEN '1' ELSE '' END) AS `歸化種`,
-            MAX(CASE WHEN " . TaiwanChecklistQuery::cultivatedExpr('s') . " = 1 THEN '1' ELSE '' END) AS `栽培種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::nativeExpr('s')." = 1 THEN '1' ELSE '' END) AS `原生種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::endemicExpr('s')." = 1 THEN '1' ELSE '' END) AS `特有種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::naturalizedExpr('s')." = 1 THEN '1' ELSE '' END) AS `歸化種`,
+            MAX(CASE WHEN ".TaiwanChecklistQuery::cultivatedExpr('s')." = 1 THEN '1' ELSE '' END) AS `栽培種`,
             MAX(s.taicol_taxon_id) AS `taicol_taxon_id`,
             MAX(s.IUCN) AS `IUCN`
         ";
@@ -95,7 +114,7 @@ class PlantListExport2010
 
     private static function emHtmlToRichText(string $html): RichText
     {
-        $rt = new RichText();
+        $rt = new RichText;
         $html = str_replace(["\r", "\n", '&nbsp;'], ' ', $html);
         $html = str_replace(['<em>', '</em>'], ["\x01", "\x02"], $html);
         $parts = preg_split('/(\x01|\x02)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
@@ -104,10 +123,12 @@ class PlantListExport2010
         foreach ($parts ?: [] as $part) {
             if ($part === "\x01") {
                 $italic = true;
+
                 continue;
             }
             if ($part === "\x02") {
                 $italic = false;
+
                 continue;
             }
             if ($part === '') {

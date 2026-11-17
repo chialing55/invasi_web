@@ -105,6 +105,20 @@ class EntryEntry extends Component
 
     public string $pendingRestoreToken = '';
 
+    public string $approvedRestoreToken = '';
+
+    public string $pendingUnderstoryRestorePlotFullId = '';
+
+    public string $pendingUnderstoryRestoreToken = '';
+
+    public string $approvedUnderstoryRestoreToken = '';
+
+    public string $pendingPairRemovalPlotFullId = '';
+
+    public string $pendingPairRemovalToken = '';
+
+    public string $approvedPairRemovalToken = '';
+
     public $userOrg;
 
     public $user;
@@ -554,34 +568,52 @@ class EntryEntry extends Component
         $this->assertRecordVersionToken('environment', $this->envRecordVersions, $this->envVersionToken, '小樣方環境資料');
         $this->assertRecordVersion($subPlot, $this->envRecordVersions, '小樣方環境資料');
 
-        $plantRecords = SubPlotPlant2025::where('plot_full_id', $plotFullId)
+        $plotFullIds = [$plotFullId];
+        $habitatCode = (string) $subPlot->habitat_code;
+        $pairedCode = HabitatCode::understoryFor($habitatCode) ?? HabitatCode::mainFor($habitatCode);
+        if ($pairedCode !== null) {
+            $plotFullIds[] = (string) $subPlot->plot.$pairedCode.(string) $subPlot->subplot_id;
+        }
+        $plotFullIds = array_values(array_unique($plotFullIds));
+
+        $environmentRecords = SubPlotEnv2025::whereIn('plot_full_id', $plotFullIds)
+            ->where('plot', $this->thisPlot)
+            ->lockForUpdate()
+            ->get();
+
+        $selectedPlantRecords = SubPlotPlant2025::where('plot_full_id', $plotFullId)
             ->lockForUpdate()
             ->get();
         $this->assertRecordVersionState(
             'plants',
-            $plantRecords,
+            $selectedPlantRecords,
             $this->plantRecordVersions,
             $this->plantVersionToken,
             '植物調查資料'
         );
+        $plantRecords = SubPlotPlant2025::whereIn('plot_full_id', $plotFullIds)
+            ->lockForUpdate()
+            ->get();
         $deletionBatchId = (string) Str::uuid();
 
-        SubPlotPlant2025::where('plot_full_id', $plotFullId)
+        SubPlotPlant2025::whereIn('plot_full_id', $plotFullIds)
             ->update([
                 'deleted_by' => $this->creatorCode,
                 'deletion_batch_id' => $deletionBatchId,
             ]);
-        SubPlotPlant2025::where('plot_full_id', $plotFullId)->delete();
+        SubPlotPlant2025::whereIn('plot_full_id', $plotFullIds)->delete();
 
-        $subPlot->deleted_by = $this->creatorCode;
-        $subPlot->deletion_batch_id = $deletionBatchId;
-        $subPlot->save();
-        $subPlot->delete();
+        foreach ($environmentRecords as $environmentRecord) {
+            $environmentRecord->deleted_by = $this->creatorCode;
+            $environmentRecord->deletion_batch_id = $deletionBatchId;
+            $environmentRecord->save();
+            $environmentRecord->delete();
+        }
 
         return $plantRecords->count();
     }
 
-    public function restoreDeletedSubPlot(): void
+    public function restoreDeletedSubPlot(FormAuditService $audit): void
     {
         session()->flash('form', 'env');
         $plotFullId = (string) $this->pendingRestorePlotFullId;
@@ -592,20 +624,30 @@ class EntryEntry extends Component
             ]);
         }
 
-        $this->authorizeSubPlot($plotFullId, true);
-
-        $restoredPlantCount = DB::connection('invasiflora')
-            ->transaction(fn () => $this->restoreDeletedSubPlotBatch($plotFullId));
-
-        $this->clearPendingRestore();
-        $this->loadPlotInfo($this->thisPlot);
-        $this->thisSubPlot = $plotFullId;
-        $this->updatedThisSubPlot($plotFullId);
-
-        session()->flash(
-            'deleteMsg',
-            "已還原小樣方 {$plotFullId}，並還原 {$restoredPlantCount} 筆植物調查資料。"
+        $subPlot = $this->authorizeSubPlot($plotFullId, true);
+        $plants = SubPlotPlant2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('deletion_batch_id', $subPlot->deletion_batch_id)
+            ->orderBy('id')
+            ->get();
+        $state = $this->deletedSubPlotState($subPlot, $plants);
+        RecordStateGuard::assertToken(
+            $this->pendingRestoreToken,
+            'entry-restore:'.$this->thisPlot.':'.$plotFullId,
+            $state,
+            '小樣方流水號',
+            '待還原資料已變更，請重新輸入小樣方編號後再試。'
         );
+        $this->approvedRestoreToken = RecordStateGuard::token(
+            'entry-restore-approval:'.$this->thisPlot.':'.$plotFullId,
+            $state
+        );
+
+        if ($this->pendingUnderstoryRestorePlotFullId !== '') {
+            $this->approvePendingUnderstoryRestore();
+        }
+
+        $this->envInfoSave($audit);
     }
 
     private function restoreDeletedSubPlotBatch(string $plotFullId): int
@@ -673,6 +715,94 @@ class EntryEntry extends Component
     {
         $this->pendingRestorePlotFullId = '';
         $this->pendingRestoreToken = '';
+        $this->approvedRestoreToken = '';
+        $this->pendingUnderstoryRestorePlotFullId = '';
+        $this->pendingUnderstoryRestoreToken = '';
+        $this->approvedUnderstoryRestoreToken = '';
+        $this->pendingPairRemovalPlotFullId = '';
+        $this->pendingPairRemovalToken = '';
+        $this->approvedPairRemovalToken = '';
+    }
+
+    public function confirmUnderstoryRestore(FormAuditService $audit): void
+    {
+        if ($this->pendingUnderstoryRestorePlotFullId === '' || $this->pendingUnderstoryRestoreToken === '') {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '找不到可安全還原的配對地被資料，請重新儲存。',
+            ]);
+        }
+
+        $this->approvePendingUnderstoryRestore();
+
+        $this->envInfoSave($audit);
+    }
+
+    private function approvePendingUnderstoryRestore(): void
+    {
+        $subPlot = SubPlotEnv2025::onlyTrashed()
+            ->where('plot_full_id', $this->pendingUnderstoryRestorePlotFullId)
+            ->where('plot', $this->thisPlot)
+            ->firstOrFail();
+        $plants = SubPlotPlant2025::onlyTrashed()
+            ->where('plot_full_id', $this->pendingUnderstoryRestorePlotFullId)
+            ->where('deletion_batch_id', $subPlot->deletion_batch_id)
+            ->orderBy('id')
+            ->get();
+        $state = $this->deletedSubPlotState($subPlot, $plants);
+        RecordStateGuard::assertToken(
+            $this->pendingUnderstoryRestoreToken,
+            'entry-understory-restore:'.$this->thisPlot.':'.$this->pendingUnderstoryRestorePlotFullId,
+            $state,
+            '小樣方流水號',
+            '待還原的配對地被資料已變更，請重新儲存後再試。'
+        );
+        $this->approvedUnderstoryRestoreToken = RecordStateGuard::token(
+            'entry-understory-approval:'.$this->thisPlot.':'.$this->pendingUnderstoryRestorePlotFullId,
+            $state
+        );
+    }
+
+    public function cancelUnderstoryRestore(): void
+    {
+        session()->flash('form', 'env');
+        $this->pendingUnderstoryRestorePlotFullId = '';
+        $this->pendingUnderstoryRestoreToken = '';
+        $this->approvedUnderstoryRestoreToken = '';
+        $this->addError('小樣方流水號', '已取消新增，配對地被資料未還原。');
+    }
+
+    public function confirmPairRemoval(FormAuditService $audit): void
+    {
+        if ($this->pendingPairRemovalPlotFullId === '' || $this->pendingPairRemovalToken === '') {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '找不到可安全刪除的配對地被資料，請重新儲存。',
+            ]);
+        }
+
+        [$subPlot, $plants] = $this->pairedSubPlotRecords($this->pendingPairRemovalPlotFullId);
+        $state = $this->pairedSubPlotState($subPlot, $plants);
+        RecordStateGuard::assertToken(
+            $this->pendingPairRemovalToken,
+            'entry-pair-removal:'.$this->thisPlot.':'.$this->pendingPairRemovalPlotFullId,
+            $state,
+            '小樣方流水號',
+            '待刪除的配對地被資料已變更，請重新儲存後再試。'
+        );
+        $this->approvedPairRemovalToken = RecordStateGuard::token(
+            'entry-pair-removal-approval:'.$this->thisPlot.':'.$this->pendingPairRemovalPlotFullId,
+            $state
+        );
+
+        $this->envInfoSave($audit);
+    }
+
+    public function cancelPairRemoval(): void
+    {
+        session()->flash('form', 'env');
+        $this->pendingPairRemovalPlotFullId = '';
+        $this->pendingPairRemovalToken = '';
+        $this->approvedPairRemovalToken = '';
+        $this->addError('小樣方流水號', '已取消更改，配對地被資料未刪除。');
     }
 
     private function deletedSubPlotState(SubPlotEnv2025 $subPlot, Collection $plants): array
@@ -683,6 +813,32 @@ class EntryEntry extends Component
             ]),
             'plants' => RecordStateGuard::snapshot($plants, [
                 'plot_full_id', 'deleted_at', 'deletion_batch_id',
+            ]),
+        ];
+    }
+
+    private function pairedSubPlotRecords(string $plotFullId, bool $lock = false): array
+    {
+        $environmentQuery = SubPlotEnv2025::where('plot_full_id', $plotFullId)
+            ->where('plot', $this->thisPlot);
+        $plantQuery = SubPlotPlant2025::where('plot_full_id', $plotFullId)->orderBy('id');
+
+        if ($lock) {
+            $environmentQuery->lockForUpdate();
+            $plantQuery->lockForUpdate();
+        }
+
+        return [$environmentQuery->firstOrFail(), $plantQuery->get()];
+    }
+
+    private function pairedSubPlotState(SubPlotEnv2025 $subPlot, Collection $plants): array
+    {
+        return [
+            'environment' => RecordStateGuard::snapshot(collect([$subPlot]), [
+                'plot', 'plot_full_id', 'habitat_code', 'subplot_id', 'updated_at', 'deleted_at',
+            ]),
+            'plants' => RecordStateGuard::snapshot($plants, [
+                'plot_full_id', 'updated_at', 'deleted_at',
             ]),
         ];
     }
@@ -833,7 +989,6 @@ class EntryEntry extends Component
 
     public function envInfoSave(FormAuditService $audit)
     {
-        $this->clearPendingRestore();
         $plotRow = $this->authorizePlot();
         $authorizedSubPlot = $this->thisSubPlot !== ''
             ? $this->authorizeSubPlot((string) $this->thisSubPlot)
@@ -882,6 +1037,10 @@ class EntryEntry extends Component
 
         $connection = DB::connection('invasiflora');
         $photoOperations = [];
+        $restoredMainId = '';
+        $restoredMainPlantCount = 0;
+        $restoredUnderstoryId = '';
+        $restoredUnderstoryPlantCount = 0;
         $connection->beginTransaction();
 
         try {
@@ -902,6 +1061,20 @@ class EntryEntry extends Component
                     $this->envRecordVersions,
                     $this->envVersionToken,
                     '小樣方環境資料'
+                );
+            }
+
+            if (! $authorizedSubPlot && $this->pendingRestorePlotFullId !== '') {
+                $restoredMainId = $this->pendingRestorePlotFullId;
+                $restoredMainPlantCount = $this->restoreDeletedSubPlotBatch($restoredMainId);
+                $restoredMain = SubPlotEnv2025::where('plot_full_id', $restoredMainId)->firstOrFail();
+                $subPlotEnvForm['id'] = $restoredMain->id;
+            }
+
+            if ($this->pendingUnderstoryRestorePlotFullId !== '') {
+                $restoredUnderstoryId = $this->pendingUnderstoryRestorePlotFullId;
+                $restoredUnderstoryPlantCount = $this->restorePendingUnderstoryBatch(
+                    $restoredUnderstoryId
                 );
             }
 
@@ -1032,7 +1205,12 @@ class EntryEntry extends Component
                     if (HabitatCode::isWood($o_habitat_code) && ! HabitatCode::isWood($subPlotEnvForm['habitat_code']) && $o_habitat_code != $subPlotEnvForm['habitat_code']) {
                         $extraHabitat = HabitatCode::understoryFor($o_habitat_code);
                         $related_full_id_o = $plot.$extraHabitat.$o_subplot_id;
-                        session()->flash('saveMsg2', '保留原有 『'.$related_full_id_o.'』環境、植物資料，如需刪除請洽管理員。');
+                        $deletedPairPlantCount = $this->softDeletePairBatch($related_full_id_o);
+                        session()->flash(
+                            'saveMsg2',
+                            '同時刪除不再需要的配對地被『'.$related_full_id_o.'』及 '
+                            .$deletedPairPlantCount.' 筆植物資料。'
+                        );
 
                     }
 
@@ -1076,6 +1254,15 @@ class EntryEntry extends Component
             }
 
             $connection->commit();
+            $this->pendingRestorePlotFullId = '';
+            $this->pendingRestoreToken = '';
+            $this->approvedRestoreToken = '';
+            $this->pendingUnderstoryRestorePlotFullId = '';
+            $this->pendingUnderstoryRestoreToken = '';
+            $this->approvedUnderstoryRestoreToken = '';
+            $this->pendingPairRemovalPlotFullId = '';
+            $this->pendingPairRemovalToken = '';
+            $this->approvedPairRemovalToken = '';
         } catch (QueryException $e) {
             $connection->rollBack();
             $this->rollbackPhotoOperations($photoOperations);
@@ -1097,6 +1284,20 @@ class EntryEntry extends Component
 
         session()->flash('saveMsg', $msg);
 
+        if ($restoredMainId !== '' || $restoredUnderstoryId !== '') {
+            $restoredParts = [];
+            if ($restoredMainId !== '') {
+                $restoredParts[] = "『{$restoredMainId}』及 {$restoredMainPlantCount} 筆植物資料";
+            }
+            if ($restoredUnderstoryId !== '') {
+                $restoredParts[] = "『{$restoredUnderstoryId}』及 {$restoredUnderstoryPlantCount} 筆植物資料";
+            }
+            session()->flash(
+                'saveMsg2',
+                '同時還原'.implode('、', $restoredParts).'，並以本次表單更新環境資料。'
+            );
+        }
+
         $this->loadPlotInfo($this->thisPlot);
         $this->thisSubPlot = $subPlotEnvForm['plot_full_id'];
         $this->updatedThisSubPlot($subPlotEnvForm['plot_full_id']);
@@ -1110,6 +1311,10 @@ class EntryEntry extends Component
             ->where('plot_full_id', $targetPlotFullId)
             ->when($authorizedSubPlot, fn ($query) => $query->where('id', '!=', $authorizedSubPlot->id))
             ->first();
+
+        if ($this->pendingRestorePlotFullId !== '' && $this->pendingRestorePlotFullId !== $targetPlotFullId) {
+            $this->clearPendingRestore();
+        }
 
         if ($targetConflict) {
             if (! $authorizedSubPlot && $targetConflict->trashed()) {
@@ -1128,27 +1333,100 @@ class EntryEntry extends Component
                     ->where('deletion_batch_id', $batchId)
                     ->orderBy('id')
                     ->get();
-                $this->pendingRestorePlotFullId = $targetPlotFullId;
-                $this->pendingRestoreToken = RecordStateGuard::token(
-                    'entry-restore:'.$this->thisPlot.':'.$targetPlotFullId,
-                    $this->deletedSubPlotState($targetConflict, $plants)
-                );
+                $state = $this->deletedSubPlotState($targetConflict, $plants);
+                $scope = 'entry-restore:'.$this->thisPlot.':'.$targetPlotFullId;
+
+                if ($this->pendingRestorePlotFullId === $targetPlotFullId
+                    && $this->pendingRestoreToken !== ''
+                    && $this->approvedRestoreToken !== '') {
+                    RecordStateGuard::assertToken(
+                        $this->pendingRestoreToken,
+                        $scope,
+                        $state,
+                        '小樣方流水號',
+                        '待還原資料已變更，請重新儲存後再試。'
+                    );
+                    RecordStateGuard::assertToken(
+                        $this->approvedRestoreToken,
+                        'entry-restore-approval:'.$this->thisPlot.':'.$targetPlotFullId,
+                        $state,
+                        '小樣方流水號',
+                        '待還原資料已變更，請重新儲存後再試。'
+                    );
+                } else {
+                    $this->pendingRestorePlotFullId = $targetPlotFullId;
+                    $this->pendingRestoreToken = RecordStateGuard::token($scope, $state);
+                    $this->approvedRestoreToken = '';
+                    $this->preparePairedUnderstoryRestore($form);
+
+                    return false;
+                }
+            } else {
+                $this->addError('小樣方流水號', '小樣方流水號重複。');
 
                 return false;
             }
+        }
 
-            $this->addError('小樣方流水號', '小樣方流水號重複。');
+        if ($authorizedSubPlot
+            && HabitatCode::isWood((string) $authorizedSubPlot->habitat_code)
+            && ! HabitatCode::isWood((string) $form['habitat_code'])) {
+            $oldUnderstoryId = (string) $form['plot']
+                .HabitatCode::understoryFor((string) $authorizedSubPlot->habitat_code)
+                .(string) $authorizedSubPlot->subplot_id;
+            $oldUnderstory = SubPlotEnv2025::where('plot_full_id', $oldUnderstoryId)->first();
 
-            return false;
+            if ($oldUnderstory) {
+                $plants = SubPlotPlant2025::where('plot_full_id', $oldUnderstoryId)
+                    ->orderBy('id')
+                    ->get();
+                $state = $this->pairedSubPlotState($oldUnderstory, $plants);
+                $scope = 'entry-pair-removal:'.$this->thisPlot.':'.$oldUnderstoryId;
+
+                if ($this->pendingPairRemovalPlotFullId === $oldUnderstoryId
+                    && $this->pendingPairRemovalToken !== ''
+                    && $this->approvedPairRemovalToken !== '') {
+                    RecordStateGuard::assertToken(
+                        $this->pendingPairRemovalToken,
+                        $scope,
+                        $state,
+                        '小樣方流水號',
+                        '待刪除的配對地被資料已變更，請重新儲存後再試。'
+                    );
+                    RecordStateGuard::assertToken(
+                        $this->approvedPairRemovalToken,
+                        'entry-pair-removal-approval:'.$this->thisPlot.':'.$oldUnderstoryId,
+                        $state,
+                        '小樣方流水號',
+                        '待刪除的配對地被資料已變更，請重新儲存後再試。'
+                    );
+                } else {
+                    $this->pendingPairRemovalPlotFullId = $oldUnderstoryId;
+                    $this->pendingPairRemovalToken = RecordStateGuard::token($scope, $state);
+                    $this->approvedPairRemovalToken = '';
+
+                    return false;
+                }
+            }
         }
 
         if (! HabitatCode::isWood((string) $form['habitat_code'])) {
+            $this->pendingUnderstoryRestorePlotFullId = '';
+            $this->pendingUnderstoryRestoreToken = '';
+            $this->approvedUnderstoryRestoreToken = '';
+
             return true;
         }
 
         $targetUnderstoryId = (string) $form['plot']
             .HabitatCode::understoryFor((string) $form['habitat_code'])
             .(string) $form['subplot_id'];
+        if ($this->pendingUnderstoryRestorePlotFullId !== ''
+            && $this->pendingUnderstoryRestorePlotFullId !== $targetUnderstoryId) {
+            $this->pendingUnderstoryRestorePlotFullId = '';
+            $this->pendingUnderstoryRestoreToken = '';
+            $this->approvedUnderstoryRestoreToken = '';
+        }
         $oldUnderstoryRecord = null;
 
         if ($authorizedSubPlot && HabitatCode::isWood((string) $authorizedSubPlot->habitat_code)) {
@@ -1161,9 +1439,58 @@ class EntryEntry extends Component
         $understoryConflict = SubPlotEnv2025::withTrashed()
             ->where('plot_full_id', $targetUnderstoryId)
             ->when($oldUnderstoryRecord, fn ($query) => $query->where('id', '!=', $oldUnderstoryRecord->id))
-            ->exists();
+            ->first();
 
         if ($understoryConflict) {
+            $canRestoreUnderstory = ! $authorizedSubPlot
+                || ! HabitatCode::isWood((string) $authorizedSubPlot->habitat_code);
+            if ($canRestoreUnderstory && $understoryConflict->trashed()) {
+                $batchId = (string) ($understoryConflict->deletion_batch_id ?? '');
+                if (! Str::isUuid($batchId)) {
+                    $this->addError(
+                        '小樣方流水號',
+                        "配對地被小樣方 {$targetUnderstoryId} 沒有刪除批次紀錄，無法安全自動還原。"
+                    );
+
+                    return false;
+                }
+
+                $plants = SubPlotPlant2025::onlyTrashed()
+                    ->where('plot_full_id', $targetUnderstoryId)
+                    ->where('deletion_batch_id', $batchId)
+                    ->orderBy('id')
+                    ->get();
+                $state = $this->deletedSubPlotState($understoryConflict, $plants);
+                $scope = 'entry-understory-restore:'.$this->thisPlot.':'.$targetUnderstoryId;
+
+                if ($this->pendingUnderstoryRestorePlotFullId === $targetUnderstoryId
+                    && $this->pendingUnderstoryRestoreToken !== ''
+                    && $this->approvedUnderstoryRestoreToken !== '') {
+                    RecordStateGuard::assertToken(
+                        $this->pendingUnderstoryRestoreToken,
+                        $scope,
+                        $state,
+                        '小樣方流水號',
+                        '待還原的配對地被資料已變更，請重新儲存後再試。'
+                    );
+                    RecordStateGuard::assertToken(
+                        $this->approvedUnderstoryRestoreToken,
+                        'entry-understory-approval:'.$this->thisPlot.':'.$targetUnderstoryId,
+                        $state,
+                        '小樣方流水號',
+                        '待還原的配對地被資料已變更，請重新儲存後再試。'
+                    );
+
+                    return true;
+                }
+
+                $this->pendingUnderstoryRestorePlotFullId = $targetUnderstoryId;
+                $this->pendingUnderstoryRestoreToken = RecordStateGuard::token($scope, $state);
+                $this->approvedUnderstoryRestoreToken = '';
+
+                return false;
+            }
+
             $this->addError(
                 '小樣方流水號',
                 "對應地被小樣方 {$targetUnderstoryId} 已存在，請更換流水號。"
@@ -1173,6 +1500,141 @@ class EntryEntry extends Component
         }
 
         return true;
+    }
+
+    private function preparePairedUnderstoryRestore(array $form): void
+    {
+        if (! HabitatCode::isWood((string) $form['habitat_code'])) {
+            return;
+        }
+
+        $plotFullId = (string) $form['plot']
+            .HabitatCode::understoryFor((string) $form['habitat_code'])
+            .(string) $form['subplot_id'];
+        $subPlot = SubPlotEnv2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('plot', $this->thisPlot)
+            ->first();
+
+        if (! $subPlot || ! Str::isUuid((string) $subPlot->deletion_batch_id)) {
+            return;
+        }
+
+        $plants = SubPlotPlant2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('deletion_batch_id', $subPlot->deletion_batch_id)
+            ->orderBy('id')
+            ->get();
+        $this->pendingUnderstoryRestorePlotFullId = $plotFullId;
+        $this->pendingUnderstoryRestoreToken = RecordStateGuard::token(
+            'entry-understory-restore:'.$this->thisPlot.':'.$plotFullId,
+            $this->deletedSubPlotState($subPlot, $plants)
+        );
+        $this->approvedUnderstoryRestoreToken = '';
+    }
+
+    private function softDeletePairBatch(string $plotFullId): int
+    {
+        [$subPlot, $plants] = $this->pairedSubPlotRecords($plotFullId, true);
+        $state = $this->pairedSubPlotState($subPlot, $plants);
+        RecordStateGuard::assertToken(
+            $this->pendingPairRemovalToken,
+            'entry-pair-removal:'.$this->thisPlot.':'.$plotFullId,
+            $state,
+            '小樣方流水號',
+            '待刪除的配對地被資料已變更，請重新儲存後再試。'
+        );
+        RecordStateGuard::assertToken(
+            $this->approvedPairRemovalToken,
+            'entry-pair-removal-approval:'.$this->thisPlot.':'.$plotFullId,
+            $state,
+            '小樣方流水號',
+            '待刪除的配對地被資料已變更，請重新儲存後再試。'
+        );
+
+        $batchId = (string) Str::uuid();
+        if ($plants->isNotEmpty()) {
+            SubPlotPlant2025::whereIn('id', $plants->pluck('id')->all())->update([
+                'deleted_by' => $this->creatorCode,
+                'deletion_batch_id' => $batchId,
+            ]);
+            SubPlotPlant2025::whereIn('id', $plants->pluck('id')->all())->delete();
+        }
+
+        $subPlot->deleted_by = $this->creatorCode;
+        $subPlot->deletion_batch_id = $batchId;
+        $subPlot->save();
+        $subPlot->delete();
+
+        FixLog::create([
+            'table_name' => 'im_splotdata_2025',
+            'record_id' => $subPlot->id,
+            'changes' => [
+                '_deleted_pair' => [
+                    'plot_full_id' => $plotFullId,
+                    'plant_count' => $plants->count(),
+                    'deletion_batch_id' => $batchId,
+                ],
+            ],
+            'modified_by' => $this->creatorCode,
+            'modified_at' => now(),
+        ]);
+
+        return $plants->count();
+    }
+
+    private function restorePendingUnderstoryBatch(string $plotFullId): int
+    {
+        $subPlot = SubPlotEnv2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('plot', $this->thisPlot)
+            ->lockForUpdate()
+            ->firstOrFail();
+        $batchId = (string) ($subPlot->deletion_batch_id ?? '');
+
+        if (! Str::isUuid($batchId)) {
+            throw ValidationException::withMessages([
+                '小樣方流水號' => '配對地被小樣方沒有刪除批次紀錄，無法安全自動還原。',
+            ]);
+        }
+
+        $plants = SubPlotPlant2025::onlyTrashed()
+            ->where('plot_full_id', $plotFullId)
+            ->where('deletion_batch_id', $batchId)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        RecordStateGuard::assertToken(
+            $this->pendingUnderstoryRestoreToken,
+            'entry-understory-restore:'.$this->thisPlot.':'.$plotFullId,
+            $this->deletedSubPlotState($subPlot, $plants),
+            '小樣方流水號',
+            '待還原的配對地被資料已變更，請重新儲存後再試。'
+        );
+        RecordStateGuard::assertToken(
+            $this->approvedUnderstoryRestoreToken,
+            'entry-understory-approval:'.$this->thisPlot.':'.$plotFullId,
+            $this->deletedSubPlotState($subPlot, $plants),
+            '小樣方流水號',
+            '待還原的配對地被資料已變更，請重新儲存後再試。'
+        );
+
+        if ($plants->isNotEmpty()) {
+            SubPlotPlant2025::onlyTrashed()
+                ->whereIn('id', $plants->pluck('id')->all())
+                ->where('deletion_batch_id', $batchId)
+                ->update([
+                    'deleted_at' => null,
+                    'deleted_by' => null,
+                    'deletion_batch_id' => null,
+                ]);
+        }
+
+        $subPlot->deleted_by = null;
+        $subPlot->deletion_batch_id = null;
+        $subPlot->restore();
+
+        return $plants->count();
     }
 
     private function addUnderstoryPlot($subPlotEnvForm)

@@ -206,7 +206,7 @@
                     <button type="button"
                         class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                         wire:click="deleteSubPlot"
-                        wire:confirm="確定要刪除小樣方 {{ $thisSubPlot }} 嗎？此操作會同時刪除小樣方環境資料及其所有植物調查資料。"
+                        wire:confirm="確定要刪除小樣方 {{ $thisSubPlot }} 嗎？此操作會同時刪除小樣方環境、所有植物調查資料，以及對應的主樣區／地被樣區資料。"
                         wire:loading.attr="disabled"
                         wire:target="deleteSubPlot">
                         <span wire:loading.remove wire:target="deleteSubPlot">刪除小樣方資料</span>
@@ -218,19 +218,67 @@
             @if ($pendingRestorePlotFullId !== '')
                 <div class="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900" role="alert">
                     <p class="font-semibold">小樣方 {{ $pendingRestorePlotFullId }} 曾被刪除。</p>
-                    <p class="mt-1 text-sm">是否還原小樣方環境資料及當次刪除的植物調查資料？先前個別刪除的植物不會還原。若不還原，請取消新增並修改小樣方編號。</p>
+                    <p class="mt-1 text-sm">
+                        是否還原原有小樣方{{ $pendingUnderstoryRestorePlotFullId !== '' ? '、配對地被' : '' }}及當次刪除的植物資料，並以本次填寫內容更新環境資料？
+                    </p>
                     <div class="mt-3 flex flex-wrap gap-2">
                         <button type="button" class="btn-submit"
                             wire:click="restoreDeletedSubPlot"
                             wire:loading.attr="disabled"
                             wire:target="restoreDeletedSubPlot">
-                            <span wire:loading.remove wire:target="restoreDeletedSubPlot">還原舊資料</span>
+                            <span wire:loading.remove wire:target="restoreDeletedSubPlot">還原並以本次資料更新</span>
                             <span wire:loading wire:target="restoreDeletedSubPlot">還原中...</span>
                         </button>
                         <button type="button"
                             class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200"
                             wire:click="cancelRestoreSubPlot">
                             取消新增
+                        </button>
+                    </div>
+                </div>
+            @endif
+
+            @if ($pendingUnderstoryRestorePlotFullId !== '' && $pendingRestorePlotFullId === '')
+                <div class="mt-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900" role="alert">
+                    <p class="font-semibold">配對地被小樣方 {{ $pendingUnderstoryRestorePlotFullId }} 曾被刪除。</p>
+                    <p class="mt-1 text-sm">
+                        儲存主小樣方時，是否一併還原此地被環境資料及當次刪除的植物調查資料？
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="btn-submit"
+                            wire:click="confirmUnderstoryRestore"
+                            wire:loading.attr="disabled"
+                            wire:target="confirmUnderstoryRestore">
+                            <span wire:loading.remove wire:target="confirmUnderstoryRestore">儲存並還原配對地被</span>
+                            <span wire:loading wire:target="confirmUnderstoryRestore">處理中...</span>
+                        </button>
+                        <button type="button"
+                            class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200"
+                            wire:click="cancelUnderstoryRestore">
+                            取消新增
+                        </button>
+                    </div>
+                </div>
+            @endif
+
+            @if ($pendingPairRemovalPlotFullId !== '')
+                <div class="mt-4 rounded border border-red-300 bg-red-50 px-4 py-3 text-red-900" role="alert">
+                    <p class="font-semibold">更改後將不再需要配對地被 {{ $pendingPairRemovalPlotFullId }}。</p>
+                    <p class="mt-1 text-sm">
+                        繼續後將軟刪除此地被環境資料及其所有植物調查資料。是否繼續？
+                    </p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="btn-submit"
+                            wire:click="confirmPairRemoval"
+                            wire:loading.attr="disabled"
+                            wire:target="confirmPairRemoval">
+                            <span wire:loading.remove wire:target="confirmPairRemoval">確認更改並刪除配對地被</span>
+                            <span wire:loading wire:target="confirmPairRemoval">處理中...</span>
+                        </button>
+                        <button type="button"
+                            class="rounded border border-gray-300 bg-gray-100 px-4 py-1 font-semibold text-gray-600 hover:bg-gray-200"
+                            wire:click="cancelPairRemoval">
+                            取消更改
                         </button>
                     </div>
                 </div>

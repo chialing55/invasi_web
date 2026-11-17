@@ -49,6 +49,31 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+
+        if ($user->status !== 'active') {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            $message = match ($user->status) {
+                'pending' => '帳號仍在等待資料管理員審核。',
+                'rejected' => '帳號申請未通過，請洽資料管理員。',
+                'suspended' => '帳號已停權，請洽資料管理員。',
+                default => '帳號目前無法使用，請洽資料管理員。',
+            };
+
+            throw ValidationException::withMessages(['email' => $message]);
+        }
+
+        if ($user->must_change_password && $user->temporary_password_expires_at?->isPast()) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => '臨時密碼已過期，請洽資料管理員重新產生。',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

@@ -2,15 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Notifications\CustomVerifyEmail;
-use App\Notifications\CustomResetPassword;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
@@ -26,11 +23,17 @@ class User extends Authenticatable implements MustVerifyEmail
         'organization',
         'title',
         'role',
+        'status',
         'password',
         'google_id',
         'google_email',
         'google_avatar',
         'deleted_by',
+        'approved_at',
+        'approved_by',
+        'rejected_reason',
+        'must_change_password',
+        'temporary_password_expires_at',
     ];
 
     /**
@@ -53,17 +56,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'approved_at' => 'datetime',
+            'must_change_password' => 'boolean',
+            'temporary_password_expires_at' => 'datetime',
         ];
     }
-
-    public function sendEmailVerificationNotification()
-    {
-        $this->notify(new CustomVerifyEmail);
-    }
-
-    public function sendPasswordResetNotification($token)
-    {
-        $this->notify(new CustomResetPassword($token));
-    }
-
 }

@@ -53,7 +53,7 @@
                         <label class="text-sm">
                             <input type="checkbox" name="remember" class="mr-2"> 記住我
                         </label>
-                        <a href="{{ route('password.request') }}" class="text-sm text-blue-600 hover:underline">忘記密碼？</a>
+                        <span class="text-sm text-gray-600">忘記密碼請洽資料管理員</span>
                     </div>
 
                     <button type="submit" class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">登入</button>

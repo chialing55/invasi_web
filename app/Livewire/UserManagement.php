@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -23,6 +23,9 @@ class UserManagement extends Component
     public string $organization = '';
     public string $title = '';
     public string $role = 'member';
+    public ?string $temporaryPassword = null;
+    public ?string $temporaryPasswordUser = null;
+    public ?string $temporaryPasswordExpiresAt = null;
 
     public array $organizations = [
         'NIU' => '宜蘭大學',
@@ -82,46 +85,93 @@ class UserManagement extends Component
             return;
         }
 
-        if ($user->role === 'admin' && $validated['role'] !== 'admin' && User::where('role', 'admin')->count() <= 1) {
+        if ($user->role === 'admin' && $validated['role'] !== 'admin'
+            && User::where('role', 'admin')->where('status', 'active')->count() <= 1) {
             $this->addError('role', '系統至少需要保留一位資料管理員。');
             return;
         }
 
-        $emailChanged = $user->email !== $validated['email'];
         $user->fill($validated);
-        if ($emailChanged) {
-            $user->email_verified_at = null;
-        }
         $user->save();
 
         $this->cancelEdit();
         session()->flash('userMessage', '使用者資料已更新。');
     }
 
-    public function deactivateUser(int $userId): void
+    public function approveUser(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+        $user->update([
+            'status' => 'active',
+            'approved_at' => now(),
+            'approved_by' => Auth::id(),
+            'rejected_reason' => null,
+        ]);
+
+        session()->flash('userMessage', "已核准 {$user->name} 的帳號。");
+    }
+
+    public function rejectUser(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+        $user->update(['status' => 'rejected']);
+        $this->revokeSessions($user);
+
+        session()->flash('userMessage', "已拒絕 {$user->name} 的帳號申請。");
+    }
+
+    public function suspendUser(int $userId): void
     {
         $user = User::findOrFail($userId);
 
         if ($user->is(Auth::user())) {
-            session()->flash('userError', '不能停用自己的帳號。');
+            session()->flash('userError', '不能停權自己的帳號。');
             return;
         }
 
-        if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
-            session()->flash('userError', '不能停用系統最後一位資料管理員。');
+        if ($this->isLastActiveAdmin($user)) {
+            session()->flash('userError', '不能停權系統最後一位有效的資料管理員。');
+            return;
+        }
+
+        $user->update(['status' => 'suspended']);
+        $this->revokeSessions($user);
+
+        $this->cancelEdit();
+        session()->flash('userMessage', "已停權 {$user->name} 的帳號。所有既有登入已撤銷。");
+    }
+
+    public function reactivateUser(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+        $user->update(['status' => 'active']);
+
+        session()->flash('userMessage', "已恢復 {$user->name} 的帳號。");
+    }
+
+    public function deleteUser(int $userId): void
+    {
+        $user = User::findOrFail($userId);
+
+        if ($user->is(Auth::user())) {
+            session()->flash('userError', '不能刪除自己的帳號。');
+            return;
+        }
+
+        if ($this->isLastActiveAdmin($user)) {
+            session()->flash('userError', '不能刪除系統最後一位有效的資料管理員。');
             return;
         }
 
         DB::transaction(function () use ($user) {
-            DB::table('sessions')->where('user_id', $user->id)->delete();
-            $user->remember_token = null;
+            $this->revokeSessions($user);
             $user->deleted_by = Auth::id();
             $user->save();
             $user->delete();
         });
 
         $this->cancelEdit();
-        session()->flash('userMessage', "已停用 {$user->name} 的帳號。所有既有登入已撤銷。");
+        session()->flash('userMessage', "已刪除 {$user->name} 的帳號；相關資料仍保留。");
     }
 
     public function restoreUser(int $userId): void
@@ -133,29 +183,32 @@ class UserManagement extends Component
         session()->flash('userMessage', "已還原 {$user->name} 的帳號。");
     }
 
-    public function sendPasswordReset(int $userId): void
+    public function generateTemporaryPassword(int $userId): void
     {
         $user = User::findOrFail($userId);
-        $status = Password::sendResetLink(['email' => $user->email]);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            session()->flash('userMessage', "已寄送密碼重設信給 {$user->email}。");
+        if ($user->is(Auth::user())) {
+            session()->flash('userError', '不能從使用者管理重設自己的密碼，請使用個人資料頁的修改密碼功能。');
             return;
         }
 
-        session()->flash('userError', '密碼重設信寄送失敗，請稍後再試。');
+        $password = Str::password(16);
+        $expiresAt = now()->addDay();
+
+        $user->password = $password;
+        $user->must_change_password = true;
+        $user->temporary_password_expires_at = $expiresAt;
+        $user->save();
+        $this->revokeSessions($user);
+
+        $this->temporaryPassword = $password;
+        $this->temporaryPasswordUser = $user->name;
+        $this->temporaryPasswordExpiresAt = $expiresAt->format('Y-m-d H:i');
     }
 
-    public function resendVerification(int $userId): void
+    public function dismissTemporaryPassword(): void
     {
-        $user = User::findOrFail($userId);
-        if ($user->hasVerifiedEmail()) {
-            session()->flash('userError', '此帳號已完成 Email 驗證。');
-            return;
-        }
-
-        $user->sendEmailVerificationNotification();
-        session()->flash('userMessage', "已重新寄送驗證信給 {$user->email}。");
+        $this->reset(['temporaryPassword', 'temporaryPasswordUser', 'temporaryPasswordExpiresAt']);
     }
 
     public function cancelEdit(): void
@@ -169,6 +222,7 @@ class UserManagement extends Component
     {
         $query = User::query()
             ->when($this->status === 'trashed', fn ($query) => $query->onlyTrashed())
+            ->when($this->status !== 'trashed', fn ($query) => $query->where('status', $this->status))
             ->when($this->search !== '', function ($query) {
                 $term = '%' . trim($this->search) . '%';
                 $query->where(function ($query) use ($term) {
@@ -183,5 +237,18 @@ class UserManagement extends Component
         return view('livewire.user-management', [
             'users' => $query->paginate(20),
         ]);
+    }
+
+    private function revokeSessions(User $user): void
+    {
+        DB::table('sessions')->where('user_id', $user->id)->delete();
+        $user->forceFill(['remember_token' => null])->save();
+    }
+
+    private function isLastActiveAdmin(User $user): bool
+    {
+        return $user->role === 'admin'
+            && $user->status === 'active'
+            && User::where('role', 'admin')->where('status', 'active')->count() <= 1;
     }
 }

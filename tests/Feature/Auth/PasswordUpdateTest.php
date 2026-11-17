@@ -20,15 +20,15 @@ class PasswordUpdateTest extends TestCase
             ->from('/profile')
             ->put('/password', [
                 'current_password' => 'password',
-                'password' => 'new-password',
-                'password_confirmation' => 'new-password',
+                'password' => 'NewPassword123!',
+                'password_confirmation' => 'NewPassword123!',
             ]);
 
         $response
             ->assertSessionHasNoErrors()
             ->assertRedirect('/profile');
 
-        $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+        $this->assertTrue(Hash::check('NewPassword123!', $user->refresh()->password));
     }
 
     public function test_correct_password_must_be_provided_to_update_password(): void
@@ -40,12 +40,31 @@ class PasswordUpdateTest extends TestCase
             ->from('/profile')
             ->put('/password', [
                 'current_password' => 'wrong-password',
-                'password' => 'new-password',
-                'password_confirmation' => 'new-password',
+                'password' => 'NewPassword123!',
+                'password_confirmation' => 'NewPassword123!',
             ]);
 
         $response
             ->assertSessionHasErrorsIn('updatePassword', 'current_password')
             ->assertRedirect('/profile');
+    }
+
+    public function test_temporary_password_user_can_set_new_password_and_is_logged_out(): void
+    {
+        $user = User::factory()->create([
+            'must_change_password' => true,
+            'temporary_password_expires_at' => now()->addDay(),
+        ]);
+
+        $response = $this->actingAs($user)->put('/password', [
+            'password' => 'NewPassword123!',
+            'password_confirmation' => 'NewPassword123!',
+        ]);
+
+        $response->assertSessionHasNoErrors()->assertRedirect(route('login'));
+        $this->assertGuest();
+        $this->assertFalse($user->refresh()->must_change_password);
+        $this->assertNull($user->temporary_password_expires_at);
+        $this->assertTrue(Hash::check('NewPassword123!', $user->password));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,7 +28,9 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'Password123!',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('verification.notice', absolute: false));
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
+        $response->assertSessionHas('status', '帳號申請已送出，請等待資料管理員審核。');
+        $this->assertSame('pending', User::where('email', 'test@example.com')->value('status'));
     }
 }

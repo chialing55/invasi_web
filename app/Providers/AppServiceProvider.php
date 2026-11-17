@@ -23,7 +23,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Gate::define('manage-users', fn (User $user) => $user->role === 'admin' && !$user->trashed());
+        Gate::define('manage-users', fn (User $user) => $user->role === 'admin'
+            && $user->status === 'active'
+            && ! $user->trashed());
 
         Blade::directive('navActive', function ($pattern) {
             return "<?php echo Route::is($pattern) ? 'bg-forest-mist text-forest font-bold' : ''; ?>";

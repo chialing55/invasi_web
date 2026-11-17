@@ -17,7 +17,8 @@
             <!-- 註冊表單 -->
             <div class="m-8">
             <h1>全國外來植物調查資料管理系統</h1>
-                <h2 class='text-center'>建立新帳號</h2>
+                <h2 class='text-center'>申請新帳號</h2>
+                <p class="mb-4 text-center text-sm text-gray-600">送出後須由資料管理員審核，核准後才能登入。</p>
 
                 @if ($errors->any())
                     <div class="mb-4 text-red-600 text-sm">
@@ -84,7 +85,7 @@
 
                     <button type="submit"
                         class="w-full bg-forest text-white py-2 px-4 rounded hover:bg-forest-bark transition">
-                        註冊
+                        送出申請
                     </button>
                 </form>
 

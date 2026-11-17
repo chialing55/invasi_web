@@ -29,7 +29,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('index')->with('login_success', '登入成功');
+        if ($request->user()->must_change_password) {
+            return redirect()->route('password.force.edit');
+        }
+
+        return redirect()->intended(route('index'))->with('login_success', '登入成功');
     }
 
     /**

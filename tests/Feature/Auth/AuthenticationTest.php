@@ -42,6 +42,51 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_pending_users_cannot_authenticate(): void
+    {
+        $user = User::factory()->create(['status' => 'pending']);
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertGuest();
+        $response->assertSessionHasErrors('email');
+    }
+
+    public function test_temporary_password_users_are_redirected_to_change_password(): void
+    {
+        $user = User::factory()->create([
+            'must_change_password' => true,
+            'temporary_password_expires_at' => now()->addDay(),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('password.force.edit', absolute: false));
+    }
+
+    public function test_expired_temporary_password_cannot_authenticate(): void
+    {
+        $user = User::factory()->create([
+            'must_change_password' => true,
+            'temporary_password_expires_at' => now()->subMinute(),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertGuest();
+        $response->assertSessionHasErrors('email');
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();

@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
@@ -57,13 +55,10 @@ class RegisteredUserController extends Controller
             'organization' => $request->organization,
             'title' => $request->title,
             'role' => 'member',
+            'status' => 'pending',
             'password' => Hash::make($request->password),
         ]);
 
-        event(new Registered($user));
-//自動登入
-        Auth::login($user);
-//導入信箱驗證頁面
-        return redirect()->intended(route('verification.notice'));
+        return redirect()->route('login')->with('status', '帳號申請已送出，請等待資料管理員審核。');
     }
 }

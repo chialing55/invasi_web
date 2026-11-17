@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // 前端以此一次性代碼判斷下載回應已開始；內容不含敏感資料。
         $middleware->encryptCookies(except: ['download_complete']);
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureAccountIsActive::class,
+            \App\Http\Middleware\EnsurePasswordIsNotTemporary::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

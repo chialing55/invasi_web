@@ -3,7 +3,6 @@
 use App\Http\Controllers\DataDownloadController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\GoogleBindingController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // 首頁（登入畫面 or dashboard）
@@ -17,22 +16,11 @@ Route::middleware(['auth'])->group(function () {
 
 Route::get('dashboard', function () {
     return redirect()->route('index'); // ✅ 正確：導向 index 頁面
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth'])->name('dashboard');
 
 require __DIR__.'/auth.php';
 
-Route::get('/email-verified', function () {
-    Auth::logout();
-    session()->flush();
-
-    return view('auth.email-verified');
-})->name('email.verified');
-
-// Route::middleware(['auth', 'verified'])->group(function () {
-//     Route::get('/docs', [HomeController::class, 'docs'])->name('index');
-// });
-
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::post('/downloads/data', [DataDownloadController::class, 'raw'])->name('downloads.data');
     Route::post('/downloads/stats', [DataDownloadController::class, 'stats'])->name('downloads.stats');
 
@@ -53,11 +41,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('/data/export', '/results/charts')->name('data.export');
 });
 
-Route::middleware(['auth', 'verified', 'can:manage-users'])->group(function () {
+Route::middleware(['auth', 'can:manage-users'])->group(function () {
     Route::view('/admin/users', 'page.user-management')->name('admin.users');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/files/plot/{plot}', [FileController::class, 'plot'])->name('file.plot');
     Route::get('/files/subplot-photo/{plotFullId}', [FileController::class, 'subplotPhoto'])->name('file.subplot-photo');
     Route::get('/files/document/{document}', [FileController::class, 'document'])->name('file.document');
